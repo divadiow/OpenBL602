@@ -44,13 +44,14 @@
 
 #include "lwip/netif.h"
 #include "lwip/udp.h"
+#include "netif/ethernet.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /** period (in seconds) of the application calling dhcp_coarse_tmr() */
-#define DHCP_COARSE_TIMER_SECS  5
+#define DHCP_COARSE_TIMER_SECS  60
 /** period (in milliseconds) of the application calling dhcp_coarse_tmr() */
 #define DHCP_COARSE_TIMER_MSECS (DHCP_COARSE_TIMER_SECS * 1000UL)
 /** period (in milliseconds) of the application calling dhcp_fine_tmr() */
@@ -113,7 +114,7 @@ void dhcp_release_and_stop(struct netif *netif);
 void dhcp_inform(struct netif *netif);
 void dhcp_network_changed(struct netif *netif);
 #if DHCP_DOES_ARP_CHECK
-void dhcp_arp_reply(struct netif *netif, const ip4_addr_t *addr);
+void dhcp_arp_reply(struct netif *netif, const ip4_addr_t *addr, const struct eth_addr *hwaddr);
 #endif
 u8_t dhcp_supplied_address(const struct netif *netif);
 /* to be called every minute */

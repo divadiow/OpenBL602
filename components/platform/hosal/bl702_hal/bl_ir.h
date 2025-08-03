@@ -1,49 +1,25 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #ifndef __BL_IR_H__
 #define __BL_IR_H__
-#include <stdint.h>
-uint32_t bl_receivedata(void);
-uint32_t bl_getbitcount(void);
-void bl_enable_rx_int(void);
-int bl_ir_init(int pin, int ctrltype);
-void bl_irmask(int mask);
 
-static inline int bl_ir_get_addr(unsigned int val)
-{
-    return (val & 0xFF);
-}
+#include "bl702_ir.h"
+#include "bl702_glb.h"
 
-static inline int bl_ir_get_cmd(unsigned int val)
-{
-    return ((val & 0xFF0000) >> 16);
-}
+void bl_ir_led_drv_cfg(uint8_t led0_en, uint8_t led1_en);
+
+// normal mode
+void bl_ir_custom_tx_cfg(IR_TxCfg_Type *txCfg, IR_TxPulseWidthCfg_Type *txPWCfg);
+void bl_ir_nec_tx_cfg(void);
+void bl_ir_rc5_tx_cfg(void);
+void bl_ir_nec_tx(uint32_t wdata);
+void bl_ir_rc5_tx(uint32_t wdata);
+
+// software mode
+void bl_ir_swm_tx_cfg(float freq_hz, float duty_cycle);
+// k: coefficient, default 1
+// data: number of carriers ranging from 1 to 16*k (should also be multiple of k)
+// len: number of data ranging from 1 to 64
+int bl_ir_swm_tx(uint8_t k, uint16_t data[], uint8_t len);
+int bl_ir_swm_tx_busy(void);
+void bl_ir_swm_tx_done_callback(void);
 
 #endif

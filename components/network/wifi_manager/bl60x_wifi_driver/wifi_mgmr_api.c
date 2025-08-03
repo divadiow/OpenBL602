@@ -1,32 +1,3 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <string.h>
 #include <stdio.h>
 
@@ -36,16 +7,21 @@
 #define MAX_SSID_LEN_CHECK 32
 #define MAX_PSK_LEN_CHECK 64
 
-static int wifi_mgmr_api_common(WIFI_MGMR_EVENT_T ev, void *data1, void *data2, uint8_t *data)
+static int wifi_mgmr_api_common(WIFI_MGMR_EVENT_T ev, void *data1, void *data2, uint8_t *data_in_heap)
 {
     wifi_mgmr_msg_t msg;
 
     msg.ev = ev;
     msg.data1 = data1;
     msg.data2 = data2;
-    msg.data = data;
+    msg.data = data_in_heap;
 
-    wifi_mgmr_event_notify(&msg, 0);
+    if (0 != wifi_mgmr_event_notify(&msg, 0)) {
+        if (data_in_heap) {
+            bl_os_free(data_in_heap);
+        }
+        return -1;
+    }
 
     return 0;
 }
@@ -81,7 +57,7 @@ int wifi_mgmr_api_connect(char *ssid, char *passphr, const ap_connect_adv_t *ext
         goto failed;
     } else if (sizeof(profile->psk) == profile->psk_len) {
         memcpy(profile->psk, ext_param->psk, profile->psk_len);
-    } else if (0 == profile->psk_len && profile->passphr_len) {
+    } else if (0 == profile->psk_len && profile->passphr_len && profile->passphr_len >= 8) {
         // Put PSK calculation here, Otherwise it will influence FW Response performance
         if (wifi_mgmr_psk_cal(profile->passphr, profile->ssid, profile->ssid_len, profile->psk)){
             return -1;
@@ -123,9 +99,9 @@ int wifi_mgmr_api_connect(char *ssid, char *passphr, const ap_connect_adv_t *ext
 failed:
     if (profile) {
         bl_os_printf("%s malloc profile failed!\r\n", __FUNCTION__);
+        bl_os_free(profile);
     } else {
         bl_os_printf("%s send profile failed!\r\n", __FUNCTION__);
-        bl_os_free(profile);
     }
     return -1;
 }
@@ -273,7 +249,7 @@ int wifi_mgmr_api_ap_start(char *ssid, char *passwd, int channel, uint8_t hidden
     ap = (wifi_mgmr_ap_msg_t *)bl_os_zalloc(sizeof(wifi_mgmr_ap_msg_t));
     if (!ap) {
         bl_os_printf("%s malloc ap failed!\r\n", __FUNCTION__);
-        return -1;
+        goto failed;
     }
 
     ap->ssid_len = ssid_len;
@@ -281,7 +257,7 @@ int wifi_mgmr_api_ap_start(char *ssid, char *passwd, int channel, uint8_t hidden
     if (psk_len) {
         // Put PSK calculation here, Otherwise it will influence FW Response performance
         if (wifi_mgmr_psk_cal(passwd, ssid, ssid_len, ap->psk)) {
-            return -1;
+            goto failed;
         }
         ap->psk_len = sizeof(ap->psk);
     }
@@ -296,11 +272,28 @@ int wifi_mgmr_api_ap_start(char *ssid, char *passwd, int channel, uint8_t hidden
         (void*)0x2,
         (void*)ap
     );
+
+failed:
+    if (ap) {
+        bl_os_printf("%s malloc ap failed!\r\n", __FUNCTION__);
+        bl_os_free(ap);
+    } else {
+        bl_os_printf("%s send ap failed!\r\n", __FUNCTION__);
+    }
+    return -1;
 }
 
 int wifi_mgmr_api_ap_stop(void)
 {
     return wifi_mgmr_api_common_msg(WIFI_MGMR_EVENT_APP_AP_STOP, (void*)0x1, (void*)0x2);
+}
+
+int wifi_mgmr_api_chan_switch(int channel, uint8_t cs_count)
+{
+    if (cs_count == 0) {
+        cs_count = WIFI_MGMR_AP_CHAN_SWITCH_COUNT_DEFAULT;
+    }
+    return wifi_mgmr_api_common_msg(WIFI_MGMR_EVENT_APP_AP_CHAN_SWITCH, (void *)(intptr_t)channel, (void *)(uintptr_t)cs_count);
 }
 
 int wifi_mgmr_api_idle(void)
@@ -347,8 +340,6 @@ int wifi_mgmr_api_raw_send(uint8_t *pkt, int len)
 
 int wifi_mgmr_api_set_country_code(char *country_code)
 {
-    wifi_mgmr_set_country_code_internal(country_code);
-
-    return 0;
+    return wifi_mgmr_set_country_code_internal(country_code);
 }
 

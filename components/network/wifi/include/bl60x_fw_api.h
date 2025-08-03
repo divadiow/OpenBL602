@@ -1,32 +1,3 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #ifndef __BL60x_FW_API_H__
 #define __BL60x_FW_API_H__
 
@@ -232,6 +203,8 @@ typedef enum wifi_fw_event_id
     MM_SET_PS_OPTIONS_CFM,
     /// Indication of PS state change for a P2P VIF
     MM_P2P_VIF_PS_CHANGE_IND,
+    /// Indication that CSA counter has been updated
+    MM_CSA_COUNTER_IND,
     /// Message containing channel information
     MM_CHANNEL_SURVEY_IND,
     /// Message containing Beamformer information
@@ -248,6 +221,10 @@ typedef enum wifi_fw_event_id
     MM_P2P_NOA_UPD_IND,
     /// Indication that RSSI is below or above the threshold
     MM_RSSI_STATUS_IND,
+    /// Indication that CSA is done
+    MM_CSA_FINISH_IND,
+    /// Indication that CSA is in prorgess (resp. done) and traffic must be stopped (resp. restarted)
+    MM_CSA_TRAFFIC_IND,
     /// Request to update the group information of a station
     MM_MU_GROUP_UPDATE_REQ,
     /// Confirmation of the @ref MM_MU_GROUP_UPDATE_REQ message
@@ -298,7 +275,7 @@ typedef enum wifi_fw_event_id
     /*
      * Section of internal SCAN messages. No SCAN API messages should be defined below this point
      */
-    SCAN_TIMER,
+    SCAN_PROBE_TIMER,
 
     /// MAX number of messages
     SCAN_MAX,
@@ -325,6 +302,10 @@ typedef enum wifi_fw_event_id
     APM_CONF_MAX_STA_REQ,
     /// CONF MAX STA Confirm
     APM_CONF_MAX_STA_CFM,
+    /// Channel switch Request
+    APM_CHAN_SWITCH_REQ,
+    /// Channel switch Confirm
+    APM_CHAN_SWITCH_CFM,
     /// MAX number of messages
     APM_MAX,
 
@@ -417,6 +398,12 @@ typedef enum wifi_fw_event_id
     SM_CONNECT_ABORT_CFM,
     /// Timeout message for requiring a SA Query Response from AP
     SM_SA_QUERY_TIMEOUT_IND,
+    /// Indicates add AP info
+    SM_STA_ADD_IND,
+    /// Request for send pending auth or assoc
+    SM_CONNECT_AUTH_ASSOC_REQ,
+    /// Request for auth_start
+    SM_CONNECT_AUTH_START,
     /// MAX number of messages
     SM_MAX,
 } ke_msg_id_t;
@@ -519,10 +506,17 @@ enum task_mm_cfg {
     TASK_MM_CFG_KEEP_ALIVE_STATUS_ENABLED,
     TASK_MM_CFG_KEEP_ALIVE_TIME_LAST_RECEIVED,
     TASK_MM_CFG_KEEP_ALIVE_PACKET_COUNTER,
+    TASK_MM_CFG_ACCEPT_ALL_BEACON_FOR_STA,
+    TASK_MM_CFG_ACCEPT_ALL_BEACON_FOR_AP,
+    TASK_MM_CFG_BEACON_TIMEOUT,
+    TASK_MM_CFG_PSM_TBTT_PRE,
+    TASK_MM_CFG_PS_TX_TIMEOUT,
 };
 
 enum task_sm_cfg {
     TASK_SM_CFG_AUTH_ASSOC_RETRY_LIMIT,
+    TASK_SM_CFG_RECONNECT_TRIGGER_FLAG,
+    TASK_SM_CFG_AUTH_START_DELAY,
 };
 
 enum task_scan_cfg {

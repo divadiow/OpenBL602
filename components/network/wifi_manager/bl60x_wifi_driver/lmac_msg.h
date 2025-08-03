@@ -1,32 +1,11 @@
 
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
+/**
+ ****************************************************************************************
  *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
+ * @file lmac_msg.h
+ * Copyright (C) Bouffalo Lab 2016-2018
  *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ****************************************************************************************
  */
 
 
@@ -573,6 +552,7 @@ struct mm_tim_update_req
     u8_l inst_nbr;
 };
 
+
 /// Structure containing the parameters of the @ref MM_REMAIN_ON_CHANNEL_REQ message.
 struct mm_remain_on_channel_req
 {
@@ -580,20 +560,10 @@ struct mm_remain_on_channel_req
     u8_l op_code;
     /// VIF Index
     u8_l vif_index;
-    /// Band (2.4GHz or 5GHz)
-    u8_l band;
-    /// Channel type: 20,40,80,160 or 80+80 MHz
-    u8_l type;
-    /// Frequency for Primary 20MHz channel (in MHz)
-    u16_l prim20_freq;
-    /// Frequency for Center of the contiguous channel or center of Primary 80+80
-    u16_l center1_freq;
-    /// Frequency for Center of the non-contiguous secondary 80+80
-    u16_l center2_freq;
-    /// Duration (in ms)
+    /// Duration
     u32_l duration_ms;
-    /// TX power (in dBm)
-    s8_l tx_power;
+    /// Parameters of the channel
+    struct mm_chan_ctxt_add_req channel;
 };
 
 /// Structure containing the parameters of the @ref MM_REMAIN_ON_CHANNEL_CFM message
@@ -1162,6 +1132,17 @@ struct sm_disconnect_ind
     struct sm_tlv_list connect_diagnose;
 };
 
+/// Structure containing the parameters of the @ref SM_STA_ADD_IND message.
+struct sm_sta_add_ind
+{
+    /// Index of the VIF for which the association process is complete
+    uint8_t vif_idx;
+    /// Index of the STA entry allocated for the AP
+    uint8_t ap_idx;
+    /// Flag indicating if the AP is supporting QoS
+    bool qos;
+};
+
 /// Structure containing the parameters of the @ref SM_CONNECT_ABORT_REQ message.
 struct sm_connect_abort_req
 {
@@ -1330,6 +1311,19 @@ struct apm_sta_del_cfm
     u8_l vif_idx;
     /// Index of the sta in AP mode
     u8_l sta_idx;
+};
+
+/// Structure containing the parameters of the @ref APM_CHAN_SWITCH_REQ message.
+struct apm_chan_switch_req
+{
+    /// Index of the AP VIF
+    u8_l vif_idx;
+    /// Mode
+    u8_l mode;
+    /// Control channel to which we have to switch
+    struct scan_chan_tag chan;
+    /// CSA count
+    u8_l cs_count;
 };
 
 /// Structure containing the parameters of the @ref APM_STA_ADD_IND message.

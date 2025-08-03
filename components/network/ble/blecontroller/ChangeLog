@@ -1,0 +1,39 @@
+# Changes
+## 2024-12-24
+1.[bl602][bl702]Fix the issue that blecontroller reports HCI_NB_CMP_PKTS_EVT_CODE event with wrong value of Num_Completed_Packets if there are pending acl packets that are not sent out while le link is disconnected.
+
+## 2024-11-19
+1.[bl702]Add blecontroller_702_m0s1t10 library.
+
+## 2024-10-10
+1.[bl602][bl702]Fix the issue that blecontroller doesn't respond hci commands which are not supported.
+
+## 2024-09-27
+1.[bl702]Fix the crash issue happens when set tx power from host.
+
+## 2024-09-06
+1.[bl702]Fix the issue that advertising event cannot be scheduled normally on some chips.
+
+## 2024-08-15
+1.[BL702]Support ble low power with RC32K.
+
+## 2024-05-21
+1.[BL602][BL702]Fix the issue that it fails to allocate tx buffer in the new connection, because the previous allocated buffers are not released in the case that previous ble link is disconnected while the data is not sent out.
+
+## 2024-04-28
+1.[BL702]Fix slave's assert issue caused by that slave's remote procedure state is updated unexpectly when its llcp_phy_req is rejected by master.
+
+## 2023-07-25
+1.[BL702]Fix a ble/zb coex issue that causes ble link loss.
+
+## 2023-06-29
+1.[BL602]Add blecontroller_602_m8s1 library.
+
+## 2023-04-19
+1.[BL702]BL602]Fixed the crash problem when the code calls ble_stack_start after restarting by calling the hal_sys_reset function.
+
+## 2023-04-19
+1.[BL702][BL602]Add API to get ble tx power.
+
+## 2023-04-18
+1.[BL702][BL602]Fix a potential issue that ble controller may hit assert when enable/disable ble scan periodically.

@@ -18,6 +18,10 @@
 #include <libfdt.h>
 #include <vfs_register.h>
 
+#ifdef SYS_ENABLE_COREDUMP
+#include <bl_coredump.h>
+#endif
+
 typedef struct vfs_uart_dev {
 	hosal_uart_dev_t uart;
     void         *rx_ringbuf_handle;
@@ -29,7 +33,7 @@ typedef struct vfs_uart_dev {
     void         *fd;
     void         *poll_data;
     void         *taskhdl;
-    uint8_t      read_block_flag;
+    uint8_t      flags;
     void         *priv;
 } vfs_uart_dev_t;
 
@@ -45,14 +49,59 @@ const struct file_ops uart_ops =
     .sync = vfs_uart_sync,
 };
 
+hosal_uart_dev_t *g_vfs_uart = NULL;
+
+#if defined(BL702L)
+#define CFG_VFS_UART_DMA_ENABLE
+
+extern int hosal_uart_dma_rx_init(hosal_uart_dev_t *uart);
+extern int hosal_uart_dma_rx_start(hosal_uart_dev_t *uart);
+extern int hosal_uart_dma_rx_get_data(hosal_uart_dev_t *uart, uint8_t *buf, uint32_t buf_size);
+
+void vfs_uart_restore(void)
+{
+    //hosal_dma_finalize();
+
+    hosal_uart_init(g_vfs_uart);
+    hosal_uart_dma_rx_init(g_vfs_uart);
+    hosal_uart_dma_rx_start(g_vfs_uart);
+}
+#endif
+
 static int __uart_rx_irq(void *p_arg)
 {
+#if defined(CFG_VFS_UART_DMA_ENABLE)
+    uint8_t tmp_buf[256];
+#else
     uint8_t tmp_buf[64];
+#endif
     int length = 0;
     vfs_uart_dev_t *uart = (vfs_uart_dev_t *)p_arg;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
+#if defined(CFG_VFS_UART_DMA_ENABLE)
+    length = hosal_uart_dma_rx_get_data(&uart->uart, tmp_buf, sizeof(tmp_buf));
+    hosal_uart_dma_rx_start(&uart->uart);
+#else
     length = hosal_uart_receive(&uart->uart, tmp_buf, sizeof(tmp_buf));
+#endif
+
+#ifdef SYS_ENABLE_COREDUMP
+    if (uart->flags & UART_FLAGS_FORCE_PANIC) {
+      int idx;
+      for (idx = 0; idx < length; idx++) {
+        if (tmp_buf[idx] == '@') {
+          /* Trigger panic */
+          /* For stack check */
+          extern uintptr_t _sp_main;
+          /* XXX change sp to irq stack base */
+          __asm__ volatile("add sp, x0, %0" ::"r"(&_sp_main));
+          bl_coredump_run();
+        }
+      }
+    }
+#endif
+
     if (length > 0) {
         xStreamBufferSendFromISR(uart->rx_ringbuf_handle, tmp_buf,
                 length, &xHigherPriorityTaskWoken);
@@ -95,6 +144,7 @@ int vfs_uart_open(inode_t *inode, file_t *fp)
         if (fp->node->refs == 1) {
             /* get the device pointer. */
             uart_dev = (vfs_uart_dev_t *)(fp->node->i_arg);
+            g_vfs_uart = &uart_dev->uart;
 
             aos_mutex_new((aos_mutex_t*)&(uart_dev->mutex));
             uart_dev->rx_ringbuf_handle = xStreamBufferCreate(uart_dev->rx_buf_size, 1);
@@ -109,6 +159,11 @@ int vfs_uart_open(inode_t *inode, file_t *fp)
             hosal_uart_callback_set(&uart_dev->uart, HOSAL_UART_RX_CALLBACK,
             		__uart_rx_irq, uart_dev);
             hosal_uart_ioctl(&uart_dev->uart, HOSAL_UART_MODE_SET, (void *)HOSAL_UART_MODE_INT);
+
+#if defined(CFG_VFS_UART_DMA_ENABLE)
+            hosal_uart_dma_rx_init(&uart_dev->uart);
+            hosal_uart_dma_rx_start(&uart_dev->uart);
+#endif
         }
         ret = VFS_SUCCESS;
     } else {
@@ -179,7 +234,7 @@ ssize_t vfs_uart_read(file_t *fp, void *buf, size_t nbytes)
             ret = 0;
 
             /* block */
-            timeout = (UART_READ_CFG_BLOCK == uart_dev->read_block_flag) ? AOS_WAIT_FOREVER : 0;
+            timeout = (UART_FLAGS_READ_BLOCK & uart_dev->flags) ? AOS_WAIT_FOREVER : 0;
 
             while (1) {
                 ret += xStreamBufferReceive(uart_dev->rx_ringbuf_handle,
@@ -369,12 +424,12 @@ int vfs_uart_ioctl(file_t *fp, int cmd, unsigned long arg)
         break;
         case IOCTL_UART_IOC_READ_BLOCK:
         {
-            uart_dev->read_block_flag = UART_READ_CFG_BLOCK;
+            uart_dev->flags |= UART_FLAGS_READ_BLOCK;
         }
         break;
         case IOCTL_UART_IOC_READ_NOBLOCK:
         {
-            uart_dev->read_block_flag = UART_READ_CFG_NOBLOCK;
+            uart_dev->flags &= ~UART_FLAGS_READ_BLOCK;
         }
         break;
         case IOCTL_UART_IOC_STOPBITS_SET:
@@ -400,6 +455,17 @@ int vfs_uart_ioctl(file_t *fp, int cmd, unsigned long arg)
             hosal_uart_ioctl(&uart_dev->uart, HOSAL_UART_DATA_WIDTH_SET, (void *)arg);
         }
         break;
+#ifdef SYS_ENABLE_COREDUMP
+        case IOCTL_UART_IOC_FORCE_PANIC:
+        {
+            if (arg) {
+              uart_dev->flags |= UART_FLAGS_FORCE_PANIC;
+            } else {
+              uart_dev->flags &= ~UART_FLAGS_FORCE_PANIC;
+            }
+        }
+        break;
+#endif
         default:
         {
             ret =  -EINVAL;

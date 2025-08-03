@@ -1,32 +1,3 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <stdio.h>
 #include <string.h>
 
@@ -224,7 +195,25 @@ int bl_main_disconnect()
 
 int bl_main_powersaving(int mode)
 {
-    return bl_send_mm_powersaving_req(&wifi_hw, mode);
+    int ret;
+
+    ret = bl_send_mm_powersaving_req(&wifi_hw, mode);
+    if (ret) {
+        return ret;
+    }
+
+    wifi_hw.vif_table[BL_VIF_STA].sta_ps = mode;
+    return ret;
+}
+
+int bl_main_powersaving_get(void)
+{
+    return wifi_hw.vif_table[BL_VIF_STA].sta_ps;
+}
+
+int bl_main_sta_is_connected(void)
+{
+    return (wifi_hw.vif_table[BL_VIF_STA].links_num > 0);
 }
 
 int bl_main_denoise(int mode)
@@ -290,7 +279,10 @@ int bl_main_beacon_interval_set(uint16_t beacon_int)
 int bl_main_if_remove(uint8_t vif_index)
 {
     bl_os_printf("[WF] MM_REMOVE_IF_REQ Sending with vif_index %u...\r\n", vif_index);
-    bl_send_remove_if(&wifi_hw, vif_index);
+    bl_send_remove_if(&wifi_hw, wifi_hw.vif_table[vif_index].vif_idx);
+
+    /* TODO: Dont care wifi_hw.vifs */
+    memset(&wifi_hw.vif_table[vif_index], 0, sizeof(struct bl_vif));
     bl_os_printf("[WF] MM_REMOVE_IF_REQ Done\r\n");
     return 0;
 }
@@ -309,9 +301,7 @@ int bl_main_set_country_code(char *country_code)
 {
     bl_os_log_info("%s: country code: %s\r\n", __func__, country_code);
     bl_msg_update_channel_cfg((const char *)country_code);
-    bl_send_me_chan_config_req(&wifi_hw);
-
-    return 0;
+    return bl_send_me_chan_config_req(&wifi_hw);
 }
 
 int bl_main_get_channel_nums()
@@ -322,7 +312,7 @@ int bl_main_get_channel_nums()
 int bl_main_if_add(int is_sta, struct netif *netif, uint8_t *vif_index)
 {
     struct mm_add_if_cfm add_if_cfm;
-    int error = 0;
+    int error, vif_id;
 
     bl_os_printf("[WF] MM_ADD_IF_REQ Sending: %s\r\n", is_sta ? "STA" : "AP");
     error = bl_send_add_if(
@@ -341,45 +331,58 @@ int bl_main_if_add(int is_sta, struct netif *netif, uint8_t *vif_index)
         RWNX_PRINT_CFM_ERR(add_if);
         return -EIO;
     }
-    /* Save the index retrieved from LMAC */
-    if (is_sta) {
-        wifi_hw.vif_index_sta = add_if_cfm.inst_nbr;
-    } else {
-        wifi_hw.vif_index_ap = add_if_cfm.inst_nbr;
-    }
-    *vif_index = add_if_cfm.inst_nbr;
 
-    bl_os_printf("[WF] vif_index from LAMC is %d\r\n", *vif_index);
-    wifi_hw.vif_table[add_if_cfm.inst_nbr].dev = netif;
-    wifi_hw.vif_table[add_if_cfm.inst_nbr].up = 1;
+    /* Save the index retrieved from LMAC */
+    /* TODO: Dont care wifi_hw.vifs */
+    vif_id = (is_sta) ? (BL_VIF_STA) : (BL_VIF_AP);
+    wifi_hw.vif_table[vif_id].vif_idx   = add_if_cfm.inst_nbr;
+    wifi_hw.vif_table[vif_id].dev       = netif;
+    wifi_hw.vif_table[vif_id].up        = 1;
+    wifi_hw.vif_table[vif_id].links_num = 0;
+
+    *vif_index = vif_id;
+    bl_os_printf("[WF] vif_index from LAMC is %d, vif_id: %d\r\n", add_if_cfm.inst_nbr, vif_id);
 
     return error;
 }
 
-int bl_main_apm_start(char *ssid, char *password, int channel, uint8_t vif_index, uint8_t hidden_ssid, uint16_t bcn_int)
+int bl_main_apm_start(char *ssid, char *password, int channel, uint8_t hidden_ssid, uint16_t bcn_int)
 {
     int error = 0;
+    struct bl_vif *vif;
+    struct bl_sta *sta;
     struct apm_start_cfm start_ap_cfm;
 
     memset(&start_ap_cfm, 0, sizeof(start_ap_cfm));
-    bl_os_printf("[WF] APM_START_REQ Sending with vif_index %u\r\n", vif_index);
-    error = bl_send_apm_start_req(&wifi_hw, &start_ap_cfm, ssid, password, channel, vif_index, hidden_ssid, bcn_int);
+    vif = &(wifi_hw.vif_table[BL_VIF_AP]);
+
+    bl_os_printf("[WF] APM_START_REQ Sending with vif_index %u\r\n", BL_VIF_AP);
+    error = bl_send_apm_start_req(&wifi_hw, &start_ap_cfm, ssid, password, channel, vif->vif_idx, hidden_ssid, bcn_int);
     bl_os_printf("[WF] APM_START_REQ Done\r\n");
     bl_os_printf("[WF] status is %02X\r\n", start_ap_cfm.status);
-    bl_os_printf("[WF] vif_idx is %02X\r\n", start_ap_cfm.vif_idx);
+    bl_os_printf("[WF] vif_idx is %02X\r\n", BL_VIF_AP);
     bl_os_printf("[WF] ch_idx is %02X\r\n", start_ap_cfm.ch_idx);
     bl_os_printf("[WF] bcmc_idx is %02X\r\n", start_ap_cfm.bcmc_idx);
-    wifi_hw.ap_bcmc_idx = start_ap_cfm.bcmc_idx;
+
+    /* Set some default value for bcmc_sta */
+    wifi_hw.vif_table[BL_VIF_AP].fixed_sta_idx = start_ap_cfm.bcmc_idx;
+    sta = &(wifi_hw.sta_table[start_ap_cfm.bcmc_idx]);
+    sta->vif_idx = BL_VIF_AP;
+    sta->sta_idx = start_ap_cfm.bcmc_idx;
+    sta->qos = 1;
 
     return error;
 }
 
-int bl_main_apm_stop(uint8_t vif_index)
+int bl_main_apm_stop(void)
 {
     int error = 0;
+    struct bl_vif *vif;
 
-    bl_os_printf("[WF] APM_STOP_REQ Sending with vif_index %u\r\n", vif_index);
-    error = bl_send_apm_stop_req(&wifi_hw, vif_index);
+    vif = &(wifi_hw.vif_table[BL_VIF_AP]);
+
+    bl_os_printf("[WF] APM_STOP_REQ Sending with vif_index %u\r\n", BL_VIF_AP);
+    error = bl_send_apm_stop_req(&wifi_hw, vif->vif_idx);
     bl_os_printf("[WF] APM_STOP_REQ Done\r\n");
 
     return error;
@@ -429,19 +432,19 @@ int bl_main_apm_sta_info_get(struct wifi_apm_sta_info *apm_sta_info, uint8_t idx
 int bl_main_apm_sta_delete(uint8_t sta_idx)
 {
     struct bl_hw *bl_hw = &wifi_hw;
+    struct bl_vif *vif;
     struct bl_sta *sta;
     struct apm_sta_del_cfm sta_del_cfm;
-    uint8_t vif_idx = 0;
 
     sta = &(bl_hw->sta_table[sta_idx]);
     if (sta == NULL)
         return -1;
 
     memset(&sta_del_cfm, 0, sizeof(struct apm_sta_del_cfm));
-    vif_idx = sta->vif_idx;
-    bl_os_printf("[WF] APM_STA_DEL_REQ: sta_idx = %u, vif_idx = %u\r\n", sta_idx, vif_idx);
+    vif = &bl_hw->vif_table[sta->vif_idx];
+    bl_os_printf("[WF] APM_STA_DEL_REQ: sta_idx = %u, vif_idx = %u\r\n", sta_idx, BL_VIF_AP);
 
-    bl_send_apm_sta_del_req(bl_hw, &sta_del_cfm, sta_idx, vif_idx);
+    bl_send_apm_sta_del_req(bl_hw, &sta_del_cfm, sta_idx, vif->vif_idx);
     if (sta_del_cfm.status != 0) {
         bl_os_log_info("del sta failure, cfm status = 0x%x\r\n", sta_del_cfm.status);
         return -1;
@@ -471,6 +474,14 @@ int bl_main_apm_remove_all_sta()
 int bl_main_conf_max_sta(uint8_t max_sta_supported)
 {
     return bl_send_apm_conf_max_sta_req(&wifi_hw, max_sta_supported);
+}
+
+int bl_main_apm_chan_switch(int channel, uint8_t cs_cnt)
+{
+    struct bl_vif *vif;
+    vif = &wifi_hw.vif_table[BL_VIF_AP];
+
+    return bl_send_apm_chan_switch_req(&wifi_hw, vif->vif_idx, channel, cs_cnt);
 }
 
 int bl_main_cfg_task_req(uint32_t ops, uint32_t task, uint32_t element, uint32_t type, void *arg1, void *arg2)
@@ -603,10 +614,14 @@ int bl_cfg80211_disconnect(struct bl_hw *bl_hw)
     return bl_send_sm_disconnect_req(bl_hw);
 }
 
-void bl_main_event_handle()
+void bl_main_event_handle(int param, struct ke_tx_fc *tx_fc_field)
 {
-    bl_irq_bottomhalf(&wifi_hw);
-    bl_tx_try_flush();
+    if (0 == param)
+    {
+        bl_irq_bottomhalf(&wifi_hw);
+    }
+
+    bl_tx_try_flush(param, tx_fc_field);
 }
 
 void bl_main_lowlevel_init()

@@ -1,32 +1,3 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <stdint.h>
 #include <stdio.h>
 
@@ -325,6 +296,7 @@ struct{
 	uint32_t mcause;
 	uint32_t mepc;
 	uint32_t mtval;
+	uint32_t ra;
 }rval[4];
 int rval_idx;
 #endif /* DBG_RECORD_EXCEP_VAL */
@@ -346,7 +318,7 @@ static void registerdump(unsigned int *regs)
 #define REG_A2              9
 #define REG_A3              10
 #define REG_A4              11
-#define REG_A5              13
+#define REG_A5              12
 #define REG_A6              13
 #define REG_A7              14
 #define REG_S2              15
@@ -391,6 +363,7 @@ void exception_entry(uint32_t mcause, uint32_t mepc, uint32_t mtval, uintptr_t *
 	rval[rval_idx&0x3].mcause = mcause;
 	rval[rval_idx&0x3].mepc = mepc;
 	rval[rval_idx&0x3].mtval = mtval;
+	rval[rval_idx&0x3].ra = (uint32_t)tasksp[REG_RA];
 	rval_idx++;
 #endif /* DBG_RECORD_EXCEP_VAL */
 	puts("Exception Entry--->>>\r\n");
@@ -399,6 +372,7 @@ void exception_entry(uint32_t mcause, uint32_t mepc, uint32_t mtval, uintptr_t *
 		mepc,
 		mtval
 	);
+#if !defined(CFG_USE_ROM_CODE)
     if ((mcause & 0x3ff) == EXCPT_LOAD_MISALIGNED){
         misaligned_load_trap(regs, mcause, mepc);
     } else if ((mcause & 0x3ff) == EXCPT_STORE_MISALIGNED){
@@ -419,6 +393,40 @@ void exception_entry(uint32_t mcause, uint32_t mepc, uint32_t mtval, uintptr_t *
             __asm__ volatile("add sp, x0, %0" ::"r"(&_sp_main));
             bl_coredump_run();
 #endif
+        }
+    }
+#else
+    __dump_exception_code_str(mcause & 0xFFFF);
+    while(1);
+#endif
+}
+
+void check_trap(uint32_t label_is_exception, uint32_t sp)
+{
+    uint32_t mcause;
+    uint32_t mepc;
+    uint32_t start_addr;
+    uint32_t end_addr;
+
+    /*check exception nest*/
+    mcause = read_csr(mcause);
+    if ((mcause >> 31) == 0) {
+        mepc = read_csr(mepc);
+        start_addr = (uint32_t)__builtin_return_address(0);
+        end_addr = label_is_exception;
+        if (mepc >= start_addr && mepc < end_addr) {
+            printf("Exception nested! mepc 0x%08lx\r\n", mepc);
+            while (1) {
+                /*dead loop now*/
+            }
+        }
+    }
+
+    /*check sp*/
+    if ((sp & 0x0FFFFFFF) < 0x02010000) {
+        printf("Invalid sp 0x%08lx\r\n", sp);
+        while (1) {
+            /*dead loop now*/
         }
     }
 }

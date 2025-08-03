@@ -40,7 +40,8 @@ namespace Url {
 otError Url::Init(char *aUrl)
 {
     otError error = OT_ERROR_NONE;
-    char *  url   = aUrl;
+    char   *url   = aUrl;
+    char   *psave;
 
     mEnd      = aUrl + strlen(aUrl);
     mProtocol = aUrl;
@@ -57,7 +58,8 @@ otError Url::Init(char *aUrl)
     {
         mQuery = ++url;
 
-        for (char *cur = strtok(url, "&"); cur != nullptr; cur = strtok(nullptr, "&"))
+        psave = nullptr;
+        for (char *cur = strtok_r(url, "&", &psave); cur != nullptr; cur = strtok_r(nullptr, "&", &psave))
         {
             cur[-1] = '\0';
         }
@@ -73,9 +75,9 @@ exit:
 
 const char *Url::GetValue(const char *aName, const char *aLastValue) const
 {
-    const char * rval = nullptr;
+    const char  *rval = nullptr;
     const size_t len  = strlen(aName);
-    const char * start;
+    const char  *start;
 
     if (aLastValue == nullptr)
     {
@@ -158,7 +160,7 @@ void TestEmptyValue(void)
 {
     char         url[] = "spinel:///dev/ttyUSB0?rtscts&baudrate=115200&verbose&verbose&verbose";
     ot::Url::Url args;
-    const char * arg = nullptr;
+    const char  *arg = nullptr;
 
     assert(!args.Init(url));
     assert(!strcmp(args.GetPath(), "/dev/ttyUSB0"));
@@ -188,7 +190,7 @@ void TestMultipleProtocolsAndDuplicateParameters(void)
 {
     char         url[] = "spinel+exec:///path/to/ot-rcp?arg=1&arg=arg2&arg=3";
     ot::Url::Url args;
-    const char * arg = nullptr;
+    const char  *arg = nullptr;
 
     assert(!args.Init(url));
     assert(!strcmp(args.GetPath(), "/path/to/ot-rcp"));

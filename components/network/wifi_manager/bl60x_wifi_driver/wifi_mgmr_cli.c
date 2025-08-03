@@ -1,37 +1,7 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <stdio.h>
 #include <string.h>
-#ifdef CONFIG_CLI_CMD_ENABLE
 #include <cli.h>
-#endif
+
 #include <bl_os_private.h>
 #include <bl_wifi.h>
 #include <hal_sys.h>
@@ -361,16 +331,29 @@ static void _scan_channels(int channel_input_num, uint8_t channel_input[MAX_FIXE
 
 }
 
+static int channel_cvt_validate(const char *chan)
+{
+    int ch;
+    if (!chan) {
+        return -1;
+    }
+
+    ch = atoi(chan);
+    if (ch <= 0 || ch > 11) {
+        return -1;
+    }
+    return ch;
+}
+
 static void wifi_scan_cmd(char *buf, int len, int argc, char **argv)
 {
     int opt;
     int  channel_input_num = 0;
     uint8_t channel_input[MAX_FIXED_CHANNELS_LIMIT];
     const char *ssid = NULL;
-    int bssid_set_flag = 0;
     uint8_t mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     getopt_env_t getopt_env;
-    /* 
+    /*
      * default: active scan
     */
     uint8_t scan_mode = SCAN_ACTIVE;
@@ -396,7 +379,6 @@ static void wifi_scan_cmd(char *buf, int len, int argc, char **argv)
             break;
             case 'b':
             {
-                bssid_set_flag = 1;
                 utils_parse_number(getopt_env.optarg, ':', mac, 6, 16);
                 bl_os_printf("bssid: %s, mac:%02X:%02X:%02X:%02X:%02X:%02X\r\n", getopt_env.optarg,
                          mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -522,7 +504,7 @@ static void wifi_sta_ip_set_cmd(char *buf, int len, int argc, char **argv)
     /* sample input
      *
      * cmd_ip_set 192.168.1.212 255.255.255.0 192.168.1.1 114.114.114.114 114.114.114.114
-     * 
+     *
      * */
     uint32_t ip, mask, gw, dns1, dns2;
     char addr_str[20];
@@ -591,7 +573,7 @@ static void wifi_connect_cmd(char *buf, int len, int argc, char **argv)
     open_bss_flag = 0;
     int pci_en = 0;
     int scan_mode = 0;
-    uint8_t pmf_flag = WIFI_MGMR_CONNECT_PMF_CAPABLE_BIT; 
+    uint8_t pmf_flag = WIFI_MGMR_CONNECT_PMF_CAPABLE_BIT;
     uint16_t itv = 0;
 
     if (2 > argc) {
@@ -616,7 +598,7 @@ static void wifi_connect_cmd(char *buf, int len, int argc, char **argv)
         case 'q':
             ++quick_connect;
             break;
-        
+
         case 't':
             itv = atoi(getopt_env.optarg);
             wifi_mgmr_set_listen_interval(itv);
@@ -849,9 +831,14 @@ static void wifi_power_saving_set(char *buf, int len, int argc, char **argv)
     ms = atoi(argv[1]);
     bl_os_printf("Setting wifi ps acitve to %d\r\n", ms);
 
-    if (ms > 0) {
-        wifi_mgmr_set_wifi_active_time(ms);
-    }
+    wifi_mgmr_set_wifi_active_time(ms);
+}
+
+static void wifi_power_saving_get(char *buf, int len, int argc, char **argv)
+{
+    bl_os_printf("Getting wifi ps param...\r\n");
+    int mode = wifi_mgmr_sta_ps_get();
+    bl_os_printf("wifi ps mode: %d\r\n", mode);
 }
 
 static void sniffer_cb(void *env, uint8_t *pkt, int len, struct bl_rx_info *info)
@@ -920,8 +907,7 @@ static void cmd_wifi_ap_start(char *buf, int len, int argc, char **argv)
             hidden_ssid = 1;
         }
 
-        channel = atoi(argv[1]);
-        if (channel <= 0 || channel > 11) {
+        if ((channel = channel_cvt_validate(argv[1])) < 0) {
             return;
         }
 
@@ -942,6 +928,28 @@ static void cmd_wifi_ap_stop(char *buf, int len, int argc, char **argv)
 {
     wifi_mgmr_ap_stop(NULL);
     bl_os_printf("--->>> cmd_wifi_ap_stop\r\n");
+}
+
+static void cmd_wifi_ap_chan_switch(char *buf, int len, int argc, char **argv)
+{
+    const size_t min_args = 2;
+    uint8_t cs_count = 0; // 0: default
+    int ch;
+
+    if (argc < min_args) {
+        bl_os_printf("Usage: %s chan [cs_count]\r\n", *argv);
+        return;
+    }
+
+    if ((ch = channel_cvt_validate(argv[1])) < 0) {
+        bl_os_printf("invalid channel\r\n");
+        return;
+    }
+    if (argc > min_args) {
+        cs_count = atoi(argv[2]);
+    }
+
+    wifi_mgmr_ap_chan_switch(NULL, ch, cs_count);
 }
 
 static void cmd_wifi_ap_conf_max_sta(char *buf, int len, int argc, char **argv)
@@ -1170,7 +1178,6 @@ static void cmd_wifi_power_table_update(char *buf, int len, int argc, char **arg
     bl_tpc_update_power_table(power_table_test);
 }
 
-#ifdef CONFIG_CLI_CMD_ENABLE
 // STATIC_CLI_CMD_ATTRIBUTE makes this(these) command(s) static
 const static struct cli_command cmds_user[] STATIC_CLI_CMD_ATTRIBUTE = {
         { "rf_dump", "rf dump", cmd_rf_dump},
@@ -1193,12 +1200,14 @@ const static struct cli_command cmds_user[] STATIC_CLI_CMD_ATTRIBUTE = {
         { "wifi_sta_ps_on", "wifi power saving mode ON", wifi_power_saving_on_cmd},
         { "wifi_sta_ps_off", "wifi power saving mode OFF", wifi_power_saving_off_cmd},
         { "wifi_sta_ps_set", "set wifi ps mode active time", wifi_power_saving_set},
+        { "wifi_sta_ps_get", "get wifi ps mode", wifi_power_saving_get},
         { "wifi_sta_denoise_enable", "wifi denoise", wifi_denoise_enable_cmd},
         { "wifi_sta_denoise_disable", "wifi denoise", wifi_denoise_disable_cmd},
         { "wifi_sniffer_on", "wifi sniffer mode on", wifi_sniffer_on_cmd},
         { "wifi_sniffer_off", "wifi sniffer mode off", wifi_sniffer_off_cmd},
         { "wifi_ap_start", "start Ap mode [channel] [max_sta_supported]", cmd_wifi_ap_start},
         { "wifi_ap_stop", "stop Ap mode", cmd_wifi_ap_stop},
+        { "wifi_ap_chan_switch", "switch AP channel", cmd_wifi_ap_chan_switch },
         { "wifi_ap_conf_max_sta", "config Ap max sta", cmd_wifi_ap_conf_max_sta},
         { "wifi_dump", "dump fw statistic", cmd_wifi_dump},
         { "wifi_cfg", "wifi cfg cmd", cmd_wifi_cfg},
@@ -1213,14 +1222,13 @@ const static struct cli_command cmds_user[] STATIC_CLI_CMD_ATTRIBUTE = {
         { "wifi_edca_dump", "dump EDCA data", wifi_edca_dump_cmd},
         { "wifi_state", "get wifi_state", cmd_wifi_state_get},
         { "wifi_update_power", "Power table test command", cmd_wifi_power_table_update},
-};   
-#endif                                                                                
+};
 
 int wifi_mgmr_cli_init(void)
 {
     // static command(s) do NOT need to call aos_cli_register_command(s) to register.
     // However, calling aos_cli_register_command(s) here is OK but is of no effect as cmds_user are included in cmds list.
     // XXX NOTE: Calling this *empty* function is necessary to make cmds_user in this file to be kept in the final link.
-    //return aos_cli_register_commands(cmds_user, sizeof(cmds_user)/sizeof(cmds_user[0]));          
+    //return aos_cli_register_commands(cmds_user, sizeof(cmds_user)/sizeof(cmds_user[0]));
     return 0;
 }

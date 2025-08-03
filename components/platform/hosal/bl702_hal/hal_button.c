@@ -1,32 +1,3 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <stdio.h>
 #include <fdt.h>
 #include <libfdt.h>
@@ -45,7 +16,7 @@
 #include "bl_irq.h"
 #include "hal_gpio.h"
 #include "hal_button.h"
-#include "hal_hbn.h"
+//#include "hal_hbn.h"
 
 /* scan time ms */
 #define BUTTON_SCAN_TIME    20
@@ -327,14 +298,14 @@ void fdt_button_module_init(const void *fdt, int button_offset)
     button_ctx_t stbutton;
 
     stgpio.arg = &stbutton;
-    uint8_t *pinbuf;
-    uint8_t pinbuf_size = 0;
+    //uint8_t *pinbuf;
+    //uint8_t pinbuf_size = 0;
 
-    pinbuf = pvPortMalloc(GPIO_MODULE_MAX);
-    if (!pinbuf) {
-        blog_error("mem error.\r\n");
-        return;
-    }
+    //pinbuf = pvPortMalloc(GPIO_MODULE_MAX);
+    //if (!pinbuf) {
+    //    blog_error("mem error.\r\n");
+    //    return;
+    //}
 
     for (i = 0; i < GPIO_MODULE_MAX; i++) {
         memset(gpio_node, 0, sizeof(gpio_node));
@@ -386,11 +357,11 @@ void fdt_button_module_init(const void *fdt, int button_offset)
         stgpio.gpioPin = BL_FDT32_TO_U32(addr_prop, 0);
         blog_info("i = %d, stgpio.gpioPin = %d\r\n", i, stgpio.gpioPin);
 
-        result = fdt_stringlist_get(fdt, offset1, "hbn_use", 0, &lentmp);
-        if ((lentmp == 4) && (memcmp("okay", result, 4) == 0)) {
-            blog_warn("gpio[%d] status = %s\r\n", i, result);
-            pinbuf[pinbuf_size++] = stgpio.gpioPin;
-        }
+        //result = fdt_stringlist_get(fdt, offset1, "hbn_use", 0, &lentmp);
+        //if ((lentmp == 4) && (memcmp("okay", result, 4) == 0)) {
+        //    blog_warn("gpio[%d] status = %s\r\n", i, result);
+        //    pinbuf[pinbuf_size++] = stgpio.gpioPin;
+        //}
 
         offset2 = fdt_subnode_offset(fdt, offset1, "button");
         if (0 >= offset2) {
@@ -499,7 +470,7 @@ void fdt_button_module_init(const void *fdt, int button_offset)
         hal_button_register_handler_with_dts(&stgpio);
     }
 
-    blog_buf(pinbuf, pinbuf_size);
-    hal_hbn_init(pinbuf, pinbuf_size);
-    vPortFree(pinbuf);
+    //blog_buf(pinbuf, pinbuf_size);
+    //hal_hbn_init(pinbuf, pinbuf_size);
+    //vPortFree(pinbuf);
 }

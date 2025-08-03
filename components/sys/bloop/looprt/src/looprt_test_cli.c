@@ -1,36 +1,6 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <stdio.h>
-#ifdef CONFIG_CLI_CMD_ENABLE
+
 #include <cli.h>
-#endif
 #include <bloop.h>
 #include <looprt.h>
 
@@ -77,7 +47,7 @@ void cmd_looprt_test_schedule_evt2(char *buf, int len, int argc, char **argv)
     puts("====== looprt Schedule EVT2 ======\r\n");
     looprt_evt_schedule(LOOP_TASK_PRIORITY_HIGHEST, LOOP_TASK_SYS_EVT_DUMP, 10000);
 }
-#ifdef CONFIG_CLI_CMD_ENABLE
+
 // STATIC_CLI_CMD_ATTRIBUTE makes this(these) command(s) static
 const static struct cli_command cmds_user[] STATIC_CLI_CMD_ATTRIBUTE = {
     { "looprt", "looprt based on bloop", cmd_looprt_test},
@@ -87,7 +57,7 @@ const static struct cli_command cmds_user[] STATIC_CLI_CMD_ATTRIBUTE = {
     { "looprt_schedule1", "looprt schedule evt 20s", cmd_looprt_test_schedule_evt1},
     { "looprt_schedule2", "looprt schedule evt 10s", cmd_looprt_test_schedule_evt2},
 };
-#endif
+
 int looprt_test_cli_init(void)
 {
     // static command(s) do NOT need to call aos_cli_register_command(s) to register.

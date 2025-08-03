@@ -153,6 +153,8 @@ enum sector_dirty_status {
     SECTOR_DIRTY_GC,
     SECTOR_DIRTY_STATUS_NUM,
 };
+/** If the value of SECTOR_DIRTY_STATUS_NUM is changed, 
+ * please evaluate size of status_table in del_env. */
 typedef enum sector_dirty_status sector_dirty_status_t;
 
 struct sector_hdr_data {
@@ -1090,15 +1092,25 @@ static EfErrCode del_env(const char *key, env_node_obj_t old_env, bool complete_
     uint32_t dirty_status_addr;
     static bool last_is_complete_del = false;
 
-#if (ENV_STATUS_TABLE_SIZE >= DIRTY_STATUS_TABLE_SIZE)
+//#if (ENV_STATUS_TABLE_SIZE >= DIRTY_STATUS_TABLE_SIZE)
+/**
+ * enum value is invalid to determine during preprocess phase.
+ * Previous implementation makes determination to be always true and makes build error if -Wundef and -Werror are enabled.
+ * Now hard-code it to #if 1.
+ * 
+ * Any change on ENV_STATUS_NUM or SECTOR_DIRTY_STATUS_NUM should re-evaluate the size of status_table.
+ * */
+#if 1
     uint8_t status_table[ENV_STATUS_TABLE_SIZE];
 #else
     uint8_t status_table[DIRTY_STATUS_TABLE_SIZE];
 #endif
 
+    struct env_node_obj env;
+
     /* need find ENV */
     if (!old_env) {
-        struct env_node_obj env;
+        //struct env_node_obj env;
         /* find ENV */
         if (find_env(key, &env)) {
             old_env = &env;
@@ -1120,7 +1132,8 @@ static EfErrCode del_env(const char *key, env_node_obj_t old_env, bool complete_
             if (key != NULL) {
                 /* when using del_env(key, NULL, true) or del_env(key, env, true) in ef_del_env() and set_env() */
                 update_env_cache(key, strlen(key), FAILED_ADDR);
-            } else if (old_env != NULL) {
+            //} else if (old_env != NULL) {
+            } else {
                 /* when using del_env(NULL, env, true) in move_env() */
                 update_env_cache(old_env->name, old_env->name_len, FAILED_ADDR);
             }
@@ -1309,7 +1322,7 @@ static bool write_hdr_gc(sector_meta_data_t sector, void *arg1, void *arg2){
  * 1. alloc an ENV when the flash not has enough space
  * 2. write an ENV then the flash not has enough space
  */
-static void gc_collect(void)
+static void gc_collect_internal(void *arg)
 {
     struct sector_meta_data sector;
     size_t empty_sec = 0;
@@ -1331,6 +1344,23 @@ static void gc_collect(void)
     }
 
     gc_request = false;
+}
+
+static void gc_collect(void)
+{
+#if defined(BL702) || defined(BL702L)
+    extern uint8_t _sp_main;
+    extern void bl_function_call_with_stack(void (*f)(void *data), void *data, void *stacktop);
+    extern int bl_irq_save(void);
+    extern void bl_irq_restore(int flags);
+
+    int mstatus_tmp;
+    mstatus_tmp = bl_irq_save();
+    bl_function_call_with_stack(gc_collect_internal, NULL, &_sp_main);
+    bl_irq_restore(mstatus_tmp);
+#else
+    gc_collect_internal(NULL);
+#endif
 }
 
 static EfErrCode align_write(uint32_t addr, const uint32_t *buf, size_t size)
@@ -1644,9 +1674,9 @@ EfErrCode ef_env_set_default(void)
         }
         sector.empty_env = FAILED_ADDR;
         create_env_blob(&sector, default_env_set[i].key, default_env_set[i].value, value_len);
-        if (result != EF_NO_ERR) {
-            goto __exit;
-        }
+        //if (result != EF_NO_ERR) {
+        //    goto __exit;
+        //}
     }
 
 __exit:
@@ -1882,6 +1912,47 @@ __retry:
 
     return result;
 }
+
+#ifdef EF_ENV_USING_CACHE
+bool env_key_possibly_exist(const char *name, size_t name_len)
+{
+    size_t i = 0, is_cache_avaiable = false;
+    uint16_t name_crc = (uint16_t) (ef_calc_crc32(0, name, name_len) >> 16);
+
+    for (i = 0; i < EF_ENV_CACHE_TABLE_SIZE; i++) {
+        if ((env_cache_table[i].addr != FAILED_ADDR) && (env_cache_table[i].name_crc == name_crc)) {
+            /** crc matched, means that it has high possibility in cache */
+            return true;
+        }
+
+        if (env_cache_table[i].addr == FAILED_ADDR) {
+            is_cache_avaiable = true;
+        }
+    }
+
+    if (false == is_cache_avaiable) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool env_cache_cb (env_node_obj_t env, void *arg1, void *arg2) 
+{
+    if (ENV_WRITE == env->status) {
+        env->name[env->name_len] = '\0';
+
+        update_env_cache(env->name, env->name_len, env->addr.start);   
+    }
+    return false;
+}
+
+void ef_load_env_cache(void) 
+{
+    memset(env_cache_table, 0 ,sizeof(env_cache_table));
+    ef_print_env_cb(env_cache_cb);
+}
+#endif
 
 /**
  * Flash ENV initialize.

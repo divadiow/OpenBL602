@@ -1,32 +1,3 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -222,10 +193,10 @@ static char *cvt(double arg, int ndigits, int *decpt, int *sign, char *buf, int 
   arg = modf(arg, &fi);
   p1 = &buf[CVTBUFSIZE];
 
-  if (fi != 0) 
+  if (fi != 0)
   {
     p1 = &buf[CVTBUFSIZE];
-    while (fi != 0) 
+    while (fi != 0)
     {
       fj = modf(fi / 10, &fi);
       *--p1 = (int)((fj + 0.03) * 10) + '0';
@@ -235,7 +206,7 @@ static char *cvt(double arg, int ndigits, int *decpt, int *sign, char *buf, int 
   }
   else if (arg > 0)
   {
-    while ((fj = arg * 10) < 1) 
+    while ((fj = arg * 10) < 1)
     {
       arg = fj;
       r2--;
@@ -244,7 +215,7 @@ static char *cvt(double arg, int ndigits, int *decpt, int *sign, char *buf, int 
   p1 = &buf[ndigits];
   if (eflag == 0) p1 += r2;
   *decpt = r2;
-  if (p1 < &buf[0]) 
+  if (p1 < &buf[0])
   {
     buf[0] = '\0';
     return buf;
@@ -255,7 +226,7 @@ static char *cvt(double arg, int ndigits, int *decpt, int *sign, char *buf, int 
     arg = modf(arg, &fj);
     *p++ = (int) fj + '0';
   }
-  if (p1 >= &buf[CVTBUFSIZE]) 
+  if (p1 >= &buf[CVTBUFSIZE])
   {
     buf[CVTBUFSIZE - 1] = '\0';
     return buf;
@@ -292,8 +263,8 @@ char *fcvtbuf(double arg, int ndigits, int *decpt, int *sign, char *buf)
   return cvt(arg, ndigits, decpt, sign, buf, 0);
 }
 
-static void ee_bufcpy(char *d, char *s, int count); 
- 
+static void ee_bufcpy(char *d, char *s, int count);
+
 void ee_bufcpy(char *pd, char *ps, int count) {
 	char *pe=ps+count;
 	while (ps!=pe)
@@ -415,7 +386,7 @@ static void decimal_point(char *buffer)
   if (*buffer)
   {
     int n = strnlen(buffer,256);
-    while (n > 0) 
+    while (n > 0)
     {
       buffer[n + 1] = buffer[n];
       n--;
@@ -812,6 +783,7 @@ int __attribute__((optimize("O1"))) vsnprintf(char *buffer, size_t n, const char
 					break;
 #ifndef DISABLE_PRINT_FLOAT
 				case 'f':
+				case 'g':
 					{
 					    tmp = q;
 					    q = flt(q, va_arg(ap, double), width, prec, ch, SIGN);
@@ -839,7 +811,7 @@ int __attribute__((optimize("O1"))) vsnprintf(char *buffer, size_t n, const char
 #ifdef SYS_BIG_DEBUG_BUFFER
 static char string[2048];
 #else
-static char string[512];
+static char string[256];
 #endif
 
 int vsprintf(char *buffer, const char *format, va_list ap)

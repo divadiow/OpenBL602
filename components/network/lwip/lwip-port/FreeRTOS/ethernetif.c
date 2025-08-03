@@ -91,8 +91,7 @@ static void low_level_init(struct netif *netif)
   netif->mtu = 1500;
 
   /* Accept broadcast address and ARP traffic */
-	// 2023 - added  | NETIF_FLAG_IGMP; for multicast
-  netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP;
+  netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
 #if 0
 
   s_pxNetIf =netif;

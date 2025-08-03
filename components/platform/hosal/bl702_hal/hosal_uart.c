@@ -1,36 +1,12 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
+/**
+ * Copyright (c) 2016-2021 Bouffalolab Co., Ltd.
  *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Contact information:
+ * web site:    https://www.bouffalolab.com/
  */
 
 #include <bl702_uart.h>
 #include <bl702_glb.h>
-#include <bl702_romdriver.h>
 #include "bl_uart.h"
 #include "bl_irq.h"
 #include "hosal_uart.h"
@@ -51,20 +27,12 @@ static void gpio_init(uint8_t id, uint8_t tx_pin, uint8_t rx_pin, uint8_t cts_pi
     cfg.gpioPin = rx_pin;
     cfg.gpioMode = GPIO_MODE_AF;
     cfg.pullType = GPIO_PULL_UP;
-#if 0//defined(CFG_PDS_OPTIMIZE) || defined(CFG_HBN_OPTIMIZE)
-    RomDriver_GLB_GPIO_Init(&cfg);
-#else
     GLB_GPIO_Init(&cfg);
-#endif
 
     cfg.gpioPin = tx_pin;
     cfg.gpioMode = GPIO_MODE_AF;
     cfg.pullType = GPIO_PULL_UP;
-#if 0//defined(CFG_PDS_OPTIMIZE) || defined(CFG_HBN_OPTIMIZE)
-    RomDriver_GLB_GPIO_Init(&cfg);
-#else
     GLB_GPIO_Init(&cfg);
-#endif
 
     /* select uart gpio function */
     if (id == 0) {
@@ -137,8 +105,8 @@ static int __uart_dma_txcfg(hosal_uart_dev_t *uart, hosal_uart_dma_cfg_t *dma_cf
 		DMA_CH0,
 	    DMA_TRNS_WIDTH_8BITS,
 	    DMA_TRNS_WIDTH_8BITS,
-	    DMA_BURST_SIZE_4,
-	    DMA_BURST_SIZE_4,
+	    DMA_BURST_SIZE_1,
+	    DMA_BURST_SIZE_1,
         DISABLE,
         DISABLE,
         0,
@@ -149,8 +117,8 @@ static int __uart_dma_txcfg(hosal_uart_dev_t *uart, hosal_uart_dma_cfg_t *dma_cf
 	};
     UART_FifoCfg_Type fifoCfg =
     {
-        .txFifoDmaThreshold     = 0x10,
-        .rxFifoDmaThreshold     = 0x10,
+        .txFifoDmaThreshold     = 0,
+        .rxFifoDmaThreshold     = 64,
         .txFifoDmaEnable        = ENABLE,
         .rxFifoDmaEnable        = DISABLE,
     };
@@ -195,8 +163,8 @@ static int __uart_dma_rxcfg(hosal_uart_dev_t *uart, hosal_uart_dma_cfg_t *dma_cf
 		DMA_CH0,
 	    DMA_TRNS_WIDTH_8BITS,
 	    DMA_TRNS_WIDTH_8BITS,
-	    DMA_BURST_SIZE_16,
-	    DMA_BURST_SIZE_16,
+	    DMA_BURST_SIZE_1,
+	    DMA_BURST_SIZE_1,
         DISABLE,
         DISABLE,
         0,
@@ -207,8 +175,8 @@ static int __uart_dma_rxcfg(hosal_uart_dev_t *uart, hosal_uart_dma_cfg_t *dma_cf
 	};
     UART_FifoCfg_Type fifoCfg =
     {
-        .txFifoDmaThreshold     = 0x10,
-        .rxFifoDmaThreshold     = 0x10,
+        .txFifoDmaThreshold     = 64,
+        .rxFifoDmaThreshold     = 0,
         .txFifoDmaEnable        = DISABLE,
         .rxFifoDmaEnable        = ENABLE,
     };
@@ -386,8 +354,8 @@ int hosal_uart_init(hosal_uart_dev_t *uart)
     };
     UART_FifoCfg_Type fifoCfg =
     {
-        .txFifoDmaThreshold     = 0x10,
-        .rxFifoDmaThreshold     = 0x10,
+        .txFifoDmaThreshold     = 64,
+        .rxFifoDmaThreshold     = 64,
         .txFifoDmaEnable        = DISABLE,
         .rxFifoDmaEnable        = DISABLE,
     };

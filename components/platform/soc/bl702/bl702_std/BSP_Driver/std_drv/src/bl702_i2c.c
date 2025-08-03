@@ -36,6 +36,7 @@
 
 #include "bl702_i2c.h"
 #include "bl702_glb.h"
+#include "bl702_clock.h"
 
 /** @addtogroup  BL702_Peripheral_Driver
  *  @{
@@ -282,11 +283,10 @@ void I2C_Init(I2C_ID_Type i2cNo, I2C_Direction_Type direct, I2C_Transfer_Cfg *cf
     /* Check the parameters */
     CHECK_PARAM(IS_I2C_ID_TYPE(i2cNo));
 
-    /* set i2c clk,default is 400000,max support clk is 400000 */
-    if (cfg->clk == 0 || cfg->clk > 400000){
-        I2C_ClockSet(i2cNo, 400000);
-    } else {
-        I2C_ClockSet(i2cNo, cfg->clk);
+    // I2C_ClockSet(i2cNo, cfg->clk);
+
+    if (cfg->dataSize > 256) {
+        cfg->dataSize = 256;
     }
 
     /* Disable clock gate */
@@ -309,9 +309,6 @@ void I2C_Init(I2C_ID_Type i2cNo, I2C_Direction_Type direct, I2C_Transfer_Cfg *cf
     } else {
         tmpVal = BL_CLR_REG_BIT(tmpVal, I2C_CR_I2C_SUB_ADDR_EN);
     }
-
-    /* align clock when 1 master */
-    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_SCL_SYNC_EN, DISABLE);
 
     tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PKT_LEN, cfg->dataSize - 1);
     BL_WR_REG(I2Cx, I2C_CONFIG, tmpVal);
@@ -346,15 +343,15 @@ BL_Err_Type I2C_SetDeglitchCount(I2C_ID_Type i2cNo, uint8_t cnt)
     if (cnt > 0) {
         /* enable de-glitch function */
         tmpVal = BL_SET_REG_BIT(tmpVal, I2C_CR_I2C_DEG_EN);
-    } else if (cnt == 0) {
+        /* Set count value */
+        tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_DEG_CNT, cnt - 1);
+    } else {
         /* disable de-glitch function */
         tmpVal = BL_CLR_REG_BIT(tmpVal, I2C_CR_I2C_DEG_EN);
-    } else {
-        return ERROR;
+        /* Set count value as 0 */
+        tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_DEG_CNT, 0);
     }
 
-    /* Set count value */
-    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_DEG_CNT, cnt);
     BL_WR_REG(I2Cx, I2C_CONFIG, tmpVal);
 
     return SUCCESS;
@@ -399,6 +396,79 @@ void I2C_SetPrd(I2C_ID_Type i2cNo, uint8_t phase)
 }
 
 /****************************************************************************/ /**
+ * @brief  Set i2c timing phase
+ *         note: this function can not be called before I2C_ClockSet
+ *               because I2C_ClockSet will rewrite timing parameters
+ *
+ * @param  i2cNo: I2C ID type
+ * @param  timing: I2C timing phase structure pointer
+ *
+ * @return None
+ *
+*******************************************************************************/
+void I2C_SetTimingPhase(I2C_ID_Type i2cNo, I2C_Timing_Phase_Type *timing)
+{
+    uint32_t tmpVal;
+    uint32_t I2Cx = I2C_BASE;
+
+    /* Check the parameters */
+    CHECK_PARAM(IS_I2C_ID_TYPE(i2cNo));
+
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_START);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_0, timing->start_phase0);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_1, timing->start_phase1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_2, timing->start_phase2);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_3, timing->start_phase3);
+    BL_WR_REG(I2Cx, I2C_PRD_START, tmpVal);
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_STOP);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_0, timing->stop_phase0);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_1, timing->stop_phase1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_2, timing->stop_phase2);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_3, timing->stop_phase3);
+    BL_WR_REG(I2Cx, I2C_PRD_STOP, tmpVal);
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_DATA);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_0, timing->data_phase0);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_1, timing->data_phase1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_2, timing->data_phase2);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_3, timing->data_phase3);
+    BL_WR_REG(I2Cx, I2C_PRD_DATA, tmpVal);
+}
+
+/****************************************************************************/ /**
+ * @brief  Get i2c timing phase
+ *
+ * @param  i2cNo: I2C ID type
+ * @param  timing: I2C timing phase structure pointer
+ *
+ * @return None
+ *
+*******************************************************************************/
+void I2C_GetTimingPhase(I2C_ID_Type i2cNo, I2C_Timing_Phase_Type *timing)
+{
+    uint32_t tmpVal;
+    uint32_t I2Cx = I2C_BASE;
+
+    /* Check the parameters */
+    CHECK_PARAM(IS_I2C_ID_TYPE(i2cNo));
+
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_START);
+    timing->start_phase0 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_0);
+    timing->start_phase1 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_1);
+    timing->start_phase2 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_2);
+    timing->start_phase3 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_3);
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_STOP);
+    timing->stop_phase0 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_0);
+    timing->stop_phase1 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_1);
+    timing->stop_phase2 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_2);
+    timing->stop_phase3 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_3);
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_DATA);
+    timing->data_phase0 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_0);
+    timing->data_phase1 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_1);
+    timing->data_phase2 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_2);
+    timing->data_phase3 = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_3);
+}
+
+/****************************************************************************/ /**
  * @brief  I2C set scl output clock
  *
  * @param  i2cNo: I2C ID type
@@ -409,26 +479,78 @@ void I2C_SetPrd(I2C_ID_Type i2cNo, uint8_t phase)
 *******************************************************************************/
 void I2C_ClockSet(I2C_ID_Type i2cNo, uint32_t clk)
 {
-    uint8_t bclkDiv = 0;
+    uint32_t tmpVal;
+    uint32_t I2Cx = I2C_BASE;
+    int32_t phase, phase0, phase1, phase2, phase3;
+    int32_t bias;
 
     /* Check the parameters */
     CHECK_PARAM(IS_I2C_ID_TYPE(i2cNo));
 
-    bclkDiv = GLB_Get_BCLK_Div();
-
-    if (clk >= 100000) {
-        GLB_Set_I2C_CLK(1, 0);
-        I2C_SetPrd(i2cNo, (SystemCoreClockGet() / (bclkDiv + 1)) / (clk * 4) - 1);
-    } else if (clk >= 8000) {
-        GLB_Set_I2C_CLK(1, 9);
-        I2C_SetPrd(i2cNo, ((SystemCoreClockGet() / (bclkDiv + 1)) / 10) / (clk * 4) - 1);
-    } else if (clk >= 800) {
-        GLB_Set_I2C_CLK(1, 99);
-        I2C_SetPrd(i2cNo, ((SystemCoreClockGet() / (bclkDiv + 1)) / 100) / (clk * 4) - 1);
+    if (i2cNo == I2C0_ID) {
+        phase = Clock_Peripheral_Clock_Get(BL_PERIPHERAL_CLOCK_I2C0);
     } else {
-        GLB_Set_I2C_CLK(1, 255);
-        I2C_SetPrd(i2cNo, ((SystemCoreClockGet() / (bclkDiv + 1)) / 256) / (clk * 4) - 1);
+        return;
     }
+    phase = (phase + clk / 2) / clk;
+    if (clk <= 100 * 1000) {
+        /* when SCL clock <= 100KHz, duty cycle is default 50%  */
+        phase0 = (phase + 2) / 4;
+        phase1 = phase0;
+        phase2 = phase / 2 - phase0;
+        phase3 = phase - phase0 - phase1 - phase2;
+    } else {
+        /* when SCL clock > 100KHz, duty cycle isdefault 33% */
+        phase0 = (phase + 2) / 3;
+        phase1 = (phase + 3) / 6;
+        phase2 = (phase + 1) / 3 - phase1;
+        phase3 = phase - phase0 - phase1 - phase2;
+    }
+
+    /* calculate rectify phase when de-glitch or clock-stretching is enabled */
+    tmpVal = BL_RD_REG(I2Cx, I2C_CONFIG);
+    if (BL_IS_REG_BIT_SET(tmpVal, I2C_CR_I2C_DEG_EN) && (BL_IS_REG_BIT_SET(tmpVal, I2C_CR_I2C_SCL_SYNC_EN))) {
+        bias = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_DEG_CNT);
+        bias += 1;
+    } else {
+        bias = 0;
+    }
+    if (BL_IS_REG_BIT_SET(tmpVal, I2C_CR_I2C_SCL_SYNC_EN)) {
+        bias += 3;
+    }
+
+    /* value should decrement one before write to register */
+    phase0 = (phase0 <= 0) ? 1 : phase0;
+    phase1 = (phase1 <= bias) ? (bias + 1) : phase1;
+    phase2 = (phase2 <= 0) ? 1 : phase2;
+    phase3 = (phase3 <= 0) ? 1 : phase3;
+    /* only 8bit is available for phase0~3 in register */
+    phase0 = (phase0 >= 256) ? 256 : phase0;
+    phase1 = (phase1 >= 256) ? 256 : phase1;
+    phase2 = (phase2 >= 256) ? 256 : phase2;
+    phase3 = (phase0 >= 256) ? 256 : phase3;
+
+    /* calculate data phase */
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_DATA);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_0, phase0 - 1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_1, ((phase1 - bias - 1) <= 0) ? 1 : (phase1 - bias - 1));
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_2, phase2 - 1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_3, phase3 - 1);
+    BL_WR_REG(I2Cx, I2C_PRD_DATA, tmpVal);
+    /* calculate start phase */
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_START);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_0, phase0 - 1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_1, ((phase0 + phase3 - 1) >= 256) ? 255 : (phase0 + phase3 - 1));
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_2, ((phase1 + phase2 - 1) >= 256) ? 255 : (phase1 + phase2 - 1));
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_3, phase3 - 1);
+    BL_WR_REG(I2Cx, I2C_PRD_START, tmpVal);
+    /* calculate stop phase */
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_STOP);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_0, phase0 - 1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_1, ((phase1 + phase2 - 1) >= 256) ? 255 : (phase1 + phase2 - 1));
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_2, phase0 - 1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_3, phase3 - 1);
+    BL_WR_REG(I2Cx, I2C_PRD_STOP, tmpVal);
 }
 
 /****************************************************************************/ /**
@@ -500,6 +622,26 @@ BL_Sts_Type I2C_TransferEndStatus(I2C_ID_Type i2cNo)
 }
 
 /****************************************************************************/ /**
+ * @brief  Get i2c transfer nack state
+ *
+ * @param  i2cNo: I2C ID type
+ *
+ * @return RESET or SET
+ *
+*******************************************************************************/
+BL_Sts_Type I2C_TransferNackStatus(I2C_ID_Type i2cNo)
+{
+    uint32_t tmpVal;
+    uint32_t I2Cx = I2C_BASE;
+
+    /* Check the parameters */
+    CHECK_PARAM(IS_I2C_ID_TYPE(i2cNo));
+
+    tmpVal = BL_RD_REG(I2Cx, I2C_INT_STS);
+    return ((BL_IS_REG_BIT_SET(tmpVal, I2C_NAK_INT)) ? SET : RESET);
+}
+
+/****************************************************************************/ /**
  * @brief  I2C master write block data
  *
  * @param  i2cNo: I2C ID type
@@ -510,7 +652,7 @@ BL_Sts_Type I2C_TransferEndStatus(I2C_ID_Type i2cNo)
 *******************************************************************************/
 BL_Err_Type I2C_MasterSendBlocking(I2C_ID_Type i2cNo, I2C_Transfer_Cfg *cfg)
 {
-    uint8_t i;
+    uint16_t i;
     uint32_t timeOut = 0;
     uint32_t temp = 0;
     uint32_t I2Cx = I2C_BASE;
@@ -520,7 +662,6 @@ BL_Err_Type I2C_MasterSendBlocking(I2C_ID_Type i2cNo, I2C_Transfer_Cfg *cfg)
 
     I2C_Disable(i2cNo);
     I2C_Init(i2cNo, I2C_WRITE, cfg);
-    I2C_Enable(i2cNo);
 
     /* Set I2C write data */
     for (i = 0; i < cfg->dataSize; i++) {
@@ -539,6 +680,9 @@ BL_Err_Type I2C_MasterSendBlocking(I2C_ID_Type i2cNo, I2C_Transfer_Cfg *cfg)
             }
 
             BL_WR_REG(I2Cx, I2C_FIFO_WDATA, temp);
+            if (BL_GET_REG_BITS_VAL(BL_RD_REG(I2Cx, I2C_CONFIG), I2C_CR_I2C_M_EN) == 0) {
+                I2C_Enable(i2cNo);
+            }
             temp = 0;
         }
     }
@@ -556,11 +700,14 @@ BL_Err_Type I2C_MasterSendBlocking(I2C_ID_Type i2cNo, I2C_Transfer_Cfg *cfg)
         }
 
         BL_WR_REG(I2Cx, I2C_FIFO_WDATA, temp);
+        if (BL_GET_REG_BITS_VAL(BL_RD_REG(I2Cx, I2C_CONFIG), I2C_CR_I2C_M_EN) == 0) {
+            I2C_Enable(i2cNo);
+        }
     }
 
     timeOut = I2C_FIFO_STATUS_TIMEOUT;
 
-    while (I2C_IsBusy(i2cNo) || !I2C_TransferEndStatus(i2cNo)) {
+    while (I2C_IsBusy(i2cNo) || !I2C_TransferEndStatus(i2cNo) || I2C_TransferNackStatus(i2cNo)) {
         timeOut--;
 
         if (timeOut == 0) {
@@ -584,7 +731,7 @@ BL_Err_Type I2C_MasterSendBlocking(I2C_ID_Type i2cNo, I2C_Transfer_Cfg *cfg)
 *******************************************************************************/
 BL_Err_Type I2C_MasterReceiveBlocking(I2C_ID_Type i2cNo, I2C_Transfer_Cfg *cfg)
 {
-    uint8_t i = 0;
+    uint16_t i = 0;
     uint32_t timeOut = 0;
     uint32_t temp = 0;
     uint32_t I2Cx = I2C_BASE;

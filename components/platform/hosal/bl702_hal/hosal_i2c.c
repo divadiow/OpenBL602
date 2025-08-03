@@ -1,186 +1,93 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
+/**
+ * Copyright (c) 2016-2021 Bouffalolab Co., Ltd.
  *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Contact information:
+ * web site:    https://www.bouffalolab.com/
  */
 
-#include <FreeRTOS.h>
-#include <task.h>
 #include "bl702.h"
 #include "bl702_i2c.h"
-#include "bl702_gpio.h"
+#include "bl702_clock.h"
 #include "bl702_glb.h"
 #include "hosal_i2c.h"
 #include "blog.h"
-#include "bl_timer.h"
 
-#define HOSAL_PUT_UINT32_LE(n, b, i)                \
-{                                                   \
-    (b)[(i)    ] = (uint8_t) ( (n)       );         \
-    (b)[(i) + 1] = (uint8_t) ( (n) >>  8 );         \
-    (b)[(i) + 2] = (uint8_t) ( (n) >> 16 );         \
-    (b)[(i) + 3] = (uint8_t) ( (n) >> 24 );         \
-}
-
-void i2c_set_freq(int freq, int i2cx)
+#if 0
+static void hosal_i2c_set_clock(I2C_ID_Type i2cNo, uint32_t clk)
 {
-    I2C_SetSclSync(i2cx, 0);
-    I2C_ClockSet(i2cx, freq);
-    return;
-}
-static int i2c_master_send(I2C_ID_Type i2cNo, I2C_Transfer_Cfg *cfg, uint32_t timeout)
-{
-    uint8_t i = 0;
-    uint32_t temp = 0;
+    uint32_t tmpVal;
     uint32_t I2Cx = I2C_BASE;
-    int64_t time_start, time_end;
+    uint32_t phase, phase0, phase1, phase2, phase3;
+    uint32_t bias;
 
-    I2C_Disable(i2cNo);
-    I2C_Init(i2cNo, I2C_WRITE, cfg);
- //   I2C_Enable(i2cNo);
+    phase = Clock_Peripheral_Clock_Get(BL_PERIPHERAL_CLOCK_I2C0);
+    phase = (phase + clk / 2) / clk - 4;
+    phase0 = (phase + 4) / 8;
+    phase2 = (phase * 3 + 4) / 8;
+    phase3 = (phase + 4) / 8;
+    phase1 = phase - (phase0 + phase2 + phase3);
+    tmpVal = BL_RD_REG(I2Cx, I2C_CONFIG);
 
-    time_start = bl_timer_now_us64() / 1000;
-    /* Set I2C write data */
-    for (i = 0; i < cfg->dataSize; i++) {
-        temp += (cfg->data[i] << ((i % 4) * 8));
-        if ((i + 1) % 4 == 0) {
-            while (BL_GET_REG_BITS_VAL(BL_RD_REG(I2Cx, I2C_FIFO_CONFIG_1), I2C_TX_FIFO_CNT) == 0) {
-                time_end = bl_timer_now_us64() / 1000;
-                if (HOSAL_WAIT_FOREVER == timeout) {
-                    continue;
-                }
-                if ((time_end - time_start) >= timeout) {
-                    I2C_Disable(i2cNo);
-                    return -1;
-                }
-            }
-            BL_WR_REG(I2Cx, I2C_FIFO_WDATA, temp);
-            if(BL_GET_REG_BITS_VAL(BL_RD_REG(I2Cx, I2C_CONFIG), I2C_CR_I2C_M_EN) == 0){
-                I2C_Enable(i2cNo);
-            }
-            temp = 0;
-        }
+    if (BL_IS_REG_BIT_SET(tmpVal, I2C_CR_I2C_DEG_EN) && (BL_IS_REG_BIT_SET(tmpVal, I2C_CR_I2C_SCL_SYNC_EN))) {
+        bias = BL_GET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_DEG_CNT);
+        bias += 1;
+    } else {
+        bias = 0;
     }
-    if ((cfg->dataSize % 4) != 0) {
-        while (BL_GET_REG_BITS_VAL(BL_RD_REG(I2Cx, I2C_FIFO_CONFIG_1), I2C_TX_FIFO_CNT) == 0) {
-            time_end = bl_timer_now_us64() / 1000;
-            if (HOSAL_WAIT_FOREVER == timeout) {
-                continue;
-            }
-            if ((time_end - time_start) >= timeout) {
-                I2C_Disable(i2cNo);
-                return -1;
-            }
-        }
-        BL_WR_REG(I2Cx, I2C_FIFO_WDATA, temp);
-
-        if(BL_GET_REG_BITS_VAL(BL_RD_REG(I2Cx, I2C_CONFIG), I2C_CR_I2C_M_EN) == 0){
-            I2C_Enable(i2cNo);
-        }
+    if (BL_IS_REG_BIT_SET(tmpVal, I2C_CR_I2C_SCL_SYNC_EN)) {
+        bias += 3;
     }
 
-    while (I2C_IsBusy(i2cNo) || !I2C_TransferEndStatus(i2cNo)) {
-        time_end = bl_timer_now_us64() / 1000;
-        if (HOSAL_WAIT_FOREVER == timeout) { 
-            continue;
-        }
-        if ((time_end - time_start) >= timeout) {
-            I2C_Disable(i2cNo);
-            return -1;
-        }
+    if (phase1 < (bias + 1)) {
+        phase1 = 1;
+    } else {
+        phase1 -= bias;
     }
 
-    I2C_Disable(i2cNo);
-
-    return 0;
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_START);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_0, phase0);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_1, phase1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_2, phase2);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_S_PH_3, phase3);
+    BL_WR_REG(I2Cx, I2C_PRD_START, tmpVal);
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_STOP);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_0, phase0);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_1, phase1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_2, phase2);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_P_PH_3, phase3);
+    BL_WR_REG(I2Cx, I2C_PRD_STOP, tmpVal);
+    tmpVal = BL_RD_REG(I2Cx, I2C_PRD_DATA);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_0, phase0);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_1, phase1);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_2, phase2);
+    tmpVal = BL_SET_REG_BITS_VAL(tmpVal, I2C_CR_I2C_PRD_D_PH_3, phase3);
+    BL_WR_REG(I2Cx, I2C_PRD_DATA, tmpVal);
 }
 
-static int i2c_master_receive(I2C_ID_Type i2cNo, I2C_Transfer_Cfg *cfg, uint32_t timeout)
+static void hosal_i2c_adjust_clock(uint32_t scl_freq)
 {
-    uint8_t i = 0;
-    uint32_t temp = 0;
-    uint32_t I2Cx = I2C_BASE;
-    int64_t time_start, time_end;
+    uint32_t div = 1;
+    uint32_t clock = SystemCoreClockGet()/(GLB_Get_BCLK_Div()+1);
+    uint32_t phase, phase0, phase1, phase2, phase3;
 
-    I2C_Disable(i2cNo);
-    I2C_Init(i2cNo, I2C_READ, cfg);
-    I2C_Enable(i2cNo);
-    
-    time_start = bl_timer_now_us64() / 1000;
-    /* Read I2C data */
-    while (cfg->dataSize - i >= 4) {
-        while (BL_GET_REG_BITS_VAL(BL_RD_REG(I2Cx, I2C_FIFO_CONFIG_1), I2C_RX_FIFO_CNT) == 0) {
-            time_end = bl_timer_now_us64() / 1000;
-            if (HOSAL_WAIT_FOREVER == timeout) {
-                continue;
-            }
-            if ((time_end - time_start) >= timeout) {
-                I2C_Disable(i2cNo);
-                return -1;
-            }
-        }
-        temp = BL_RD_REG(I2Cx, I2C_FIFO_RDATA);
-        HOSAL_PUT_UINT32_LE(temp, cfg->data, i);
-        i += 4;
-    }
-    if (i < cfg->dataSize) {
-        while (BL_GET_REG_BITS_VAL(BL_RD_REG(I2Cx, I2C_FIFO_CONFIG_1), I2C_RX_FIFO_CNT) == 0) {
-            time_end = bl_timer_now_us64() / 1000;
-            if (HOSAL_WAIT_FOREVER == timeout) {
-                continue;
-            }
-            if ((time_end - time_start) >= timeout) {
-                I2C_Disable(i2cNo);
-                return -1;
-            }
-        }
-        temp = BL_RD_REG(I2Cx, I2C_FIFO_RDATA);
-        while (i < cfg->dataSize) {
-            cfg->data[i] = (temp & 0xff);
-            temp = (temp >> 8);
-            i++;
+    while (1) {
+        phase = (clock + scl_freq / 2) / scl_freq - 4;
+        phase0 = (phase + 4) / 8;
+        phase2 = (phase * 3 + 4) / 8;
+        phase3 = (phase + 4) / 8;
+        phase1 = phase - (phase0 + phase2 + phase3);
+        if (phase0 > 255 || phase1 > 255 || phase2 > 255 || phase3 > 255) {
+            div <<= 1;
+            clock >>= 1;
+        } else {
+            break;
         }
     }
 
-    while (I2C_IsBusy(i2cNo) || !I2C_TransferEndStatus(i2cNo)) {
-        time_end = bl_timer_now_us64() / 1000;
-        if (HOSAL_WAIT_FOREVER == timeout) {
-            continue;
-        }
-        if ((time_end - time_start) >= timeout) {
-            I2C_Disable(i2cNo);
-            return -1;
-        }
-    }
-
-    I2C_Disable(i2cNo);
-
-    return 0;
+    GLB_Set_I2C_CLK(1, div - 1);
+    hosal_i2c_set_clock(I2C0_ID, scl_freq);
 }
+#endif
 
 int hosal_i2c_init(hosal_i2c_dev_t *i2c)
 {
@@ -191,12 +98,14 @@ int hosal_i2c_init(hosal_i2c_dev_t *i2c)
         return -1;
     }
 
+    GLB_PER_Clock_UnGate(GLB_AHB_CLOCK_I2C);
+    GLB_Set_I2C_CLK(1, 0);
+    //I2C_SetSclSync(i2c->port, 0);
+
     gpiopins[0] = i2c->config.scl;
     gpiopins[1] = i2c->config.sda;
 
     GLB_GPIO_Func_Init(GPIO_FUN_I2C, gpiopins, sizeof(gpiopins) / sizeof(gpiopins[0]));
-    I2C_Disable(i2c->port);
-    i2c_set_freq(i2c->config.freq, 0);
 
     return 0;
 }
@@ -205,53 +114,61 @@ int hosal_i2c_master_send(hosal_i2c_dev_t *i2c, uint16_t dev_addr, const uint8_t
                             uint16_t size, uint32_t timeout)
 {
     I2C_Transfer_Cfg i2c_cfg_send = {
-        .slaveAddr = 0x50,
+        .slaveAddr = 0,
         .stopEveryByte = DISABLE,
         .subAddrSize = 0,
         .subAddr = 0x00,
         .dataSize = 0,
         .data = NULL,
+        .clk = 0,
     };
 
-    if (NULL == i2c || NULL == data || size < 1) {
+    if (NULL == i2c || i2c->port != 0 || NULL == data || size < 1) {
         blog_error("parameter is error!\r\n");
         return -1;
     }
 
+    i2c_cfg_send.clk = i2c->config.freq;
     i2c_cfg_send.slaveAddr = dev_addr;
     i2c_cfg_send.data = (uint8_t *)data;
     i2c_cfg_send.dataSize = size;
 
-    return i2c_master_send(0, &i2c_cfg_send, timeout);
+    //hosal_i2c_adjust_clock(i2c->config.freq);
+    I2C_ClockSet(i2c->port, i2c->config.freq);
+    return I2C_MasterSendBlocking(i2c->port, &i2c_cfg_send);
 }
 
 int hosal_i2c_master_recv(hosal_i2c_dev_t *i2c, uint16_t dev_addr, uint8_t *data,
                             uint16_t size, uint32_t timeout)
 {
     I2C_Transfer_Cfg i2c_cfg_recv = {
-        .slaveAddr = 0x50,
+        .slaveAddr = 0,
         .stopEveryByte = DISABLE,
         .subAddrSize = 0,
         .subAddr = 0x00,
         .dataSize = 0,
         .data = NULL,
+        .clk = 0,
     };
 
-    if (NULL == i2c || NULL == data || size < 1) {
+    if (NULL == i2c || i2c->port != 0 || NULL == data || size < 1) {
         blog_error("parameter is error!\r\n");
         return -1;
     }
 
+    i2c_cfg_recv.clk = i2c->config.freq;
     i2c_cfg_recv.slaveAddr = dev_addr;
     i2c_cfg_recv.data = (uint8_t *)data;
     i2c_cfg_recv.dataSize = size;
 
-    return i2c_master_receive(0, &i2c_cfg_recv, timeout);
+    //hosal_i2c_adjust_clock(i2c->config.freq);
+    I2C_ClockSet(i2c->port, i2c->config.freq);
+    return I2C_MasterReceiveBlocking(i2c->port, &i2c_cfg_recv);
 }
 
 int hosal_i2c_slave_send(hosal_i2c_dev_t *i2c, const uint8_t *data, uint16_t size, uint32_t timeout)
 {
-    if (NULL == i2c || NULL == data || size < 1) {
+    if (NULL == i2c || i2c->port != 0 || NULL == data || size < 1) {
         blog_error("parameter is error!\r\n");
         return -1;
     }
@@ -263,7 +180,7 @@ int hosal_i2c_slave_send(hosal_i2c_dev_t *i2c, const uint8_t *data, uint16_t siz
 
 int hosal_i2c_slave_recv(hosal_i2c_dev_t *i2c, uint8_t *data, uint16_t size, uint32_t timeout)
 {
-    if (NULL == i2c || NULL == data || size < 1) {
+    if (NULL == i2c || i2c->port != 0 || NULL == data || size < 1) {
         blog_error("parameter is error!\r\n");
         return -1;
     }
@@ -277,28 +194,31 @@ int hosal_i2c_mem_write(hosal_i2c_dev_t *i2c, uint16_t dev_addr, uint32_t mem_ad
                           uint16_t mem_addr_size, const uint8_t *data, uint16_t size,
                           uint32_t timeout)
 {
-    printf("enter hosal_i2c_mem_write \r\n");
     I2C_Transfer_Cfg i2c_cfg_send = {
-        .slaveAddr = 0x50,
+        .slaveAddr = 0,
         .stopEveryByte = DISABLE,
-        .subAddrSize = 2,
+        .subAddrSize = 0,
         .subAddr = 0x00,
         .dataSize = 0,
         .data = NULL,
+        .clk = 0,
     };
 
-    if (NULL == i2c || NULL == data || size < 1) {
+    if (NULL == i2c || i2c->port != 0 || NULL == data || size < 1) {
         blog_error("parameter is error!\r\n");
         return -1;
     }
 
+    i2c_cfg_send.clk = i2c->config.freq;
     i2c_cfg_send.slaveAddr = dev_addr;
     i2c_cfg_send.subAddr = mem_addr;
     i2c_cfg_send.subAddrSize = mem_addr_size;
     i2c_cfg_send.data = (uint8_t *)data;
     i2c_cfg_send.dataSize = size;
 
-    return i2c_master_send(0, &i2c_cfg_send, timeout);
+    //hosal_i2c_adjust_clock(i2c->config.freq);
+    I2C_ClockSet(i2c->port, i2c->config.freq);
+    return I2C_MasterSendBlocking(i2c->port, &i2c_cfg_send);
 }
 
 int hosal_i2c_mem_read(hosal_i2c_dev_t *i2c, uint16_t dev_addr, uint32_t mem_addr,
@@ -306,31 +226,35 @@ int hosal_i2c_mem_read(hosal_i2c_dev_t *i2c, uint16_t dev_addr, uint32_t mem_add
                          uint32_t timeout)
 {
     I2C_Transfer_Cfg i2c_cfg_recv = {
-        .slaveAddr = 0x50,
+        .slaveAddr = 0,
         .stopEveryByte = DISABLE,
-        .subAddrSize = 2,
+        .subAddrSize = 0,
         .subAddr = 0x00,
         .dataSize = 0,
         .data = NULL,
+        .clk = 0,
     };
 
-    if (NULL == i2c || NULL == data || size < 1) {
+    if (NULL == i2c || i2c->port != 0 || NULL == data || size < 1) {
         blog_error("parameter is error!\r\n");
         return -1;
     }
 
+    i2c_cfg_recv.clk = i2c->config.freq;
     i2c_cfg_recv.slaveAddr = dev_addr;
     i2c_cfg_recv.subAddr = mem_addr;
     i2c_cfg_recv.subAddrSize = mem_addr_size;
     i2c_cfg_recv.data = (uint8_t *)data;
     i2c_cfg_recv.dataSize = size;
 
-    return i2c_master_receive(0, &i2c_cfg_recv, timeout);
+    //hosal_i2c_adjust_clock(i2c->config.freq);
+    I2C_ClockSet(i2c->port, i2c->config.freq);
+    return I2C_MasterReceiveBlocking(i2c->port, &i2c_cfg_recv);
 }
 
 int hosal_i2c_finalize(hosal_i2c_dev_t *i2c)
 {
-    if (i2c == NULL || i2c->port != 0) {
+    if (NULL == i2c || i2c->port != 0) {
         blog_error("parameter is error!\r\n");
         return -1;
     }

@@ -1,44 +1,45 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <FreeRTOS.h>
 #include <task.h>
-#include <hosal_uart.h>
+#include <bl_uart.h>
 #include <utils_base64.h>
 #include <utils_crc.h>
 #include <utils_hex.h>
 #include <bl_coredump.h>
 
+/* 1KB Block */
+#define BL_COREDUMP_PRINT_SEG_N_K 1
+
+#define COREDUMP_UART 0
+
 #define REVERSE(a) (((a)&0xff) << 24 | ((a)&0xff00) << 8 | ((a)&0xff0000) >> 8 | ((a)&0xff000000) >> 24)
+
+#undef read_const_csr
+#define read_const_csr(reg) ({ register uintptr_t __tmp; \
+  asm ("csrr %0, " #reg : "=r"(__tmp)); __tmp; })
+
+#undef read_csr
+#define read_csr(reg) ({ register uintptr_t __tmp; \
+  asm volatile ("csrr %0, " #reg : "=r"(__tmp)); __tmp; })
+
+#undef write_csr
+#define write_csr(reg, val) ({ \
+  asm volatile ("csrw " #reg ", %0" :: "rK"(val)); })
+
+#undef swap_csr
+#define swap_csr(reg, val) ({ register uintptr_t __tmp; \
+  asm volatile ("csrrw %0, " #reg ", %1" : "=r"(__tmp) : "rK"(val)); __tmp; })
+
+#undef set_csr
+#define set_csr(reg, bit) ({ register uintptr_t __tmp; \
+  asm volatile ("csrrs %0, " #reg ", %1" : "=r"(__tmp) : "rK"(bit)); __tmp; })
+
+#undef clear_csr
+#define clear_csr(reg, bit) ({ register uintptr_t __tmp; \
+  asm volatile ("csrrc %0, " #reg ", %1" : "=r"(__tmp) : "rK"(bit)); __tmp; })
+
 #define COREDUM_CMD_BUF_LEN (128)
 
 #define COREDUMP_VERSION "0.0.1"
@@ -66,6 +67,19 @@ extern uint8_t _ld_ram_size1, _ld_ram_addr1;
 extern uint8_t _ld_ram_size2, _ld_ram_addr2;
 extern uint8_t _ld_ram_size3, _ld_ram_addr3;
 extern uint8_t _ld_ram_size4, _ld_ram_addr4;
+
+#ifdef CFG_USE_PSRAM
+extern uint8_t _ld_psram_size, _ld_psram_addr;
+#endif
+
+#ifdef BL702
+extern uint8_t _ld_ram_sha_size, _ld_ram_sha_addr;
+extern uint8_t __LD_BLE_CORE_REG_SIZE;
+#endif
+#ifdef BL702L
+extern uint8_t __LD_BLE_CORE_REG_SIZE;
+#endif
+
 //#define DEBUG
 
 #ifdef DEBUG
@@ -107,6 +121,7 @@ enum dump_type {
   DUMP_BASE64_BYTE, /* Dump memory in byte units, in base64 format. */
   DUMP_BASE64_WORD, /* Dump memory in word units, in base64 format. */
   DUMP_REG_OTHERS,
+  DUMP_CSR,         /* Dump string */
   DUMP_TYPE_MAX,
 };
 
@@ -116,13 +131,17 @@ static void dump_ascii(const void *data, ssize_t len, struct crc32_stream_ctx *c
 static void dump_base64_byte(const void *data, ssize_t len, struct crc32_stream_ctx *crc_ctx);
 static void dump_base64_word(const void *data, ssize_t len, struct crc32_stream_ctx *crc_ctx);
 static void dump_wifi_reg_others(const void *data, ssize_t len, struct crc32_stream_ctx *crc_ctx);
+static void dump_csr(const void *data, ssize_t len, struct crc32_stream_ctx *crc_ctx);
 
 static const dump_handler_t dump_handler_list[DUMP_TYPE_MAX] = {
     dump_ascii,
     dump_base64_byte,
     dump_base64_word,
     dump_wifi_reg_others,
+    dump_csr,
 };
+
+extern uint8_t __LD_CONFIG_EM_SEL;
 
 /* Define default ram dump list */
 static const struct mem_hdr {
@@ -135,7 +154,7 @@ static const struct mem_hdr {
     {(uintptr_t)test_data, (unsigned int)sizeof(test_data), DUMP_BASE64_BYTE, "test_data_byte"},
     {(uintptr_t)test_data, (unsigned int)sizeof(test_data), DUMP_BASE64_WORD, "test_data_word"},
     {(uintptr_t) "asdasdasdasdasdsada", 0, DUMP_ASCII, "test_string"},
-#elif BL602
+#elif defined BL602
     {(uintptr_t)&_ld_ram_addr1, (unsigned int)&_ld_ram_size1, DUMP_BASE64_BYTE, "ram"},
     {(uintptr_t)&_ld_ram_addr2, (unsigned int)&_ld_ram_size2, DUMP_BASE64_BYTE, "wifi_ram"},
     {(uintptr_t)0x24B00000, (unsigned int)0x55c, DUMP_BASE64_WORD, "0x24B00000-0x24B0055C"},
@@ -143,32 +162,50 @@ static const struct mem_hdr {
     {(uintptr_t)0x24C00000, (unsigned int)0x3c, DUMP_BASE64_WORD, "0x24C00000-0x24C0003C"},
     {(uintptr_t)0x24C00800, (unsigned int)0xbc, DUMP_BASE64_WORD, "0x24C00800-0x24C008BC"},
     {(uintptr_t)0xf0000000, (unsigned int)0x20, DUMP_REG_OTHERS, "others_reg"},
+    {(uintptr_t)0xf0004000, (unsigned int)12, DUMP_CSR, "dump riscv csr"},
+    {(uintptr_t)0xf0004000, (unsigned int)12, DUMP_CSR, "dump riscv csr"},
 
     {(uintptr_t)0x40000000, (unsigned int)0x318, DUMP_BASE64_WORD, "GLB_reg"},
     {(uintptr_t)0x4000A100, (unsigned int)0x8F, DUMP_BASE64_WORD, "uart1_reg"},
     {(uintptr_t)0x4000A420, (unsigned int)0x98, DUMP_BASE64_WORD, "pwm_reg"},
     {(uintptr_t)0x4000E404, (unsigned int)0x04, DUMP_BASE64_WORD, "PDS_reg"},
     {(uintptr_t)0x4000F030, (unsigned int)0x04, DUMP_BASE64_WORD, "HBN_reg"},
-#elif BL702
+    {(uintptr_t)0x28008000, (unsigned int)&__LD_CONFIG_EM_SEL, DUMP_BASE64_WORD, "EM_REG"},
+#elif defined BL702
     {(uintptr_t)&_ld_ram_addr1, (unsigned int)&_ld_ram_size1, DUMP_BASE64_BYTE, "tcm_ocram"},
     {(uintptr_t)&_ld_ram_addr2, (unsigned int)&_ld_ram_size2, DUMP_BASE64_BYTE, "hbnram"},
     {(uintptr_t)&_ld_ram_addr3, (unsigned int)&_ld_ram_size3, DUMP_BASE64_BYTE, "stack"},
-#elif BL702L
+    {(uintptr_t)&_ld_ram_sha_addr, (unsigned int)&_ld_ram_sha_size, DUMP_BASE64_BYTE, "ocram_sha"},
+#ifdef CFG_USE_PSRAM
+    {(uintptr_t)&_ld_psram_addr, (unsigned int)&_ld_psram_size, DUMP_BASE64_BYTE, "psram"},
+#endif
+    {(uintptr_t)0x28008000, (unsigned int)&__LD_CONFIG_EM_SEL, DUMP_BASE64_WORD, "EM_REG"},
+    {(uintptr_t)0x28000000, (unsigned int)&__LD_BLE_CORE_REG_SIZE, DUMP_BASE64_WORD, "BLE_CORE_REG"},
+#elif defined BL702L
     {(uintptr_t)&_ld_ram_addr1, (unsigned int)&_ld_ram_size1, DUMP_BASE64_BYTE, "tcm_ocram"},
     {(uintptr_t)&_ld_ram_addr2, (unsigned int)&_ld_ram_size2, DUMP_BASE64_BYTE, "hbnram"},
     {(uintptr_t)&_ld_ram_addr3, (unsigned int)&_ld_ram_size3, DUMP_BASE64_BYTE, "stack"},
-#elif BL808
+#ifdef CFG_USE_PSRAM
+    {(uintptr_t)&_ld_psram_addr, (unsigned int)&_ld_psram_size, DUMP_BASE64_BYTE, "psram"},
+#endif
+    {(uintptr_t)0x21020000, (unsigned int)0x20000, DUMP_BASE64_BYTE, "romcode"},
+    {(uintptr_t)0x28008000, (unsigned int)&__LD_CONFIG_EM_SEL, DUMP_BASE64_WORD, "EM_REG"},
+    {(uintptr_t)0x28000000, (unsigned int)&__LD_BLE_CORE_REG_SIZE, DUMP_BASE64_WORD, "BLE_CORE_REG"},
+#elif defined BL808
     {(uintptr_t)&_ld_ram_addr1, (unsigned int)&_ld_ram_size1, DUMP_BASE64_BYTE, "ram_psram"},
     {(uintptr_t)&_ld_ram_addr2, (unsigned int)&_ld_ram_size2, DUMP_BASE64_BYTE, "ram_wifi"},
     {(uintptr_t)&_ld_ram_addr3, (unsigned int)&_ld_ram_size3, DUMP_BASE64_BYTE, "ram_memory"},
     {(uintptr_t)&_ld_ram_addr4, (unsigned int)&_ld_ram_size4, DUMP_BASE64_BYTE, "xram_memory"},
-#elif WB03
+    {(uintptr_t)0x28010000, (unsigned int)&__LD_CONFIG_EM_SEL, DUMP_BASE64_WORD, "EM_REG"},
+#elif defined WB03
     {(uintptr_t)&_ld_ram_addr1, (unsigned int)&_ld_ram_size1, DUMP_BASE64_BYTE, "ram_tcm"},
     {(uintptr_t)&_ld_ram_addr2, (unsigned int)&_ld_ram_size2, DUMP_BASE64_BYTE, "ram_wifi"},
-#elif BL616
+#elif defined BL616
+    {(uintptr_t)0xf0004000, (unsigned int)12, DUMP_CSR, "dump riscv csr"},
     {(uintptr_t)&_ld_ram_addr1, (unsigned int)&_ld_ram_size1, DUMP_BASE64_BYTE, "ram_tcm"},
     {(uintptr_t)&_ld_ram_addr2, (unsigned int)&_ld_ram_size2, DUMP_BASE64_BYTE, "ram_wifi"},
     {(uintptr_t)&_ld_ram_addr3, (unsigned int)&_ld_ram_size3, DUMP_BASE64_BYTE, "ram_code"},
+    {(uintptr_t)0x28010000, (unsigned int)&__LD_CONFIG_EM_SEL, DUMP_BASE64_WORD, "EM_REG"},
 #endif
 };
 
@@ -180,40 +217,39 @@ static inline uintptr_t cd_getsp(void) {
   return sp;
 }
 
-/**
- * Coredump initialize.
- *
- * @return result
- */
-static int cd_getchar(char *inbuf) {
-  extern hosal_uart_dev_t uart_stdio;
-
-  return hosal_uart_receive(&uart_stdio, inbuf, 1);
+static void cd_flush(void) {
+  bl_uart_flush(COREDUMP_UART);
 }
 
-/**
- * Coredump initialize.
- *
- * @return result
- */
+static int cd_getchar(char *inbuf) {
+  int ret;
+  ret =  bl_uart_data_recv(COREDUMP_UART);
+  if (ret < 0) {
+    return 0;
+  }
+  *inbuf = (char)ret;
+  return 1;
+}
+
 static void cd_putchar(const char *buf, size_t len) {
-  extern hosal_uart_dev_t uart_stdio;
-  hosal_uart_send(&uart_stdio, buf, len);
+  size_t i;
+  for (i=0; i<len; i++) {
+    putchar(buf[i]);
+  }
 }
 
 static void cd_base64_wirte_block(const uint8_t buf[4], void *opaque) {
-  extern hosal_uart_dev_t uart_stdio;
   int *line_wrap = (int *)opaque;
-  hosal_uart_send(&uart_stdio, buf, 4);
+  cd_putchar((const char *)buf, 4);
   if (++(*line_wrap) > (BASE64_LINE_WRAP >> 2)) {
-    hosal_uart_send(&uart_stdio, "\r\n", 2);
+    cd_putchar("\r\n", 2);
     *line_wrap = 0;
   }
 }
 
 static void dump_ascii(const void *data, ssize_t len, struct crc32_stream_ctx *crc_ctx) {
   /* reuse len as index here, for calculate the crc */
-  for (len = 0; len < strlen((const char *)data); len++) {
+  for (len = 0; len < (ssize_t)strlen((const char *)data); len++) {
     utils_crc32_stream_feed(crc_ctx, *((const char *)data + len));
   }
 
@@ -401,6 +437,63 @@ static void dump_wifi_reg_others(const void *data, ssize_t len, struct crc32_str
   utils_base64_encode_stream(read_word_cb, cd_base64_wirte_block, (void *)&ctx);
 }
 
+/* Dump CSR */
+static int read_csr_cb(uint8_t *data, void *opaque)
+{
+  struct base64_word_ctx *ctx = (struct base64_word_ctx *)opaque;
+  uintptr_t base;
+
+  if (ctx->addr_curr < ctx->addr_end)
+    {
+      base = (ctx->addr_curr >> 2) << 2;
+      if (base != ctx->addr_base)
+        {
+          ctx->addr_base = base;
+          switch (base)
+            {
+            case 0x0:
+              *(uint32_t *)ctx->buf = read_csr(mcause);
+              break;
+            case 0x4:
+              *(uint32_t *)ctx->buf = read_csr(mtval);
+              break;
+            case 0x8:
+              *(uint32_t *)ctx->buf = read_csr(mepc);
+              break;
+            default:
+              *(uint32_t *)ctx->buf = read_csr(mstatus);
+            }
+        }
+
+      *data = ctx->buf[ctx->addr_curr & 0x3];
+      ctx->addr_curr++;
+
+      /* update crc checksum */
+
+      utils_crc32_stream_feed(ctx->crc_ctx, *data);
+
+      return 0;
+    }
+  else
+    {
+      return 1;
+    }
+}
+
+static void dump_csr(const void *data, ssize_t len,
+    struct crc32_stream_ctx *crc_ctx)
+{
+  struct base64_word_ctx ctx = {0};
+
+  ctx.addr_base = -1;
+  ctx.addr_curr = ((uintptr_t)data & 0xFFF);
+  ctx.addr_end = ctx.addr_curr + len;
+  ctx.crc_ctx = crc_ctx;
+
+  utils_base64_encode_stream(read_csr_cb, cd_base64_wirte_block,
+      (void *)&ctx);
+}
+
 /**
  * Coredump initialize.
  *
@@ -453,6 +546,22 @@ static void bl_coredump_print(uintptr_t addr, uint32_t len, const char *desc, en
   dump_handler_list[DUMP_BASE64_WORD]((const void *)&crc, (ssize_t)sizeof(uint32_t), &crc_ctx);
 
   cd_putchar(COREDUMP_BLOCK_CLOSE_STR, sizeof(COREDUMP_BLOCK_CLOSE_STR));
+
+  cd_flush();
+}
+
+#ifndef BL_COREDUMP_PRINT_SEG_N_K
+#define BL_COREDUMP_PRINT_SEG_N_K 32
+#endif
+static void bl_coredump_print_n_k(uintptr_t addr, uint32_t len, const char *desc, enum dump_type type)
+{
+    uint32_t printed_len;
+    uint32_t seg;
+
+    for(seg = 0; seg * BL_COREDUMP_PRINT_SEG_N_K * 1024 < len; seg++) {
+        printed_len = seg*BL_COREDUMP_PRINT_SEG_N_K*1024;
+        bl_coredump_print(addr + printed_len, len - printed_len >= BL_COREDUMP_PRINT_SEG_N_K*1024 ? BL_COREDUMP_PRINT_SEG_N_K*1024: len - printed_len, desc, type);
+    }
 }
 
 /**
@@ -462,7 +571,7 @@ static void bl_coredump_print(uintptr_t addr, uint32_t len, const char *desc, en
  */
 void bl_coredump_parse(const uint8_t *buf, unsigned int len) {
   char command;
-  int i = 0;
+  unsigned int i = 0;
 
   command = buf[i++];
 
@@ -483,7 +592,7 @@ void bl_coredump_parse(const uint8_t *buf, unsigned int len) {
         } else {
           length = 0x1000;
         }
-        bl_coredump_print(addr, length, NULL, DUMP_BASE64_WORD);
+        bl_coredump_print_n_k(addr, length, NULL, DUMP_BASE64_WORD);
       }
     } while (0);
     return;
@@ -491,7 +600,7 @@ void bl_coredump_parse(const uint8_t *buf, unsigned int len) {
   case 'd':
     do {
       for (i = 0; i < (sizeof(mem_hdr) / sizeof(mem_hdr[0])); i++) {
-        bl_coredump_print(mem_hdr[i].addr, mem_hdr[i].length, mem_hdr[i].desc, mem_hdr[i].type);
+        bl_coredump_print_n_k(mem_hdr[i].addr, mem_hdr[i].length, mem_hdr[i].desc, mem_hdr[i].type);
       }
     } while (0);
     return;
@@ -516,7 +625,10 @@ void bl_coredump_run() {
 
   /* Dump all pre-defined memory region by default */
   for (cmd_pos = 0; cmd_pos < (sizeof(mem_hdr) / sizeof(mem_hdr[0])); cmd_pos++) {
-    bl_coredump_print(mem_hdr[cmd_pos].addr, mem_hdr[cmd_pos].length, mem_hdr[cmd_pos].desc, mem_hdr[cmd_pos].type);
+    if (mem_hdr[cmd_pos].length == 0) {
+      continue;
+    }
+    bl_coredump_print_n_k(mem_hdr[cmd_pos].addr, mem_hdr[cmd_pos].length, mem_hdr[cmd_pos].desc, mem_hdr[cmd_pos].type);
   }
 
   while (1) {

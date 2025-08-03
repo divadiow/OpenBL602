@@ -1,32 +1,3 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #ifndef __RWNX_DEFS_H__
 #define __RWNX_DEFS_H__
 #include "errno.h"
@@ -34,6 +5,7 @@
 #include "ipc_shared.h"
 #include "bl_cmds.h"
 #include "bl_mod_params.h"
+#include <utils_list.h>
 
 #define ETH_ALEN    6       
 /**
@@ -56,8 +28,9 @@
 #define RWNX_RXBUFF_MAX (4 * 1)
 #define IEEE80211_MIN_AMPDU_BUF 0x8
 #define IEEE80211_MAX_AMPDU_BUF 0x40
-#define NX_VIRT_DEV_MAX 2
+#define NX_VIRT_DEV_MAX CFG_VIRT_DEV_MAX
 #define NX_REMOTE_STA_MAX CFG_STA_MAX
+#define NX_REMOTE_STA_STORE_MAX (CFG_VIRT_DEV_MAX+CFG_STA_MAX)
 #define CONFIG_USER_MAX 1
 #define cpu_to_le16(v16) (v16)
 #define cpu_to_le32(v32) (v32)
@@ -195,18 +168,21 @@ struct net_device_stats {
  * Structure used to save information relative to the managed stations.
  */
 struct bl_sta {
+    struct utils_list waiting_list;
+    struct utils_list pending_list;
     struct mac_addr sta_addr;
     u8 is_used;
     u8 sta_idx;             /* Identifier of the station */
-    u8 vif_idx;             /* Identifier of the VIF (fw id) the station
+    u8 vif_idx;             /* Identifier of the VIF (not fw id) the station
                                belongs to */
     u8 vlan_idx;            /* Identifier of the VLAN VIF (fw id) the station
                                belongs to (= vif_idx if no vlan in used) */
-    uint8_t qos;
-    int8_t rssi;
-    uint8_t data_rate;
-    uint32_t tsflo;
-    uint32_t tsfhi;
+    u8 fc_ps;
+    u8 qos;
+    s8 rssi;
+    u8 data_rate;
+    u32 tsflo;
+    u32 tsfhi;
 };
 
 /**
@@ -244,44 +220,62 @@ struct bl_vif {
     struct netif *dev;
     bool up;                    /* Indicate if associated netdev is up
                                    (i.e. Interface is created at fw level) */
+    u8 vif_idx;
+    u8 links_num;
+    u8 fixed_sta_idx;
+    u8 fc_chan;
+    u8 sta_ps;                 /* Only for VIF_STA for now */
+
+#if 0
     union
     {
         struct
         {
-            struct bl_sta *ap; /* Pointer to the peer STA entry allocated for
-                                    the AP */
-            struct bl_sta *tdls_sta; /* Pointer to the TDLS station */
+            u8 sta_idx;                /* Index of the AP which connected with */
         } sta;
         struct
         {
             struct list_head sta_list; /* List of STA connected to the AP */
-            u8 bcmc_index;             /* Index of the BCMC sta to use */
+            u8 bcmc_idx;               /* Index of the BCMC sta to use */
         } ap;
         struct
         {
-            struct bl_vif *master;   /* pointer on master interface */
+            struct bl_vif *master;     /* pointer on master interface */
             struct bl_sta *sta_4a;
         } ap_vlan;
     };
+#endif
+};
+
+enum bl_vif_id {
+    BL_VIF_STA = 0,
+    BL_VIF_AP  = NX_VIRT_DEV_MAX-1,
 };
 
 struct bl_hw {
-    int is_up;
+    /* WiFi Manager state machine context */
     struct bl_cmd_mgr cmd_mgr;
-    struct ipc_host_env_tag *ipc_env;           /* store the IPC environment */
-    struct list_head vifs;
-    struct bl_vif vif_table[NX_VIRT_DEV_MAX + NX_REMOTE_STA_MAX]; /* indexed with fw id */
-    struct bl_sta sta_table[NX_REMOTE_STA_MAX + NX_VIRT_DEV_MAX];
-    unsigned long drv_flags;
-    struct bl_mod_params *mod_params;
-    struct ieee80211_sta_ht_cap ht_cap;
-    int vif_index_sta;
-    int vif_index_ap;
 
-    /*custom added id*/
-    int sta_idx;
-    int ap_bcmc_idx;
+    /* Store the IPC environment */
+    struct ipc_host_env_tag *ipc_env;
+
+    /* Vifs which is used (NOT used) */
+    struct list_head vifs;
+
+    /* Store Vifs, VIF_STA (0) | VIF_AP (NX_VIRT_DEV_MAX-1) */
+    struct bl_vif vif_table[NX_VIRT_DEV_MAX];
+
+    /* Store STAs, indexed with fw id */
+    struct bl_sta sta_table[NX_REMOTE_STA_STORE_MAX];
+
+    /* Default configuration */
+    struct bl_mod_params *mod_params;
+
+    /* Default HT capability */
+    struct ieee80211_sta_ht_cap ht_cap;
+
 #ifdef CFG_BL_STATISTIC
+    /* Some statistics */
     struct bl_stats       stats;
 #endif
 };
@@ -289,7 +283,7 @@ struct bl_hw {
 struct ethhdr {
     unsigned char   h_dest[ETH_ALEN];   /* destination eth addr */
     unsigned char   h_source[ETH_ALEN]; /* source ether addr    */
-    __be16      h_proto;        /* packet type ID field */
+    __be16          h_proto;            /* packet type ID field */
 } __attribute__((packed));
 
 /// Definitions of the RF bands

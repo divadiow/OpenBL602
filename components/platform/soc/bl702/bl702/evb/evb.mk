@@ -42,10 +42,16 @@ else
 				LINKER_SCRIPTS := flash.ld
 			endif
 		else
-			LINKER_SCRIPTS := flash_rom.ld
+			ifeq ($(CONFIG_USE_PSRAM),1)
+				LINKER_SCRIPTS := psram_flash_rom.ld
+			else
+				LINKER_SCRIPTS := flash_rom.ld
+			endif
 		endif
 	endif
 endif
+
+$(info use $(LINKER_SCRIPTS))
 
 ##
 COMPONENT_ADD_LDFLAGS += -L $(COMPONENT_PATH)/evb/ld \
@@ -59,13 +65,9 @@ ifeq ($(CONFIG_DISABLE_PRINT),1)
 CPPFLAGS += -DDISABLE_PRINT
 endif
 
-ifeq ($(CONFIG_USB_CDC),1)
-CPPFLAGS += -DCFG_USB_CDC_ENABLE
-endif
-
-ifeq ($(CONFIG_ZIGBEE), 1)
-CFLAGS   += -DCFG_ZIGBEE_ENABLE
-CPPFLAGS += -DCFG_ZIGBEE_ENABLE
+ifeq ($(CONFIG_CPP_ENABLE), 1)
+CFLAGS   += -DCFG_CPP_ENABLE=1
+CPPFLAGS += -DCFG_CPP_ENABLE=1
 endif
 
 ifeq ($(CONFIG_LINK_RAM),1)

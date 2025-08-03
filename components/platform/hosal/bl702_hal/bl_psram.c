@@ -1,37 +1,42 @@
-/*
- * Copyright (c) 2016-2022 Bouffalolab.
- *
- * This file is part of
- *     *** Bouffalolab Software Dev Kit ***
- *      (see www.bouffalolab.com).
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Bouffalo Lab nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/**
+  ******************************************************************************
+  * @file    dual_cs_psram_write_through.c
+  * @version V1.0
+  * @date
+  * @brief   This file is the peripheral case c file
+  ******************************************************************************
+  * @attention
+  *
+  * <h2><center>&copy; COPYRIGHT(c) 2020 Bouffalo Lab</center></h2>
+  *
+  * Redistribution and use in source and binary forms, with or without modification,
+  * are permitted provided that the following conditions are met:
+  *   1. Redistributions of source code must retain the above copyright notice,
+  *      this list of conditions and the following disclaimer.
+  *   2. Redistributions in binary form must reproduce the above copyright notice,
+  *      this list of conditions and the following disclaimer in the documentation
+  *      and/or other materials provided with the distribution.
+  *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+  *      may be used to endorse or promote products derived from this software
+  *      without specific prior written permission.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  *
+  ******************************************************************************
+  */
 
 #include "bl702_psram.h"
 #include "bl702_l1c.h"
 #include "bl702_glb.h"
-#include "bflb_platform.h"
 
 /** @addtogroup  BL702_Peripheral_Case
  *  @{
@@ -44,8 +49,6 @@
 /** @defgroup  DUAL_CS_PSRAM_WRITE_THROUGH_Private_Macros
  *  @{
  */
-#define PSRAM_ADDR                             0x24000000
-#define PSRAM_SIZE                             0x200000
 #define BFLB_EXTFLASH_CS_GPIO                  GLB_GPIO_PIN_25
 #define BFLB_EXTPSRAM_CLK_GPIO                 GLB_GPIO_PIN_27
 #define BFLB_EXTPSRAM_CS_GPIO                  GLB_GPIO_PIN_17
@@ -65,8 +68,7 @@
 /** @defgroup  DUAL_CS_PSRAM_WRITE_THROUGH_Private_Variables
  *  @{
  */
-uint8_t psramId[8] = {0};
-uint32_t checkAddr = 0;
+static uint8_t psramId[8];
 
 /*@} end of group DUAL_CS_PSRAM_WRITE_THROUGH_Private_Variables */
 
@@ -102,7 +104,7 @@ uint32_t checkAddr = 0;
 *******************************************************************************/
 void ATTR_TCM_SECTION SF_Cfg_Init_Ext_Psram_Gpio(void)
 {
-#if !defined(CFG_PSRAM_DUAL_BANK)
+#if 1//!defined(CFG_PSRAM_DUAL_BANK)
     GLB_GPIO_Cfg_Type cfg;
     uint8_t gpiopins[7];
     uint8_t i = 0;
@@ -181,7 +183,7 @@ void ATTR_TCM_SECTION bl_psram_init(void)
     };
     SF_Ctrl_Psram_Cfg sfCtrlPsramCfg = {
         .owner = SF_CTRL_OWNER_SAHB,
-#if !defined(CFG_PSRAM_DUAL_BANK)
+#if 1//!defined(CFG_PSRAM_DUAL_BANK)
         .padSel = SF_CTRL_PAD_SEL_DUAL_CS_SF2,
 #else
         .padSel = SF_CTRL_PAD_SEL_DUAL_BANK_SF2_SF3,
@@ -193,8 +195,18 @@ void ATTR_TCM_SECTION bl_psram_init(void)
         .psramClkDelay = 0,
     };
 
-    //GLB_Set_SF_CLK(1, GLB_SFLASH_CLK_72M, 1);
-    SF_Cfg_Init_Ext_Psram_Gpio();
+    Efuse_Device_Info_Type dev_info;
+    EF_Ctrl_Read_Device_Info(&dev_info);
+    if(dev_info.psram_cfg == 1){
+        // use dual bank mode for internal psram
+        sfCtrlPsramCfg.padSel = SF_CTRL_PAD_SEL_DUAL_BANK_SF2_SF3;
+
+        // for dual bank mode, only need to select internal psram
+        // please check map file, make sure that GLB_Set_Psram_Pad_HZ() is not called
+        GLB_Select_Internal_PSram();
+    }else{
+        SF_Cfg_Init_Ext_Psram_Gpio();
+    }
 
     Psram_Init(&apMemory1604, &cmdsCfg, &sfCtrlPsramCfg);
     //if(doReset){
@@ -209,9 +221,10 @@ void ATTR_TCM_SECTION bl_psram_init(void)
 
     // set burst toggle to spi mode, fix psram random access issue
     BL_WR_WORD(0x4000B084, 0x08000000);
+}
 
-    extern uint8_t psramId[8];
-    //printf("PSRAM ID: %02X %02X %02X %02X %02X %02X %02X %02X.\r\n",
-    //            psramId[0], psramId[1], psramId[2], psramId[3], psramId[4], psramId[5], psramId[6], psramId[7]);
-
+void bl_psram_dump_id(void)
+{
+    printf("PSRAM ID: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+            psramId[0], psramId[1], psramId[2], psramId[3], psramId[4], psramId[5], psramId[6], psramId[7]);
 }

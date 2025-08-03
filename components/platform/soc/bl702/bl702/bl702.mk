@@ -1,0 +1,91 @@
+CPPFLAGS += -DBL702
+CPPFLAGS += -DARCH_RISCV
+CPPFLAGS += -DBFLB_CRYPT_HARDWARE -DBFLB_PKA_HARDWARE
+
+ifneq ($(CONFIG_USE_STD_DRIVER),1)
+CPPFLAGS += -DBFLB_USE_HAL_DRIVER
+endif
+
+ifeq ($(CONFIG_USB_CDC),1)
+CPPFLAGS += -DCFG_USB_CDC_ENABLE
+endif
+
+ifeq ($(CONFIG_ETHERNET),1)
+CPPFLAGS += -DCFG_ETHERNET_ENABLE
+endif
+
+ifeq ($(CONFIG_EFLASH_LOADER),1)
+CPPFLAGS += -DCFG_EFLASH_LOADER_ENABLE
+endif
+
+ifeq ($(CONFIG_BT),1)
+CPPFLAGS += -DCFG_BLE_ENABLE
+endif
+
+ifeq ($(CONFIG_BLE_MFG),1)
+CPPFLAGS += -DCONFIG_BLE_MFG
+endif
+
+ifeq ($(CONFIG_ZIGBEE),1)
+CPPFLAGS += -DCFG_ZIGBEE_ENABLE
+endif
+
+ifeq ($(CONFIG_ZBSTACK_DEBUG),1)
+CPPFLAGS += -D_DEBUG
+endif
+
+ifeq ($(CONFIG_THREAD),1)
+CPPFLAGS += -DCFG_OPENTHREAD_ENABLE
+endif
+
+ifeq ($(CONFIG_TCAL),1)
+CPPFLAGS += -DCFG_TCAL_ENABLE
+endif
+
+ifeq ($(CONFIG_PDS_ENABLE),1)
+CONFIG_PDS_LEVEL ?= 31
+CPPFLAGS += -DCFG_PDS_ENABLE
+CPPFLAGS += -DCFG_PDS_LEVEL=$(CONFIG_PDS_LEVEL)
+ifeq ($(CONFIG_PDS_LEVEL),31)
+CPPFLAGS += -DCFG_PDS_OPTIMIZE
+endif
+CPPFLAGS += -DCONFIG_HW_SEC_ENG_DISABLE
+endif
+
+ifeq ($(CONFIG_HBN_ENABLE),1)
+CPPFLAGS += -DCFG_HBN_ENABLE
+CPPFLAGS += -DCFG_HBN_OPTIMIZE
+CPPFLAGS += -DCONFIG_HW_SEC_ENG_DISABLE
+endif
+
+ifeq ($(CONFIG_USE_PSRAM),1)
+CPPFLAGS += -DCFG_USE_PSRAM
+endif
+
+ifeq ($(CONFIG_USE_XTAL32K),1)
+CPPFLAGS += -DCFG_USE_XTAL32K
+endif
+
+ifneq ($(CONFIG_GEN_ROM),1)
+ifneq ($(CONFIG_BUILD_ROM_CODE),1)
+CPPFLAGS += -DCFG_USE_ROM_CODE
+endif
+endif
+
+LDFLAGS += -Wl,--print-memory-usage
+ifdef CONFIG_CACHE_SIZE
+LDFLAGS += -Wl,--defsym=__CACHE_SIZE=$(CONFIG_CACHE_SIZE)
+endif
+
+ifneq ($(CONFIG_GEN_ROM),1)
+ifneq ($(CONFIG_BUILD_ROM_CODE),1)
+ASMFLAGS := $(patsubst -march=rv32imfc, -march=rv32imc, $(ASMFLAGS))
+ASMFLAGS := $(patsubst -mabi=ilp32f, -mabi=ilp32, $(ASMFLAGS))
+CFLAGS := $(patsubst -march=rv32imfc, -march=rv32imc, $(CFLAGS))
+CFLAGS := $(patsubst -mabi=ilp32f, -mabi=ilp32, $(CFLAGS))
+CXXFLAGS := $(patsubst -march=rv32imfc, -march=rv32imc, $(CXXFLAGS))
+CXXFLAGS := $(patsubst -mabi=ilp32f, -mabi=ilp32, $(CXXFLAGS))
+LDFLAGS := $(patsubst -march=rv32imfc, -march=rv32imc, $(LDFLAGS))
+LDFLAGS := $(patsubst -mabi=ilp32f, -mabi=ilp32, $(LDFLAGS))
+endif
+endif
