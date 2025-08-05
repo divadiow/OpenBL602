@@ -40,14 +40,14 @@ namespace ot {
 namespace Posix {
 
 /**
- * Implements the radio URL processing.
+ * This class implements the radio URL processing.
  *
  */
 class RadioUrl : public ot::Url::Url
 {
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      * @param[in]   aUrl    The null-terminated URL string.
      *

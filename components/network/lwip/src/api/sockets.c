@@ -561,7 +561,6 @@ free_socket_locked(struct lwip_sock *sock, int is_tcp, struct netconn **conn,
 
   *lastdata = sock->lastdata;
   sock->lastdata.pbuf = NULL;
-  sock->select_waiting = 0;
   *conn = sock->conn;
   sock->conn = NULL;
   return 1;
@@ -2102,8 +2101,7 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
             (exceptset && FD_ISSET(i, exceptset))) {
           struct lwip_sock *sock;
           SYS_ARCH_PROTECT(lev);
-          sock = tryget_socket_unconn_nouse(i);
-          LWIP_ASSERT("socket gone at the end of select", sock != NULL);
+          sock = tryget_socket_unconn_locked(i);
           if (sock != NULL) {
             /* for now, handle select_waiting==0... */
             LWIP_ASSERT("sock->select_waiting > 0", sock->select_waiting > 0);
@@ -2111,6 +2109,7 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
               sock->select_waiting--;
             }
             SYS_ARCH_UNPROTECT(lev);
+            done_socket(sock);
           } else {
             SYS_ARCH_UNPROTECT(lev);
             /* Not a valid socket */
@@ -3010,10 +3009,6 @@ lwip_getsockopt_impl(int s, int level, int optname, void *optval, socklen_t *opt
           *(int *)optval = udp_is_flag_set(sock->conn->pcb.udp, UDP_FLAGS_NOCHKSUM) ? 1 : 0;
           break;
 #endif /* LWIP_UDP*/
-        case SO_CONNINFO:
-          LWIP_SOCKOPT_CHECK_OPTLEN_CONN(sock, *optlen, void *);
-          *(void **)optval = sock->conn;
-          break;
         default:
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_getsockopt(%d, SOL_SOCKET, UNIMPL: optname=0x%x, ..)\n",
                                       s, optname));

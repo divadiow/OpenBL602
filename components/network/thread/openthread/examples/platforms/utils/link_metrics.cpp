@@ -49,7 +49,7 @@ class LinkMetricsDataInfo : public LinkedListEntry<LinkMetricsDataInfo>, public 
 
 public:
     /**
-     * Constructor.
+     * Construtor.
      *
      */
     LinkMetricsDataInfo(void) { Clear(); };
@@ -71,7 +71,7 @@ public:
     }
 
     /**
-     * Gets Link Metrics data stored in this object.
+     * This method gets Link Metrics data stored in this object.
      *
      * TODO: Currently the order of Link Metircs data is fixed. Will update it to follow the order specified in TLV.
      *
@@ -114,7 +114,7 @@ public:
     }
 
     /**
-     * Gets the length of Link Metrics Data.
+     * This method gets the length of Link Metrics Data.
      *
      * @returns  The number of bytes for the data.
      *
@@ -126,7 +126,7 @@ public:
     }
 
     /**
-     * Gets the metrics configured for the Enhanced-ACK Based Probing.
+     * This method gets the metrics configured for the Enhanced-ACK Based Probing.
      *
      * @returns  The metrics configured.
      *
@@ -134,7 +134,7 @@ public:
     otLinkMetrics GetLinkMetrics(void) const { return mLinkMetrics; }
 
 private:
-    uint8_t GetLinkMargin(int8_t aRssi) const { return ComputeLinkMargin(sNoiseFloor, aRssi); }
+    uint8_t GetLinkMargin(int8_t aRssi) const { return LinkQualityInfo::ConvertRssToLinkMargin(sNoiseFloor, aRssi); }
 
     bool Matches(const otShortAddress &aShortAddress) const { return mShortAddress == aShortAddress; };
 
@@ -177,7 +177,10 @@ static inline bool IsLinkMetricsClear(otLinkMetrics aLinkMetrics)
     return !aLinkMetrics.mPduCount && !aLinkMetrics.mLqi && !aLinkMetrics.mLinkMargin && !aLinkMetrics.mRssi;
 }
 
-void otLinkMetricsInit(int8_t aNoiseFloor) { sNoiseFloor = aNoiseFloor; }
+void otLinkMetricsInit(int8_t aNoiseFloor)
+{
+    sNoiseFloor = aNoiseFloor;
+}
 
 otError otLinkMetricsConfigureEnhAckProbing(otShortAddress      aShortAddress,
                                             const otExtAddress *aExtAddress,

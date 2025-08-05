@@ -47,7 +47,7 @@ namespace ot {
  */
 
 /**
- * Is used as a base class for those item-pointer iterators.
+ * This template class is used as a base class for those item-pointer iterators.
  *
  * These iterators have common methods and operators like `Advance()` and `++` and hold a pointer to the
  * object.
@@ -65,7 +65,7 @@ template <typename ItemType, typename IteratorType> class ItemPtrIterator
 {
 public:
     /**
-     * Indicates whether there are no more items to be accessed (iterator has reached the end).
+     * This method indicates whether there are no more items to be accessed (iterator has reached the end).
      *
      * @retval TRUE   There are no more items to be accessed (iterator has reached the end).
      * @retval FALSE  The current item is valid.
@@ -74,7 +74,7 @@ public:
     bool IsDone(void) const { return mItem == nullptr; }
 
     /**
-     * Overloads `++` operator (pre-increment) to advance the iterator.
+     * This method overloads `++` operator (pre-increment) to advance the iterator.
      *
      * The iterator is moved to point to the next item using IteratorType's `Advance` method.
      * If there are no more items, the iterator becomes empty (i.e., `operator*` returns `nullptr` and `IsDone()`
@@ -84,7 +84,7 @@ public:
     void operator++(void) { static_cast<IteratorType *>(this)->Advance(); }
 
     /**
-     * Overloads `++` operator (post-increment) to advance the iterator.
+     * This method overloads `++` operator (post-increment) to advance the iterator.
      *
      * The iterator is moved to point to the next item using IteratorType's `Advance` method.
      * If there are no more items, the iterator becomes empty (i.e., `operator*` returns `nullptr` and `IsDone()`
@@ -94,10 +94,10 @@ public:
     void operator++(int) { static_cast<IteratorType *>(this)->Advance(); }
 
     /**
-     * Overloads the `*` dereference operator and gets a reference to then item to which the iterator is
+     * This method overloads the `*` dereference operator and gets a reference to then item to which the iterator is
      * currently pointing.
      *
-     * MUST be used when the iterator is not empty/finished (i.e., `IsDone()` returns `false`).
+     * This method MUST be used when the iterator is not empty/finished (i.e., `IsDone()` returns `false`).
      *
      * @returns A reference to the item currently pointed by the iterator.
      *
@@ -105,7 +105,7 @@ public:
     ItemType &operator*(void) { return *mItem; }
 
     /**
-     * Overloads the `->` dereference operator and gets a pointer to the item to which the iterator is
+     * This method overloads the `->` dereference operator and gets a pointer to the item to which the iterator is
      * currently pointing.
      *
      * @returns A pointer to the item associated with the iterator, or `nullptr` if iterator is empty/done.
@@ -114,7 +114,7 @@ public:
     ItemType *operator->(void) { return mItem; }
 
     /**
-     * Overloads operator `==` to evaluate whether or not two `Iterator` instances point to the same
+     * This method overloads operator `==` to evaluate whether or not two `Iterator` instances point to the same
      * item.
      *
      * @param[in]  aOther  The other `Iterator` to compare with.
@@ -126,7 +126,7 @@ public:
     bool operator==(const IteratorType &aOther) const { return mItem == aOther.mItem; }
 
     /**
-     * Overloads operator `!=` to evaluate whether or not two `Iterator` instances point to the same
+     * This method overloads operator `!=` to evaluate whether or not two `Iterator` instances point to the same
      * child entry.
      *
      * @param[in]  aOther  The other `Iterator` to compare with.

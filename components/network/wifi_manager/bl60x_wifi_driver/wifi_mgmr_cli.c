@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
+ *
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <cli.h>
@@ -351,9 +380,10 @@ static void wifi_scan_cmd(char *buf, int len, int argc, char **argv)
     int  channel_input_num = 0;
     uint8_t channel_input[MAX_FIXED_CHANNELS_LIMIT];
     const char *ssid = NULL;
+    int bssid_set_flag = 0;
     uint8_t mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     getopt_env_t getopt_env;
-    /*
+    /* 
      * default: active scan
     */
     uint8_t scan_mode = SCAN_ACTIVE;
@@ -379,6 +409,7 @@ static void wifi_scan_cmd(char *buf, int len, int argc, char **argv)
             break;
             case 'b':
             {
+                bssid_set_flag = 1;
                 utils_parse_number(getopt_env.optarg, ':', mac, 6, 16);
                 bl_os_printf("bssid: %s, mac:%02X:%02X:%02X:%02X:%02X:%02X\r\n", getopt_env.optarg,
                          mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -558,8 +589,10 @@ static void wifi_sta_ip_unset_cmd(char *buf, int len, int argc, char **argv)
     wifi_mgmr_sta_ip_unset();
 }
 
+long long aos_now_ms(void);
 static void wifi_connect_cmd(char *buf, int len, int argc, char **argv)
 {
+    printf("wifi_connect_cmd %lld\r\n", aos_now_ms());
     wifi_interface_t wifi_interface;
 
     getopt_env_t getopt_env;
@@ -573,7 +606,7 @@ static void wifi_connect_cmd(char *buf, int len, int argc, char **argv)
     open_bss_flag = 0;
     int pci_en = 0;
     int scan_mode = 0;
-    uint8_t pmf_flag = WIFI_MGMR_CONNECT_PMF_CAPABLE_BIT;
+    uint8_t pmf_flag = WIFI_MGMR_CONNECT_PMF_CAPABLE_BIT; 
     uint16_t itv = 0;
 
     if (2 > argc) {
@@ -598,7 +631,7 @@ static void wifi_connect_cmd(char *buf, int len, int argc, char **argv)
         case 'q':
             ++quick_connect;
             break;
-
+        
         case 't':
             itv = atoi(getopt_env.optarg);
             wifi_mgmr_set_listen_interval(itv);
@@ -834,13 +867,6 @@ static void wifi_power_saving_set(char *buf, int len, int argc, char **argv)
     wifi_mgmr_set_wifi_active_time(ms);
 }
 
-static void wifi_power_saving_get(char *buf, int len, int argc, char **argv)
-{
-    bl_os_printf("Getting wifi ps param...\r\n");
-    int mode = wifi_mgmr_sta_ps_get();
-    bl_os_printf("wifi ps mode: %d\r\n", mode);
-}
-
 static void sniffer_cb(void *env, uint8_t *pkt, int len, struct bl_rx_info *info)
 {
     static unsigned int sniffer_counter, sniffer_last;
@@ -886,7 +912,7 @@ static void cmd_wifi_ap_start(char *buf, int len, int argc, char **argv)
 {
     uint8_t mac[6];
     uint8_t hidden_ssid = 0;
-    char ssid_name[33];
+    char ssid_name[32];
     int channel;
     int max_sta_supported;
     wifi_interface_t wifi_interface;
@@ -906,7 +932,6 @@ static void cmd_wifi_ap_start(char *buf, int len, int argc, char **argv)
         if (4 == argc) {
             hidden_ssid = 1;
         }
-
         if ((channel = channel_cvt_validate(argv[1])) < 0) {
             return;
         }
@@ -1200,7 +1225,6 @@ const static struct cli_command cmds_user[] STATIC_CLI_CMD_ATTRIBUTE = {
         { "wifi_sta_ps_on", "wifi power saving mode ON", wifi_power_saving_on_cmd},
         { "wifi_sta_ps_off", "wifi power saving mode OFF", wifi_power_saving_off_cmd},
         { "wifi_sta_ps_set", "set wifi ps mode active time", wifi_power_saving_set},
-        { "wifi_sta_ps_get", "get wifi ps mode", wifi_power_saving_get},
         { "wifi_sta_denoise_enable", "wifi denoise", wifi_denoise_enable_cmd},
         { "wifi_sta_denoise_disable", "wifi denoise", wifi_denoise_disable_cmd},
         { "wifi_sniffer_on", "wifi sniffer mode on", wifi_sniffer_on_cmd},

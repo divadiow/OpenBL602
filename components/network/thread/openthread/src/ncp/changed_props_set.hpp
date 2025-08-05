@@ -65,7 +65,7 @@ public:
     };
 
     /**
-     * Initializes the set.
+     * This constructor initializes the set.
      *
      */
     ChangedPropsSet(void)
@@ -75,13 +75,13 @@ public:
     }
 
     /**
-     * Clears the set.
+     * This method clears the set.
      *
      */
     void Clear(void) { mChangedSet = 0; }
 
     /**
-     * Indicates if the set is empty or not.
+     * This method indicates if the set is empty or not.
      *
      * @returns TRUE if the set if empty, FALSE otherwise.
      *
@@ -89,7 +89,7 @@ public:
     bool IsEmpty(void) const { return (mChangedSet == 0); }
 
     /**
-     * Adds a property to the set. The property added must be in the list of supported properties
+     * This method adds a property to the set. The property added must be in the list of supported properties
      * capable of sending unsolicited update, otherwise the input is ignored.
      *
      * Note that if the property is already in the set, adding it again does not change the set.
@@ -100,7 +100,7 @@ public:
     void AddProperty(spinel_prop_key_t aPropKey) { Add(aPropKey, SPINEL_STATUS_OK); }
 
     /**
-     * Adds a `LAST_STATUS` update to the set. The update must be in list of supported entries.
+     * This method adds a `LAST_STATUS` update to the set. The update must be in list of supported entries.
      *
      * @param[in] aStatus     The spinel status update to be added to set.
      *
@@ -108,7 +108,7 @@ public:
     void AddLastStatus(spinel_status_t aStatus) { Add(SPINEL_PROP_LAST_STATUS, aStatus); }
 
     /**
-     * Returns a pointer to array of entries of supported property/status updates. The list includes
+     * This method returns a pointer to array of entries of supported property/status updates. The list includes
      * all properties that can generate unsolicited update.
      *
      * @param[out]  aNumEntries  A reference to output the number of entries in the list.
@@ -123,7 +123,7 @@ public:
     }
 
     /**
-     * Returns a pointer to the entry associated with a given index.
+     * This method returns a pointer to the entry associated with a given index.
      *
      * @param[in] aIndex     The index to an entry.
      *
@@ -136,7 +136,7 @@ public:
     }
 
     /**
-     * Indicates if the entry associated with an index is in the set (i.e., it has been changed and
+     * This method indicates if the entry associated with an index is in the set (i.e., it has been changed and
      * requires an unsolicited update).
      *
      * @param[in] aIndex     The index to an entry.
@@ -147,7 +147,7 @@ public:
     bool IsEntryChanged(uint8_t aIndex) const { return IsBitSet(mChangedSet, aIndex); }
 
     /**
-     * Removes an entry associated with an index in the set.
+     * This method removes an entry associated with an index in the set.
      *
      * Note that if the property/entry is not in the set, removing it simply does nothing.
      *
@@ -157,7 +157,7 @@ public:
     void RemoveEntry(uint8_t aIndex) { ClearBit(mChangedSet, aIndex); }
 
     /**
-     * Enables/disables filtering of a given property.
+     * This method enables/disables filtering of a given property.
      *
      * @param[in] aPropKey             The property key to filter.
      * @param[in] aEnable              TRUE to enable filtering, FALSE to disable.
@@ -169,7 +169,7 @@ public:
     otError EnablePropertyFilter(spinel_prop_key_t aPropKey, bool aEnable);
 
     /**
-     * Determines whether filtering is enabled for an entry associated with an index.
+     * This method determines whether filtering is enabled for an entry associated with an index.
      *
      * @param[in] aIndex               Index of entry to be checked.
      *
@@ -179,7 +179,7 @@ public:
     bool IsEntryFiltered(uint8_t aIndex) const { return IsBitSet(mFilterSet, aIndex); }
 
     /**
-     * Determines whether filtering is enabled for a given property key.
+     * This method determines whether filtering is enabled for a given property key.
      *
      * @param[in] aPropKey             The property key to check.
      *
@@ -190,7 +190,7 @@ public:
     bool IsPropertyFiltered(spinel_prop_key_t aPropKey) const;
 
     /**
-     * Clears the filter.
+     * This method clears the filter.
      *
      */
     void ClearFilter(void) { mFilterSet = 0; }

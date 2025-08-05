@@ -49,7 +49,7 @@ class Agent : public InstanceLocator, private NonCopyable
 {
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      * @param[in]  aInstance  A reference to the OpenThread instance.
      *
@@ -61,13 +61,13 @@ public:
     }
 
     /**
-     * Updates the Neighbor Discovery Agents using current Thread Network Data.
+     * This method updates the Neighbor Discovery Agents using current Thread Network Data.
      *
      */
     void UpdateService(void);
 
     /**
-     * Updates the prefix of the Neighbor Discovery Agent Anycast Locator.
+     * This method updates the prefix of the Neighbor Discovery Agent Anycast Locator.
      *
      */
     void ApplyMeshLocalPrefix(void);

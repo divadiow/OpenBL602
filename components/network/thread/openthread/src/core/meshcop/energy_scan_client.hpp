@@ -41,31 +41,27 @@
 #include <openthread/commissioner.h>
 
 #include "coap/coap.hpp"
-#include "common/callback.hpp"
 #include "common/locator.hpp"
 #include "net/ip6_address.hpp"
 #include "net/udp6.hpp"
-#include "thread/tmf.hpp"
 
 namespace ot {
 
 /**
- * Implements handling PANID Query Requests.
+ * This class implements handling PANID Query Requests.
  *
  */
 class EnergyScanClient : public InstanceLocator
 {
-    friend class Tmf::Agent;
-
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      */
     explicit EnergyScanClient(Instance &aInstance);
 
     /**
-     * Sends an Energy Scan Query message.
+     * This method sends an Energy Scan Query message.
      *
      * @param[in]  aChannelMask   The channel mask value.
      * @param[in]  aCount         The number of energy measurements per channel.
@@ -83,17 +79,19 @@ public:
                     uint8_t                            aCount,
                     uint16_t                           aPeriod,
                     uint16_t                           aScanDuration,
-                    const Ip6::Address                &aAddress,
+                    const Ip6::Address &               aAddress,
                     otCommissionerEnergyReportCallback aCallback,
-                    void                              *aContext);
+                    void *                             aContext);
 
 private:
-    template <Uri kUri> void HandleTmf(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+    static void HandleReport(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void        HandleReport(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
 
-    Callback<otCommissionerEnergyReportCallback> mCallback;
+    otCommissionerEnergyReportCallback mCallback;
+    void *                             mContext;
+
+    Coap::Resource mEnergyScan;
 };
-
-DeclareTmfHandler(EnergyScanClient, kUriEnergyReport);
 
 /**
  * @}

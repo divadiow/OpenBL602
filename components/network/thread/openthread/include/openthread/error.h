@@ -52,7 +52,7 @@ extern "C" {
  */
 
 /**
- * Represents error codes used throughout OpenThread.
+ * This enumeration represents error codes used throughout OpenThread.
  *
  */
 typedef enum OT_MUST_USE_RESULT otError
@@ -251,7 +251,7 @@ typedef enum OT_MUST_USE_RESULT otError
 } otError;
 
 /**
- * Converts an otError enum into a string.
+ * This function converts an otError enum into a string.
  *
  * @param[in]  aError     An otError enum.
  *

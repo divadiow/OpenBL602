@@ -52,7 +52,9 @@ RegisterLogModule("MeshCoP");
 
 AnnounceBeginServer::AnnounceBeginServer(Instance &aInstance)
     : AnnounceSenderBase(aInstance, AnnounceBeginServer::HandleTimer)
+    , mAnnounceBegin(UriPath::kAnnounceBegin, &AnnounceBeginServer::HandleRequest, this)
 {
+    Get<Tmf::Agent>().AddResource(mAnnounceBegin);
 }
 
 void AnnounceBeginServer::SendAnnounce(uint32_t aChannelMask, uint8_t aCount, uint16_t aPeriod)
@@ -63,12 +65,17 @@ void AnnounceBeginServer::SendAnnounce(uint32_t aChannelMask, uint8_t aCount, ui
     AnnounceSenderBase::SendAnnounce(aCount);
 }
 
-template <>
-void AnnounceBeginServer::HandleTmf<kUriAnnounceBegin>(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
+void AnnounceBeginServer::HandleRequest(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
 {
-    uint32_t mask;
-    uint8_t  count;
-    uint16_t period;
+    static_cast<AnnounceBeginServer *>(aContext)->HandleRequest(AsCoapMessage(aMessage), AsCoreType(aMessageInfo));
+}
+
+void AnnounceBeginServer::HandleRequest(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
+{
+    uint32_t         mask;
+    uint8_t          count;
+    uint16_t         period;
+    Ip6::MessageInfo responseInfo(aMessageInfo);
 
     VerifyOrExit(aMessage.IsPostRequest());
     VerifyOrExit((mask = MeshCoP::ChannelMaskTlv::GetChannelMask(aMessage)) != 0);
@@ -80,8 +87,8 @@ void AnnounceBeginServer::HandleTmf<kUriAnnounceBegin>(Coap::Message &aMessage, 
 
     if (aMessage.IsConfirmable() && !aMessageInfo.GetSockAddr().IsMulticast())
     {
-        SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, aMessageInfo));
-        LogInfo("Sent %s response", UriToString<kUriAnnounceBegin>());
+        SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, responseInfo));
+        LogInfo("Sent announce begin response");
     }
 
 exit:

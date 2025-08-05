@@ -39,14 +39,13 @@
 #include "common/code_utils.hpp"
 #include "common/const_cast.hpp"
 #include "common/error.hpp"
-#include "common/locator.hpp"
 #include "common/numeric_limits.hpp"
 #include "common/type_traits.hpp"
 
 namespace ot {
 
 /**
- * Returns the length of a given array (number of elements in the array).
+ * This function returns the length of a given array (number of elements in the array).
  *
  * This template function is `constexpr`. The template arguments are expected to be deduced by the compiler allowing
  * callers to simply use `GetArrayLength(aArray)`.
@@ -63,7 +62,7 @@ template <typename Type, uint16_t kArrayLength> constexpr inline uint16_t GetArr
 }
 
 /**
- * Returns a pointer to end of a given array (pointing to the past-the-end element).
+ * This function returns a pointer to end of a given array (pointing to the past-the-end element).
  *
  * Note that the past-the-end element is a theoretical element that would follow the last element in the array. It does
  * not point to an actual element in array, and thus should not be dereferenced.
@@ -82,7 +81,7 @@ template <typename Type, uint16_t kArrayLength> inline Type *GetArrayEnd(Type (&
 }
 
 /**
- * Returns a pointer to end of a given array (pointing to the past-the-end element).
+ * This function returns a pointer to end of a given array (pointing to the past-the-end element).
  *
  * Note that the past-the-end element is a theoretical element that would follow the last element in the array. It does
  * not point to an actual element in array, and thus should not be dereferenced.
@@ -101,7 +100,7 @@ template <typename Type, uint16_t kArrayLength> inline const Type *GetArrayEnd(c
 }
 
 /**
- * Represents an array of elements with a fixed max size.
+ * This template class represents an array of elements with a fixed max size.
  *
  * @tparam Type        The array element type.
  * @tparam kMaxSize    Specifies the max array size (maximum number of elements in the array).
@@ -120,7 +119,7 @@ class Array
 
 public:
     /**
-     * Represents the length or index in array.
+     * This type represents the length or index in array.
      *
      * It is typically either `uint8_t` or `uint16_t` (determined based on the maximum array size (`kMaxSize`)).
      *
@@ -128,7 +127,7 @@ public:
     typedef SizeType IndexType;
 
     /**
-     * Initializes the array as empty.
+     * This constructor initializes the array as empty.
      *
      */
     Array(void)
@@ -137,7 +136,7 @@ public:
     }
 
     /**
-     * Initializes the array by copying elements from another array.
+     * This constructor initializes the array by copying elements from another array.
      *
      * The method uses assignment `=` operator on `Type` to copy each element from @p aOtherArray into the elements of
      * the array.
@@ -148,31 +147,13 @@ public:
     Array(const Array &aOtherArray) { *this = aOtherArray; }
 
     /**
-     * Initializes the array as empty and initializes its elements by calling `Init(Instance &)`
-     * method on every element.
-     *
-     * Uses method `Init(Instance &aInstance)` on `Type`.
-     *
-     * @param[in] aInstance  The OpenThread instance.
-     *
-     */
-    explicit Array(Instance &aInstance)
-        : mLength(0)
-    {
-        for (Type &element : mElements)
-        {
-            element.Init(aInstance);
-        }
-    }
-
-    /**
-     * Clears the array.
+     * This method clears the array.
      *
      */
     void Clear(void) { mLength = 0; }
 
     /**
-     * Indicates whether or not the array is empty.
+     * This method indicates whether or not the array is empty.
      *
      * @retval TRUE when array is empty.
      * @retval FALSE when array is not empty.
@@ -181,7 +162,7 @@ public:
     bool IsEmpty(void) const { return (mLength == 0); }
 
     /**
-     * Indicates whether or not the array is full.
+     * This method indicates whether or not the array is full.
      *
      * @retval TRUE when array is full.
      * @retval FALSE when array is not full.
@@ -190,7 +171,7 @@ public:
     bool IsFull(void) const { return (mLength == GetMaxSize()); }
 
     /**
-     * Returns the maximum array size (max number of elements).
+     * This method returns the maximum array size (max number of elements).
      *
      * @returns The maximum array size (max number of elements that can be added to the array).
      *
@@ -198,7 +179,7 @@ public:
     IndexType GetMaxSize(void) const { return static_cast<IndexType>(kMaxSize); }
 
     /**
-     * Returns the current length of array (number of elements).
+     * This method returns the current length of array (number of elements).
      *
      * @returns The current array length.
      *
@@ -206,33 +187,9 @@ public:
     IndexType GetLength(void) const { return mLength; }
 
     /**
-     * Sets the current length (number of elements) of the array.
+     * This method overloads the `[]` operator to get the element at a given index.
      *
-     * @param[in] aLength   The array length.
-     *
-     */
-    void SetLength(IndexType aLength) { mLength = aLength; }
-
-    /**
-     * Returns the pointer to the start of underlying C array buffer serving as `Array` storage.
-     *
-     * @return The pointer to start of underlying C array buffer.
-     *
-     */
-    Type *GetArrayBuffer(void) { return mElements; }
-
-    /**
-     * Returns the pointer to the start of underlying C array buffer serving as `Array` storage.
-     *
-     * @return The pointer to start of underlying C array buffer.
-     *
-     */
-    const Type *GetArrayBuffer(void) const { return mElements; }
-
-    /**
-     * Overloads the `[]` operator to get the element at a given index.
-     *
-     * Does not perform index bounds checking. Behavior is undefined if @p aIndex is not valid.
+     * This method does not perform index bounds checking. Behavior is undefined if @p aIndex is not valid.
      *
      * @param[in] aIndex  The index to get.
      *
@@ -242,9 +199,9 @@ public:
     Type &operator[](IndexType aIndex) { return mElements[aIndex]; }
 
     /**
-     * Overloads the `[]` operator to get the element at a given index.
+     * This method overloads the `[]` operator to get the element at a given index.
      *
-     * Does not perform index bounds checking. Behavior is undefined if @p aIndex is not valid.
+     * This method does not perform index bounds checking. Behavior is undefined if @p aIndex is not valid.
      *
      * @param[in] aIndex  The index to get.
      *
@@ -254,7 +211,7 @@ public:
     const Type &operator[](IndexType aIndex) const { return mElements[aIndex]; }
 
     /**
-     * Gets a pointer to the element at a given index.
+     * This method gets a pointer to the element at a given index.
      *
      * Unlike `operator[]`, this method checks @p aIndex to be valid and within the current length.
      *
@@ -266,7 +223,7 @@ public:
     Type *At(IndexType aIndex) { return (aIndex < mLength) ? &mElements[aIndex] : nullptr; }
 
     /**
-     * Gets a pointer to the element at a given index.
+     * This method gets a pointer to the element at a given index.
      *
      * Unlike `operator[]`, this method checks @p aIndex to be valid and within the current length.
      *
@@ -278,7 +235,7 @@ public:
     const Type *At(IndexType aIndex) const { return (aIndex < mLength) ? &mElements[aIndex] : nullptr; }
 
     /**
-     * Gets a pointer to the element at the front of the array (first element).
+     * This method gets a pointer to the element at the front of the array (first element).
      *
      * @returns A pointer to the front element or `nullptr` if array is empty.
      *
@@ -286,7 +243,7 @@ public:
     Type *Front(void) { return At(0); }
 
     /**
-     * Gets a pointer to the element at the front of the array (first element).
+     * This method gets a pointer to the element at the front of the array (first element).
      *
      * @returns A pointer to the front element or `nullptr` if array is empty.
      *
@@ -294,7 +251,7 @@ public:
     const Type *Front(void) const { return At(0); }
 
     /**
-     * Gets a pointer to the element at the back of the array (last element).
+     * This method gets a pointer to the element at the back of the array (last element).
      *
      * @returns A pointer to the back element or `nullptr` if array is empty.
      *
@@ -302,7 +259,7 @@ public:
     Type *Back(void) { return At(mLength - 1); }
 
     /**
-     * Gets a pointer to the element at the back of the array (last element).
+     * This method gets a pointer to the element at the back of the array (last element).
      *
      * @returns A pointer to the back element or `nullptr` if array is empty.
      *
@@ -310,7 +267,7 @@ public:
     const Type *Back(void) const { return At(mLength - 1); }
 
     /**
-     * Appends a new entry to the end of the array.
+     * This method appends a new entry to the end of the array.
      *
      * The method uses assignment `=` operator on `Type` to copy @p aEntry into the added array element.
      *
@@ -323,7 +280,7 @@ public:
     Error PushBack(const Type &aEntry) { return IsFull() ? kErrorNoBufs : (mElements[mLength++] = aEntry, kErrorNone); }
 
     /**
-     * Appends a new entry to the end of the array.
+     * This method appends a new entry to the end of the array.
      *
      * On success, this method returns a pointer to the newly appended element in the array for the caller to
      * initialize and use.
@@ -334,7 +291,7 @@ public:
     Type *PushBack(void) { return IsFull() ? nullptr : &mElements[mLength++]; }
 
     /**
-     * Removes the last element in the array.
+     * This method removes the last element in the array.
      *
      * @returns A pointer to the removed element from the array, or `nullptr` if array is empty.
      *
@@ -342,7 +299,7 @@ public:
     Type *PopBack(void) { return IsEmpty() ? nullptr : &mElements[--mLength]; }
 
     /**
-     * Returns the index of an element in the array.
+     * This method returns the index of an element in the array.
      *
      * The @p aElement MUST be from the array, otherwise the behavior of this method is undefined.
      *
@@ -354,7 +311,7 @@ public:
     IndexType IndexOf(const Type &aElement) const { return static_cast<IndexType>(&aElement - &mElements[0]); }
 
     /**
-     * Removes an element from the array.
+     * This method removes an element from the array.
      *
      * The @p aElement MUST be from the array, otherwise the behavior of this method is undefined.
      *
@@ -375,9 +332,9 @@ public:
     }
 
     /**
-     * Finds the first match of a given entry in the array.
+     * This method finds the first match of a given entry in the array.
      *
-     * Uses `==` operator on `Type` to compare the array element with @p aEntry.
+     * This method uses `==` operator on `Type` to compare the array element with @p aEntry.
      *
      * @param[in] aEntry   The entry to search for within the array.
      *
@@ -387,9 +344,9 @@ public:
     Type *Find(const Type &aEntry) { return AsNonConst(AsConst(this)->Find(aEntry)); }
 
     /**
-     * Finds the first match of a given entry in the array.
+     * This method finds the first match of a given entry in the array.
      *
-     * Uses `==` operator to compare the array elements with @p aEntry.
+     * This method uses `==` operator to compare the array elements with @p aEntry.
      *
      * @param[in] aEntry   The entry to search for within the array.
      *
@@ -413,9 +370,9 @@ public:
     }
 
     /**
-     * Indicates whether or not a match to given entry exists in the array.
+     * This method indicates whether or not a match to given entry exists in the array.
      *
-     * Uses `==` operator on `Type` to compare the array elements with @p aEntry.
+     * This method uses `==` operator on `Type` to compare the array elements with @p aEntry.
      *
      * @param[in] aEntry   The entry to search for within the array.
      *
@@ -426,7 +383,7 @@ public:
     bool Contains(const Type &aEntry) const { return Find(aEntry) != nullptr; }
 
     /**
-     * Finds the first element in the array matching a given indicator.
+     * This template method finds the first element in the array matching a given indicator.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against elements
      * in the array. To check that an element matches the given indicator, the `Matches()` method is invoked on each
@@ -445,7 +402,7 @@ public:
     }
 
     /**
-     * Finds the first element in the array matching a given indicator.
+     * This template method finds the first element in the array matching a given indicator.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against elements
      * in the array. To check that an element matches the given indicator, the `Matches()` method is invoked on each
@@ -475,7 +432,7 @@ public:
     }
 
     /**
-     * Indicates whether or not the array contains an element matching a given indicator.
+     * This template method indicates whether or not the array contains an element matching a given indicator.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against elements
      * in the array. To check that an element matches the given indicator, the `Matches()` method is invoked on each
@@ -495,9 +452,9 @@ public:
     }
 
     /**
-     * Removes the first element in the array matching a given indicator.
+     * This template method removes the first element in the array matching a given indicator.
      *
-     * Behaves similar to `Remove()`, i.e., the matched element (if found) is replaced with the last element
+     * This method behaves similar to `Remove()`, i.e., the matched element (if found) is replaced with the last element
      * in the array (using `=` operator on `Type`). So the order of items in the array can change after a call to this
      * method.
      *
@@ -521,9 +478,9 @@ public:
     }
 
     /**
-     * Removes all elements in the array matching a given indicator.
+     * This template method removes all elements in the array matching a given indicator.
      *
-     * Behaves similar to `Remove()`, i.e., a matched element is replaced with the last element in the
+     * This method behaves similar to `Remove()`, i.e., a matched element is replaced with the last element in the
      * array (using `=` operator on `Type`). So the order of items in the array can change after a call to this method.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against elements
@@ -557,7 +514,7 @@ public:
     }
 
     /**
-     * Overloads assignment `=` operator to copy elements from another array into the array.
+     * This method overloads assignment `=` operator to copy elements from another array into the array.
      *
      * The method uses assignment `=` operator on `Type` to copy each element from @p aOtherArray into the elements of
      * the array.
@@ -577,29 +534,12 @@ public:
         return *this;
     }
 
-    /**
-     * Indicates whether a given entry pointer is from the array buffer.
-     *
-     * Does not check the current length of array and only checks that @p aEntry is pointing to an address
-     * contained within underlying C array buffer.
-     *
-     * @param[in] aEntry   A pointer to an entry to check.
-     *
-     * @retval TRUE  The @p aEntry is from the array.
-     * @retval FALSE The @p aEntry is not from the array.
-     *
-     */
-    bool IsInArrayBuffer(const Type *aEntry) const
-    {
-        return (&mElements[0] <= aEntry) && (aEntry < GetArrayEnd(mElements));
-    }
-
     // The following methods are intended to support range-based `for`
     // loop iteration over the array elements and should not be used
     // directly.
 
-    Type       *begin(void) { return &mElements[0]; }
-    Type       *end(void) { return &mElements[mLength]; }
+    Type *      begin(void) { return &mElements[0]; }
+    Type *      end(void) { return &mElements[mLength]; }
     const Type *begin(void) const { return &mElements[0]; }
     const Type *end(void) const { return &mElements[mLength]; }
 

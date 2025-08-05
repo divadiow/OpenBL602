@@ -10,5 +10,3 @@
 # MacOS
 .DS_Store
 __pycache__
-
-tools/flash_tool

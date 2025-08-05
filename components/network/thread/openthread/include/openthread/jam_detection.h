@@ -55,7 +55,7 @@ extern "C" {
  */
 
 /**
- * Pointer is called if signal jam detection is enabled and a jam is detected.
+ * This function pointer is called if signal jam detection is enabled and a jam is detected.
  *
  * @param[in]  aJamState Current jam state (`true` if jam is detected, `false` otherwise).
  * @param[in]  aContext  A pointer to application-specific context.

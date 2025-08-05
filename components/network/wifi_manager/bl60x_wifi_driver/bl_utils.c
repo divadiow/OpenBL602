@@ -1,10 +1,31 @@
-/**
- ****************************************************************************************
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
  *
- * @file bl_utils.c
- * Copyright (C) Bouffalo Lab 2016-2018
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
  *
- ****************************************************************************************
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <string.h>
@@ -23,13 +44,6 @@
 #include "bl_rx.h"
 #include "bl_tx.h"
 #include "bl_cmds.h"
-
-#ifdef CFG_NETBUS_WIFI_ENABLE
-#include <netbus_mgmr.h>
-#include <netbus_utils.h>
-#include <utils_log.h>
-#endif
-
 #undef os_printf
 #define os_printf(...) do {} while(0)
 
@@ -71,22 +85,21 @@ static void my_pbuf_free_custom_fake(struct pbuf *p)
     /*nothing needs to be done for tailed pbuf*/
 }
 
-static inline struct bl_vif *bl_rx_get_vif(int sta_idx)
+static inline struct bl_vif *bl_rx_get_vif(int vif_idx)
 {
     struct bl_vif *bl_vif = NULL;
-    struct bl_sta *bl_sta = NULL;
     struct bl_hw *bl_hw = &wifi_hw;
 
-    if (sta_idx >= NX_REMOTE_STA_STORE_MAX)
-    {
+    if (vif_idx == 0xFF) {
+        list_for_each_entry(bl_vif, &bl_hw->vifs, list) {
+            if (bl_vif->up)
+                return bl_vif;
+        }
         return NULL;
-    }
-
-    bl_sta = &bl_hw->sta_table[sta_idx];
-    bl_vif = &(bl_hw->vif_table[bl_sta->vif_idx]);
-    if (!bl_vif->up)
-    {
-        return NULL;
+    } else if (vif_idx < NX_VIRT_DEV_MAX) {
+        bl_vif = &(bl_hw->vif_table[vif_idx]);
+        if (!bl_vif || !bl_vif->up)
+            return NULL;
     }
 
     return bl_vif;
@@ -274,28 +287,39 @@ static inline struct pbuf *_handle_frame_from_stack_with_mempool(void *swdesc, u
     int i = 0;
 
     h = pbuf_alloc(PBUF_RAW, pkt->len[0] - msdu_offset, PBUF_POOL);
-    if (NULL == h) {
-        printf("error mem1 ========================================== pbuf mem\r\n");
+    if (h == NULL) {
+        //printf("pbuf_alloc failed, drop rx packet\r\n");
         return NULL;
     }
-    pbuf_take(h, (uint8_t*)(pkt->pkt[0]) + msdu_offset, pkt->len[0] - msdu_offset);
 
-    i = 1;//header is already set
-    while (i < sizeof(pkt->pkt)/sizeof(pkt->pkt[0])) {
+    /* Stage 1: Alloc pbuf */
+    for (i = 1; i < sizeof(pkt->pkt)/sizeof(pkt->pkt[0]); i++) {
         if (0 == pkt->len[i]) {
             break;
         }
+
         t = pbuf_alloc(PBUF_RAW, pkt->len[i], PBUF_POOL);
-        if (t) {
-            pbuf_take(t, (uintptr_t*)pkt->pkt[i], pkt->len[i]);
-            pbuf_cat(h, t);
-            i++;
-        } else {
-            printf("error mem2 ====================================== pbuf mem\r\n");
+        if (t == NULL) {
             pbuf_free(h);
+            printf("pbuf_alloc failed, drop rx packet\r\n");
             return NULL;
         }
+        pbuf_cat(h, t);
     }
+
+    /* Stage 2: copy data to pbuf */
+    /* copy first data slice */
+    uint32_t offset = pkt->len[0] - msdu_offset;
+    pbuf_take(h, (uint8_t *)(uintptr_t)pkt->pkt[0] + msdu_offset, pkt->len[0] - msdu_offset);
+
+    for (i = 1; i < sizeof(pkt->pkt)/sizeof(pkt->pkt[0]); i++) {
+        if (0 == pkt->len[i]) {
+            break;
+        }
+        pbuf_take_at(h, (void *)(uintptr_t)pkt->pkt[i], pkt->len[i], offset);
+        offset += pkt->len[i];
+    }
+
     return h;
 }
 
@@ -340,32 +364,8 @@ static inline struct pbuf *_handle_frame_from_stack_with_zerocopy(void *swdesc, 
     return h;
 }
 
-#ifdef CFG_NETBUS_WIFI_ENABLE
-void pbuf_cfm_cb(int idx, void *arg)
-{
-    /* printf("pbuf_cfm free %d %p\r\n", idx, arg); */
-void bl60x_firmwre_mpdu_free(void *swdesc_ptr);
-    bl60x_firmwre_mpdu_free(arg);
-}
-#endif
-
 #define MAC_FMT "%02X%02X%02X%02X%02X%02X"
 #define MAC_LIST(arr) (arr)[0], (arr)[1], (arr)[2], (arr)[3], (arr)[4], (arr)[5]
-
-#ifdef LWIP_IPV6
-static int tcpip_src_addr_cmp(struct ethhdr *hdr, uint8_t addr[])
-{
-    int i;
-
-    for (i = 0; i < 6; i++) {
-        if ((uint8_t)(hdr->h_source[i]) != (uint8_t)(addr[i])) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-#endif
 
 int tcpip_stack_input(void *swdesc, uint8_t status, void *hwhdr, unsigned int msdu_offset, struct wifi_pkt *pkt, uint8_t extra_status)
 {
@@ -384,7 +384,7 @@ int tcpip_stack_input(void *swdesc, uint8_t status, void *hwhdr, unsigned int ms
         goto end;
     }
 
-    bl_vif = bl_rx_get_vif(hw_rxhdr->flags_sta_idx);
+    bl_vif = bl_rx_get_vif(hw_rxhdr->flags_vif_idx);
     skb_payload = (uint32_t*)((uint32_t)(skb) + msdu_offset);
 
     if (hw_rxhdr->flags_is_80211_mpdu) {
@@ -414,10 +414,7 @@ int tcpip_stack_input(void *swdesc, uint8_t status, void *hwhdr, unsigned int ms
         goto end;
     }
 
-#if defined(CFG_CHIP_BL808)
-    h = _handle_frame_from_stack_with_mempool(swdesc, msdu_offset, pkt);
-    zerocopy = false;
-#elif defined(CFG_CHIP_BL606P)
+#if defined(CFG_CHIP_BL808) || defined(CFG_CHIP_BL606P) || defined(CFG_CHIP_BL602)
     h = _handle_frame_from_stack_with_mempool(swdesc, msdu_offset, pkt);
     zerocopy = false;
 #else
@@ -434,8 +431,6 @@ int tcpip_stack_input(void *swdesc, uint8_t status, void *hwhdr, unsigned int ms
     }
     if (sniffer) {
         info.rssi = hw_rxhdr->hwvect.rssi1;
-        info.leg_rate = hw_rxhdr->hwvect.leg_rate;
-        info.format_mod = hw_rxhdr->hwvect.format_mod;
         //TODO fix splitted buff in zerocopy
         bl_rx_pkt_cb((uint8_t*)skb_payload, hw_rxhdr->hwvect.len, (void *)h, &info);
         bl_rx_mgmt(skb_payload, hw_rxhdr, hw_rxhdr->hwvect.len, &info);
@@ -451,39 +446,12 @@ int tcpip_stack_input(void *swdesc, uint8_t status, void *hwhdr, unsigned int ms
             }
         }
 #endif
-
-#ifdef CFG_NETBUS_WIFI_ENABLE
-        #ifdef LWIP_IPV6
-        struct ethhdr *hdr = (struct ethhdr *)(skb_payload);
-        if (bl_vif->dev && tcpip_src_addr_cmp(hdr, (bl_vif->dev)->hwaddr) &&
-            bflbmsg_send_pbuf(&g_netbus_wifi_mgmr_env.trcver_ctx,
-                BF1B_MSG_TYPE_ETH_WIFI_FRAME, BF1B_MSG_ETH_WIFI_FRAME_SUBTYPE_STA_FROM_WIFI_RX,
-                h, extra_status, pbuf_cfm_cb, swdesc)) {
-        #else
-        if (bflbmsg_send_pbuf(&g_netbus_wifi_mgmr_env.trcver_ctx,
-                BF1B_MSG_TYPE_ETH_WIFI_FRAME, BF1B_MSG_ETH_WIFI_FRAME_SUBTYPE_STA_FROM_WIFI_RX,
-                h, extra_status, pbuf_cfm_cb, swdesc)) {
-        #endif
-            /* printf("FRM TX swdesc %p failed\r\n", swdesc); */
-            pbuf_free(h);
-        } else {
-            pbuf_free(h);
-            /* printf("FRM TX swdesc %p\r\n", swdesc); */
-        }
-#else
-
-        #ifdef LWIP_IPV6
-        struct ethhdr *hdr = (struct ethhdr *)(skb_payload);
-        if (bl_vif->dev && tcpip_src_addr_cmp(hdr, (bl_vif->dev)->hwaddr) && ERR_OK == bl_vif->dev->input(h, bl_vif->dev)) {
-        #else
         if (bl_vif->dev && ERR_OK == bl_vif->dev->input(h, bl_vif->dev)) {
-        #endif
             //TCP/IP stack will take care of pbuf h
         } else {
             //No none need pbuf h anymore, so free it now
             pbuf_free(h);
         }
-#endif
     }
 
     goto free; // In case of error that label free is defined but not used when PKT_INPUT_HOOK is disabled
@@ -534,18 +502,26 @@ void bl_sec_tbtt_ind(void *pthis)
 //FIXME TODO use cache?
 int bl_utils_idx_lookup(struct bl_hw *bl_hw, uint8_t *mac)
 {
+    int i;
     struct bl_sta *sta;
 
-    for (int i = 0; i < NX_REMOTE_STA_STORE_MAX; i++) {
+    for (i = 0; i < sizeof(bl_hw->sta_table)/sizeof(bl_hw->sta_table[0]); i++) {
         sta = &(bl_hw->sta_table[i]);
-
-        if ((sta->is_used) &&
-            (0 == memcmp(sta->sta_addr.array, mac, 6))) {
-            return i;
+        if (0 == sta->is_used) {
+            /*empty entry*/
+            continue;
+        }
+        if (memcmp(sta->sta_addr.array, mac, 6)) {
+            /*NOT match*/
+            continue;
+        } else {
+            /*mac address found*/
+            break;
         }
     }
 
-    return -1;
+    //FIXME use 0x0A for un-valid sta_idx?
+    return (sizeof(bl_hw->sta_table)/sizeof(bl_hw->sta_table[0])) == i ? wifi_hw.ap_bcmc_idx : i;
 }
 
 static struct ipc_host_env_tag *ipc_env;
@@ -561,7 +537,7 @@ int bl_ipc_init(struct bl_hw *bl_hw, struct ipc_shared_env_tag *ipc_shared_mem)
     cb.recv_msg_ind    = NULL;
     cb.recv_msgack_ind = bl_msgackind;
     cb.recv_dbg_ind    = bl_dbgind;
-    cb.send_data_cfm   = bl_tx_cfm;
+    cb.send_data_cfm   = bl_txdatacfm;
     cb.prim_tbtt_ind   = bl_prim_tbtt_ind;
     cb.sec_tbtt_ind    = bl_sec_tbtt_ind;
 
@@ -608,7 +584,7 @@ void bl_utils_dump(void)
         bl_os_printf("    [%lu]%p(%p:%08lX)\r\n",
                 (ipc_env->txdesc_used_idx + i) & (NX_TXDESC_CNT0 - 1),
                 p,
-                0,
+                p ? (void*)(txhdr->host.status_addr) : 0,
                 p ? txhdr->status.value : 0
         );
     }

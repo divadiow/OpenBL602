@@ -52,7 +52,7 @@ extern "C" {
  */
 
 /**
- * Represents Backbone Router configuration.
+ * This structure represents Backbone Router configuration.
  *
  */
 typedef struct otBackboneRouterConfig
@@ -64,7 +64,7 @@ typedef struct otBackboneRouterConfig
 } otBackboneRouterConfig;
 
 /**
- * Gets the Primary Backbone Router information in the Thread Network.
+ * This function gets the Primary Backbone Router information in the Thread Network.
  *
  * @param[in]   aInstance            A pointer to an OpenThread instance.
  * @param[out]  aConfig              A pointer to where to put Primary Backbone Router information.

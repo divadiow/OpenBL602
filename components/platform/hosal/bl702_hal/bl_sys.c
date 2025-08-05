@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
+ *
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #include <bl702_romdriver.h>
 #include <bl702_glb.h>
 #include <bl702_timer.h>
@@ -9,10 +38,9 @@
 #include "bl_hbn.h"
 
 volatile bool sys_log_all_enable = true;
-static BL_RST_REASON_E sys_rstinfo = BL_RST_POR;
 ATTR_HBN_NOINIT_SECTION static int wdt_triger_counter;
 
-void bl_sys_rstinfo_process(void)
+BL_RST_REASON_E bl_sys_rstinfo_get(void)
 {
     uint8_t wdt_rst;
     uint8_t hbn_rst;
@@ -23,28 +51,18 @@ void bl_sys_rstinfo_process(void)
     hbn_rst = BL_GET_REG_BITS_VAL(BL_RD_REG(HBN_BASE,HBN_GLB),HBN_RESET_EVENT);
     pds_rst = BL_GET_REG_BITS_VAL(BL_RD_REG(PDS_BASE,PDS_INT),PDS_RESET_EVENT);
 
-    // clear reset status
-    WDT_ClearResetStatus();
-    HBN_Clear_Reset_Event();
-    PDS_Clear_Reset_Event();
-
     // check reset source
     if(wdt_rst){
-        sys_rstinfo = BL_RST_WDT;
+        return BL_RST_WDT;
     }else if(hbn_rst == 0x19){
-        sys_rstinfo = BL_RST_BOR;
+        return BL_RST_BOR;
     }else if(hbn_rst == 0x08){
-        sys_rstinfo = BL_RST_HBN;
+        return BL_RST_HBN;
     }else if(pds_rst == 0x07){
-        sys_rstinfo = BL_RST_POR;
+        return BL_RST_POR;
     }else{
-        sys_rstinfo = BL_RST_SOFTWARE;
+        return BL_RST_SOFTWARE;
     }
-}
-
-BL_RST_REASON_E bl_sys_rstinfo_get(void)
-{
-    return sys_rstinfo;
 }
 
 void bl_sys_rstinfo_clr(void)
@@ -261,15 +279,6 @@ int bl_sys_default_active_config(void)
             continue;
         }
 
-#if defined(CFG_USE_PSRAM)
-        // psram cs pin
-        if(dev_info.psram_cfg != 1){
-            if(i == 17){
-                continue;
-            }
-        }
-#endif
-
         // flash or psram pins
         if(i >= 23 && i <= 28){
             continue;
@@ -288,9 +297,9 @@ int bl_sys_default_active_config(void)
 
 int bl_sys_early_init(void)
 {
-    bl_sys_rstinfo_process();
     if(BL_RST_WDT == bl_sys_rstinfo_get()){
         wdt_triger_counter++;
+        bl_sys_rstinfo_clr();
     }
     else{
         wdt_triger_counter = 0;
@@ -298,13 +307,11 @@ int bl_sys_early_init(void)
 
     bl_flash_init();
 
-    extern void newlibc_init(void);
-    newlibc_init();
+    extern BL_Err_Type HBN_Aon_Pad_IeSmt_Cfg(uint8_t padCfg);
+    HBN_Aon_Pad_IeSmt_Cfg(0x1F);
 
     extern void freertos_risc_v_trap_handler(void); //freertos_riscv_ram/portable/GCC/RISC-V/portASM.S
     write_csr(mtvec, &freertos_risc_v_trap_handler);
-
-    HBN_Hw_Pu_Pd_Cfg(DISABLE);
 
     PDS_Trim_RC32M();
     HBN_Trim_RC32K();
@@ -317,9 +324,6 @@ int bl_sys_early_init(void)
     GLB_Set_System_CLK(GLB_DLL_XTAL_32M, GLB_SYS_CLK_DLL144M);
     HBN_Set_XCLK_CLK_Sel(HBN_XCLK_CLK_XTAL);
     GLB_Set_SF_CLK(1, GLB_SFLASH_CLK_96M, 1);
-#else
-    GLB_Set_System_CLK(GLB_DLL_XTAL_32M, GLB_SYS_CLK_XTAL);
-    GLB_Set_SF_CLK(1, GLB_SFLASH_CLK_XCLK, 0);
 #endif
 
     GLB_Set_MTimer_CLK(1, GLB_MTIMER_CLK_BCLK, SystemCoreClockGet()/(GLB_Get_BCLK_Div()+1)/4000000 - 1);
@@ -359,50 +363,3 @@ int bl_sys_wdt_rst_count_get()
     return wdt_triger_counter;
 }
 
-/*
- * @brief: perform f(data) using stack referred by stacktop,
- *         not its caller's.
- * @param: f - the function to be called.
- *         data - the parameter of f.
- *         stacktop - the top of the new stack.
- * @return: none.
- */
-void bl_function_call_with_stack(void (*f)(void *data), void *data, void *stacktop)
-{
-    /*
-     * calling convention
-     * register saver
-     * x0       -
-     * ra       caller
-     * sp       callee
-     * gp       -
-     * tp       -
-     * t0       caller
-     * t1-2     caller
-     * fp       callee
-     * s1       callee
-     * a0-1     caller
-     * a2-7     caller
-     * s2-11    callee
-     * t3-6     caller
-     */
-    __asm__ __volatile__ (
-        "addi   sp, sp, -12          \n\t"
-        "sw     ra, 8(sp)            \n\t"
-        "sw     s0, 4(sp)            \n\t"
-        "sw     s1, 0(sp)            \n\t"
-        "addi   s0, sp, 12           \n\t"
-
-        "mv     s1, sp               \n\t"
-        "mv     t0, a0               \n\t"
-        "mv     a0, a1               \n\t"
-        "mv     sp, a2               \n\t"
-        "jalr   t0                   \n\t"
-        "mv     sp, s1               \n\t"
-
-        "lw     s1, 0(sp)            \n\t"
-        "lw     s0, 4(sp)            \n\t"
-        "lw     ra, 8(sp)            \n\t"
-        "addi   sp, sp, 12           \n\t"
-    );
-}

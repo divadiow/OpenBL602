@@ -62,13 +62,9 @@ COMPONENT_SRCS += bl602_hal/bl_uart.c \
                   bl602_hal/hosal_ota.c \
                   bl602_hal/hosal_timer.c \
                   bl602_hal/hosal_efuse.c \
-                  sec_common/bl_sec_common.c \
                   sec_common/bl_sec_sha.c \
-                  sec_common/bl_sec_psk.c \
                   sec_common/bl_sec_pka.c \
                   sec_common/bl_sec_aes.c \
-                  sec_common/bl_sec_trng.c \
-                  sec_common/bl_sec_ghash.c \
 
 COMPONENT_SRCDIRS += bl602_hal platform_hal sec_common
 
@@ -88,6 +84,10 @@ endif
 
 ifeq ($(CONFIG_USE_XTAL32K),1)
 CFLAGS += -DCFG_USE_XTAL32K
+endif
+
+ifeq ($(CONF_ENABLE_COREDUMP),1)
+CPPFLAGS += -DSYS_ENABLE_COREDUMP
 endif
 
 ifeq ($(CONFIG_BL602_USE_1M_FLASH),1)

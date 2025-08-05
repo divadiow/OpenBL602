@@ -1,10 +1,4 @@
 # Changes
-## 2024-12-19
-[blestack]Fix the problem that repeated calls to bt_conn_create_br/bt_conn_create_sco and causes subsequent connection failure.
-
-## 2024-12-11
-1.Fix the issue that master takes a long time to establish le connection after stop scan in the case that upper layer triggers scan once after it initiates le connection. 
-
 ## 2024-11-18
 1.[BL616]Fix smp timeout issue in smp transport key distribution over the BR/EDR transport because the local device doesn't send id key while it indicates id key distribution.
 

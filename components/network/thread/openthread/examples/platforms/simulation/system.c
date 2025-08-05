@@ -44,6 +44,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <syslog.h>
 
 #include <openthread/tasklet.h>
 #include <openthread/platform/alarm-milli.h>
@@ -64,7 +65,7 @@ static void handleSignal(int aSignal)
 }
 
 /**
- * Defines the argument return values.
+ * This enumeration defines the argument return values.
  *
  */
 enum
@@ -73,7 +74,6 @@ enum
     OT_SIM_OPT_ENABLE_ENERGY_SCAN = 'E',
     OT_SIM_OPT_SLEEP_TO_TX        = 't',
     OT_SIM_OPT_TIME_SPEED         = 's',
-    OT_SIM_OPT_LOG_FILE           = 'l',
     OT_SIM_OPT_UNKNOWN            = '?',
 };
 
@@ -86,11 +86,7 @@ static void PrintUsage(const char *aProgramName, int aExitCode)
             "    -h --help                  Display this usage information.\n"
             "    -E --enable-energy-scan    Enable energy scan capability.\n"
             "    -t --sleep-to-tx           Let radio support direct transition from sleep to TX with CSMA.\n"
-            "    -s --time-speed=val        Speed up the time in simulation.\n"
-#if (OPENTHREAD_CONFIG_LOG_OUTPUT == OPENTHREAD_CONFIG_LOG_OUTPUT_PLATFORM_DEFINED)
-            "    -l --log-file=name         File name to write logs.\n"
-#endif
-            ,
+            "    -s --time-speed=val        Speed up the time in simulation.\n",
             aProgramName);
 
     exit(aExitCode);
@@ -98,25 +94,16 @@ static void PrintUsage(const char *aProgramName, int aExitCode)
 
 void otSysInit(int aArgCount, char *aArgVector[])
 {
-    char    *endptr;
+    char *   endptr;
     uint32_t speedUpFactor = 1;
 
     static const struct option long_options[] = {
         {"help", no_argument, 0, OT_SIM_OPT_HELP},
-        {"enable-energy-scan", no_argument, 0, OT_SIM_OPT_ENABLE_ENERGY_SCAN},
+        {"enable-energy-scan", no_argument, 0, OT_SIM_OPT_SLEEP_TO_TX},
         {"sleep-to-tx", no_argument, 0, OT_SIM_OPT_SLEEP_TO_TX},
         {"time-speed", required_argument, 0, OT_SIM_OPT_TIME_SPEED},
-#if (OPENTHREAD_CONFIG_LOG_OUTPUT == OPENTHREAD_CONFIG_LOG_OUTPUT_PLATFORM_DEFINED)
-        {"log-file", required_argument, 0, OT_SIM_OPT_LOG_FILE},
-#endif
         {0, 0, 0, 0},
     };
-
-#if (OPENTHREAD_CONFIG_LOG_OUTPUT == OPENTHREAD_CONFIG_LOG_OUTPUT_PLATFORM_DEFINED)
-    static const char options[] = "Ehts:l:";
-#else
-    static const char options[] = "Ehts:";
-#endif
 
     if (gPlatformPseudoResetWasRequested)
     {
@@ -128,7 +115,7 @@ void otSysInit(int aArgCount, char *aArgVector[])
 
     while (true)
     {
-        int c = getopt_long(aArgCount, aArgVector, options, long_options, NULL);
+        int c = getopt_long(aArgCount, aArgVector, "Ehts:", long_options, NULL);
 
         if (c == -1)
         {
@@ -157,11 +144,6 @@ void otSysInit(int aArgCount, char *aArgVector[])
                 exit(EXIT_FAILURE);
             }
             break;
-#if OPENTHREAD_CONFIG_LOG_OUTPUT == OPENTHREAD_CONFIG_LOG_OUTPUT_PLATFORM_DEFINED
-        case OT_SIM_OPT_LOG_FILE:
-            platformLoggingSetFileName(optarg);
-            break;
-#endif
         default:
             break;
         }
@@ -180,10 +162,12 @@ void otSysInit(int aArgCount, char *aArgVector[])
         exit(EXIT_FAILURE);
     }
 
+    openlog(basename(aArgVector[0]), LOG_PID, LOG_USER);
+    setlogmask(setlogmask(0) & LOG_UPTO(LOG_NOTICE));
+
     signal(SIGTERM, &handleSignal);
     signal(SIGHUP, &handleSignal);
 
-    platformLoggingInit(basename(aArgVector[0]));
     platformAlarmInit(speedUpFactor);
     platformRadioInit();
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
@@ -192,7 +176,10 @@ void otSysInit(int aArgCount, char *aArgVector[])
     platformRandomInit();
 }
 
-bool otSysPseudoResetWasRequested(void) { return gPlatformPseudoResetWasRequested; }
+bool otSysPseudoResetWasRequested(void)
+{
+    return gPlatformPseudoResetWasRequested;
+}
 
 void otSysDeinit(void)
 {
@@ -200,7 +187,6 @@ void otSysDeinit(void)
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
     platformTrelDeinit();
 #endif
-    platformLoggingDeinit();
 }
 
 void otSysProcessDrivers(otInstance *aInstance)

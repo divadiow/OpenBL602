@@ -35,7 +35,7 @@
 #define OT_ARG_MACROS_HPP_
 
 /**
- * Returns the first argument in a list of input arguments.
+ * This macro returns the first argument in a list of input arguments.
  *
  * @param[in] ...   A list of arguments (MUST contain at least one).
  *
@@ -45,7 +45,7 @@
 #define OT_FIRST_ARG(...) _OT_GET_FIRST_ARG(__VA_ARGS__, JUNK)
 
 /**
- * Returns the second argument in a list of input arguments if any.
+ * This macro returns the second argument in a list of input arguments if any.
  *
  * @note: This macro works when the list contains either one or two arguments.
  *
@@ -57,7 +57,7 @@
 #define OT_SECOND_ARG(...) _OT_GET_SECOND_ARG(_OT_HAS_ONE_ARG_OR_TWO_ARGS(__VA_ARGS__), __VA_ARGS__)
 
 /**
- * Expands to comma separated list of arguments excluding the first one.
+ * This macro expands to comma separated list of arguments excluding the first one.
  *
  * If there is only one argument, it expands to empty. If there is more than one argument, it expands to an initial
  * comma followed by all the rest of arguments excluding the first one.

@@ -68,17 +68,17 @@ exit:
 
 bool otMacFrameIsAck(const otRadioFrame *aFrame)
 {
-    return static_cast<const Mac::Frame *>(aFrame)->GetType() == Mac::Frame::kTypeAck;
+    return static_cast<const Mac::Frame *>(aFrame)->GetType() == Mac::Frame::kFcfFrameAck;
 }
 
 bool otMacFrameIsData(const otRadioFrame *aFrame)
 {
-    return static_cast<const Mac::Frame *>(aFrame)->GetType() == Mac::Frame::kTypeData;
+    return static_cast<const Mac::Frame *>(aFrame)->GetType() == Mac::Frame::kFcfFrameData;
 }
 
 bool otMacFrameIsCommand(const otRadioFrame *aFrame)
 {
-    return static_cast<const Mac::Frame *>(aFrame)->GetType() == Mac::Frame::kTypeMacCmd;
+    return static_cast<const Mac::Frame *>(aFrame)->GetType() == Mac::Frame::kFcfFrameMacCmd;
 }
 
 bool otMacFrameIsDataRequest(const otRadioFrame *aFrame)
@@ -164,9 +164,9 @@ void otMacFrameGenerateImmAck(const otRadioFrame *aFrame, bool aIsFramePending, 
 #if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
 otError otMacFrameGenerateEnhAck(const otRadioFrame *aFrame,
                                  bool                aIsFramePending,
-                                 const uint8_t      *aIeData,
+                                 const uint8_t *     aIeData,
                                  uint8_t             aIeLength,
-                                 otRadioFrame       *aAckFrame)
+                                 otRadioFrame *      aAckFrame)
 {
     assert(aFrame != nullptr && aAckFrame != nullptr);
 
@@ -206,7 +206,10 @@ uint8_t otMacFrameGetKeyId(otRadioFrame *aFrame)
     return keyId;
 }
 
-void otMacFrameSetKeyId(otRadioFrame *aFrame, uint8_t aKeyId) { static_cast<Mac::Frame *>(aFrame)->SetKeyId(aKeyId); }
+void otMacFrameSetKeyId(otRadioFrame *aFrame, uint8_t aKeyId)
+{
+    static_cast<Mac::Frame *>(aFrame)->SetKeyId(aKeyId);
+}
 
 uint32_t otMacFrameGetFrameCounter(otRadioFrame *aFrame)
 {

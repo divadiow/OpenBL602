@@ -57,7 +57,7 @@ namespace Mac {
  */
 
 /**
- * Defines a channel mask.
+ * This class defines a channel mask.
  *
  * It is a wrapper class around a `uint32_t` bit vector representing a set of channels.
  *
@@ -74,13 +74,13 @@ public:
     static constexpr uint16_t kInfoStringSize = 45; ///< Recommended buffer size to use with `ToString()`.
 
     /**
-     * Defines the fixed-length `String` object returned from `ToString()`.
+     * This type defines the fixed-length `String` object returned from `ToString()`.
      *
      */
     typedef String<kInfoStringSize> InfoString;
 
     /**
-     * Initializes a `ChannelMask` instance.
+     * This constructor initializes a `ChannelMask` instance.
      *
      */
     ChannelMask(void)
@@ -89,7 +89,7 @@ public:
     }
 
     /**
-     * Initializes a `ChannelMask` instance with a given mask.
+     * This constructor initializes a `ChannelMask` instance with a given mask.
      *
      * @param[in]  aMask   A channel mask (as a `uint32_t` bit-vector mask with bit 0 (lsb) -> channel 0, and so on).
      *
@@ -100,13 +100,13 @@ public:
     }
 
     /**
-     * Clears the channel mask.
+     * This method clears the channel mask.
      *
      */
     void Clear(void) { mMask = 0; }
 
     /**
-     * Gets the channel mask (as a `uint32_t` bit-vector mask with bit 0 (lsb) -> channel 0, and so on).
+     * This method gets the channel mask (as a `uint32_t` bit-vector mask with bit 0 (lsb) -> channel 0, and so on).
      *
      * @returns The channel mask.
      *
@@ -114,7 +114,7 @@ public:
     uint32_t GetMask(void) const { return mMask; }
 
     /**
-     * Sets the channel mask.
+     * This method sets the channel mask.
      *
      * @param[in]  aMask   A channel mask (as a `uint32_t` bit-vector mask with bit 0 (lsb) -> channel 0, and so on).
      *
@@ -122,7 +122,7 @@ public:
     void SetMask(uint32_t aMask) { mMask = aMask; }
 
     /**
-     * Indicates if the mask is empty.
+     * This method indicates if the mask is empty.
      *
      * @returns TRUE if the mask is empty, FALSE otherwise.
      *
@@ -130,7 +130,7 @@ public:
     bool IsEmpty(void) const { return (mMask == 0); }
 
     /**
-     * Indicates if the mask contains only a single channel.
+     * This method indicates if the mask contains only a single channel.
      *
      * @returns TRUE if channel mask contains a single channel, FALSE otherwise
      *
@@ -138,7 +138,7 @@ public:
     bool IsSingleChannel(void) const { return ((mMask != 0) && ((mMask & (mMask - 1)) == 0)); }
 
     /**
-     * Indicates if the mask contains a given channel.
+     * This method indicates if the mask contains a given channel.
      *
      * @param[in]  aChannel  A channel.
      *
@@ -151,7 +151,7 @@ public:
     }
 
     /**
-     * Adds a channel to the channel mask.
+     * This method adds a channel to the channel mask.
      *
      * @param[in]  aChannel  A channel
      *
@@ -165,7 +165,7 @@ public:
     }
 
     /**
-     * Removes a channel from the channel mask.
+     * This method removes a channel from the channel mask.
      *
      * @param[in]  aChannel  A channel
      *
@@ -179,7 +179,7 @@ public:
     }
 
     /**
-     * Updates the channel mask by intersecting it with another mask.
+     * This method updates the channel mask by intersecting it with another mask.
      *
      * @param[in]  aOtherMask  Another channel mask.
      *
@@ -187,7 +187,7 @@ public:
     void Intersect(const ChannelMask &aOtherMask) { mMask &= aOtherMask.mMask; }
 
     /**
-     * Returns the number of channels in the mask.
+     * This method returns the number of channels in the mask.
      *
      * @returns Number of channels in the mask.
      *
@@ -195,9 +195,9 @@ public:
     uint8_t GetNumberOfChannels(void) const;
 
     /**
-     * Gets the next channel in the channel mask.
+     * This method gets the next channel in the channel mask.
      *
-     * Can be used to iterate over all channels in the channel mask. To get the first channel (channel with
+     * This method can be used to iterate over all channels in the channel mask. To get the first channel (channel with
      * lowest number) in the mask the @p aChannel should be set to `kChannelIteratorFirst`.
      *
      * @param[in,out] aChannel       A reference to a `uint8_t`.
@@ -211,7 +211,7 @@ public:
     Error GetNextChannel(uint8_t &aChannel) const;
 
     /**
-     * Randomly chooses a channel from the channel mask.
+     * This method randomly chooses a channel from the channel mask.
      *
      * @returns A randomly chosen channel from the given mask, or `kChannelIteratorFirst` if the mask is empty.
      *
@@ -219,7 +219,7 @@ public:
     uint8_t ChooseRandomChannel(void) const;
 
     /**
-     * Overloads `==` operator to indicate whether two masks are equal.
+     * This method overloads `==` operator to indicate whether two masks are equal.
      *
      * @param[in] aAnother   A reference to another mask to compare with the current one.
      *
@@ -229,7 +229,7 @@ public:
     bool operator==(const ChannelMask &aAnother) const { return (mMask == aAnother.mMask); }
 
     /**
-     * Converts the channel mask into a human-readable string.
+     * This method converts the channel mask into a human-readable string.
      *
      * Examples of possible output:
      *  -  empty mask      ->  "{ }"

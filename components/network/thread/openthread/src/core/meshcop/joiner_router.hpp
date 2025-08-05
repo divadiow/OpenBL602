@@ -38,6 +38,7 @@
 
 #if OPENTHREAD_FTD
 
+#include "coap/coap.hpp"
 #include "coap/coap_message.hpp"
 #include "common/locator.hpp"
 #include "common/message.hpp"
@@ -48,7 +49,6 @@
 #include "meshcop/meshcop_tlvs.hpp"
 #include "net/udp6.hpp"
 #include "thread/key_manager.hpp"
-#include "thread/tmf.hpp"
 
 namespace ot {
 
@@ -57,11 +57,10 @@ namespace MeshCoP {
 class JoinerRouter : public InstanceLocator, private NonCopyable
 {
     friend class ot::Notifier;
-    friend class Tmf::Agent;
 
 public:
     /**
-     * Initializes the Joiner Router object.
+     * This constructor initializes the Joiner Router object.
      *
      * @param[in]  aInstance     A reference to the OpenThread instance.
      *
@@ -69,7 +68,7 @@ public:
     explicit JoinerRouter(Instance &aInstance);
 
     /**
-     * Returns the Joiner UDP Port.
+     * This method returns the Joiner UDP Port.
      *
      * @returns The Joiner UDP Port number .
      *
@@ -77,7 +76,7 @@ public:
     uint16_t GetJoinerUdpPort(void);
 
     /**
-     * Sets the Joiner UDP Port.
+     * This method sets the Joiner UDP Port.
      *
      * @param[in]  aJoinerUdpPort  The Joiner UDP Port number.
      *
@@ -102,15 +101,17 @@ private:
     static void HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
     void        HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
 
-    template <Uri kUri> void HandleTmf(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+    static void HandleRelayTransmit(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void        HandleRelayTransmit(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
 
-    static void HandleJoinerEntrustResponse(void                *aContext,
-                                            otMessage           *aMessage,
+    static void HandleJoinerEntrustResponse(void *               aContext,
+                                            otMessage *          aMessage,
                                             const otMessageInfo *aMessageInfo,
                                             Error                aResult);
     void HandleJoinerEntrustResponse(Coap::Message *aMessage, const Ip6::MessageInfo *aMessageInfo, Error aResult);
 
-    void HandleTimer(void);
+    static void HandleTimer(Timer &aTimer);
+    void        HandleTimer(void);
 
     void           Start(void);
     void           DelaySendingJoinerEntrust(const Ip6::MessageInfo &aMessageInfo, const Kek &aKek);
@@ -118,19 +119,16 @@ private:
     Error          SendJoinerEntrust(const Ip6::MessageInfo &aMessageInfo);
     Coap::Message *PrepareJoinerEntrustMessage(void);
 
-    using JoinerRouterTimer = TimerMilliIn<JoinerRouter, &JoinerRouter::HandleTimer>;
-
     Ip6::Udp::Socket mSocket;
+    Coap::Resource   mRelayTransmit;
 
-    JoinerRouterTimer mTimer;
-    MessageQueue      mDelayedJoinEnts;
+    TimerMilli   mTimer;
+    MessageQueue mDelayedJoinEnts;
 
     uint16_t mJoinerUdpPort;
 
     bool mIsJoinerPortConfigured : 1;
 };
-
-DeclareTmfHandler(JoinerRouter, kUriRelayTx);
 
 } // namespace MeshCoP
 } // namespace ot

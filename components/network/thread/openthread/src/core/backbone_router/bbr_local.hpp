@@ -54,8 +54,6 @@
 #include <openthread/backbone_router_ftd.h>
 
 #include "backbone_router/bbr_leader.hpp"
-#include "common/as_core_type.hpp"
-#include "common/callback.hpp"
 #include "common/locator.hpp"
 #include "common/log.hpp"
 #include "common/non_copyable.hpp"
@@ -67,25 +65,16 @@ namespace ot {
 namespace BackboneRouter {
 
 /**
- * Implements the definitions for local Backbone Router service.
+ * This class implements the definitions for local Backbone Router service.
  *
  */
 class Local : public InstanceLocator, private NonCopyable
 {
 public:
-    /**
-     * Represents Backbone Router state.
-     *
-     */
-    enum State : uint8_t
-    {
-        kStateDisabled  = OT_BACKBONE_ROUTER_STATE_DISABLED,  ///< Backbone function is disabled.
-        kStateSecondary = OT_BACKBONE_ROUTER_STATE_SECONDARY, ///< Secondary Backbone Router.
-        kStatePrimary   = OT_BACKBONE_ROUTER_STATE_PRIMARY,   ///< The Primary Backbone Router.
-    };
+    typedef otBackboneRouterState BackboneRouterState;
 
     /**
-     * Initializes the local Backbone Router.
+     * This constructor initializes the local Backbone Router.
      *
      * @param[in] aInstance  A reference to the OpenThread instance.
      *
@@ -93,7 +82,7 @@ public:
     explicit Local(Instance &aInstance);
 
     /**
-     * Enables/disables Backbone function.
+     * This method enables/disables Backbone function.
      *
      * @param[in]  aEnable  TRUE to enable the backbone function, FALSE otherwise.
      *
@@ -101,30 +90,32 @@ public:
     void SetEnabled(bool aEnable);
 
     /**
-     * Retrieves the Backbone Router state.
+     * This method retrieves the Backbone Router state.
      *
      *
-     * @returns The current state of Backbone Router.
+     * @retval OT_BACKBONE_ROUTER_STATE_DISABLED   Backbone function is disabled.
+     * @retval OT_BACKBONE_ROUTER_STATE_SECONDARY  Secondary Backbone Router.
+     * @retval OT_BACKBONE_ROUTER_STATE_PRIMARY    Primary Backbone Router.
      *
      */
-    State GetState(void) const { return mState; }
+    BackboneRouterState GetState(void) const { return mState; }
 
     /**
-     * Resets the local Thread Network Data.
+     * This method resets the local Thread Network Data.
      *
      */
     void Reset(void);
 
     /**
-     * Gets local Backbone Router configuration.
+     * This method gets local Backbone Router configuration.
      *
      * @param[out]  aConfig  The local Backbone Router configuration.
      *
      */
-    void GetConfig(Config &aConfig) const;
+    void GetConfig(BackboneRouterConfig &aConfig) const;
 
     /**
-     * Sets local Backbone Router configuration.
+     * This method sets local Backbone Router configuration.
      *
      * @param[in]  aConfig  The configuration to set.
      *
@@ -132,13 +123,13 @@ public:
      * @retval kErrorInvalidArgs  The configuration in @p aConfig is invalid.
      *
      */
-    Error SetConfig(const Config &aConfig);
+    Error SetConfig(const BackboneRouterConfig &aConfig);
 
     /**
-     * Registers Backbone Router Dataset to Leader.
+     * This method registers Backbone Router Dataset to Leader.
      *
-     * @param[in]  aForce True to force registration regardless of current state.
-     *                    False to decide based on current state.
+     * @param[in]  aForce True to force registration regardless of current BackboneRouterState.
+     *                    False to decide based on current BackboneRouterState.
      *
      *
      * @retval kErrorNone            Successfully added the Service entry.
@@ -149,25 +140,25 @@ public:
     Error AddService(bool aForce = false);
 
     /**
-     * Indicates whether or not the Backbone Router is Primary.
+     * This method indicates whether or not the Backbone Router is Primary.
      *
      * @retval  True  if the Backbone Router is Primary.
      * @retval  False if the Backbone Router is not Primary.
      *
      */
-    bool IsPrimary(void) const { return mState == kStatePrimary; }
+    bool IsPrimary(void) const { return mState == OT_BACKBONE_ROUTER_STATE_PRIMARY; }
 
     /**
-     * Indicates whether or not the Backbone Router is enabled.
+     * This method indicates whether or not the Backbone Router is enabled.
      *
      * @retval  True  if the Backbone Router is enabled.
      * @retval  False if the Backbone Router is not enabled.
      *
      */
-    bool IsEnabled(void) const { return mState != kStateDisabled; }
+    bool IsEnabled(void) const { return mState != OT_BACKBONE_ROUTER_STATE_DISABLED; }
 
     /**
-     * Sets the Backbone Router registration jitter value.
+     * This method sets the Backbone Router registration jitter value.
      *
      * @param[in]  aRegistrationJitter the Backbone Router registration jitter value to set.
      *
@@ -175,7 +166,7 @@ public:
     void SetRegistrationJitter(uint8_t aRegistrationJitter) { mRegistrationJitter = aRegistrationJitter; }
 
     /**
-     * Returns the Backbone Router registration jitter value.
+     * This method returns the Backbone Router registration jitter value.
      *
      * @returns The Backbone Router registration jitter value.
      *
@@ -183,16 +174,16 @@ public:
     uint8_t GetRegistrationJitter(void) const { return mRegistrationJitter; }
 
     /**
-     * Notifies Primary Backbone Router status.
+     * This method notifies Primary Backbone Router status.
      *
      * @param[in]  aState   The state or state change of Primary Backbone Router.
      * @param[in]  aConfig  The Primary Backbone Router service.
      *
      */
-    void HandleBackboneRouterPrimaryUpdate(Leader::State aState, const Config &aConfig);
+    void HandleBackboneRouterPrimaryUpdate(Leader::State aState, const BackboneRouterConfig &aConfig);
 
     /**
-     * Gets the Domain Prefix configuration.
+     * This method gets the Domain Prefix configuration.
      *
      * @param[out]  aConfig  A reference to the Domain Prefix configuration.
      *
@@ -203,7 +194,7 @@ public:
     Error GetDomainPrefix(NetworkData::OnMeshPrefixConfig &aConfig);
 
     /**
-     * Removes the local Domain Prefix configuration.
+     * This method removes the local Domain Prefix configuration.
      *
      * @param[in]  aPrefix A reference to the IPv6 Domain Prefix.
      *
@@ -215,7 +206,7 @@ public:
     Error RemoveDomainPrefix(const Ip6::Prefix &aPrefix);
 
     /**
-     * Sets the local Domain Prefix configuration.
+     * This method sets the local Domain Prefix configuration.
      *
      * @param[in]  aConfig A reference to the Domain Prefix configuration.
      *
@@ -226,7 +217,7 @@ public:
     Error SetDomainPrefix(const NetworkData::OnMeshPrefixConfig &aConfig);
 
     /**
-     * Returns a reference to the All Network Backbone Routers Multicast Address.
+     * This method returns a reference to the All Network Backbone Routers Multicast Address.
      *
      * @returns A reference to the All Network Backbone Routers Multicast Address.
      *
@@ -234,7 +225,7 @@ public:
     const Ip6::Address &GetAllNetworkBackboneRoutersAddress(void) const { return mAllNetworkBackboneRouters; }
 
     /**
-     * Returns a reference to the All Domain Backbone Routers Multicast Address.
+     * This method returns a reference to the All Domain Backbone Routers Multicast Address.
      *
      * @returns A reference to the All Domain Backbone Routers Multicast Address.
      *
@@ -242,33 +233,30 @@ public:
     const Ip6::Address &GetAllDomainBackboneRoutersAddress(void) const { return mAllDomainBackboneRouters; }
 
     /**
-     * Applies the Mesh Local Prefix.
+     * This method applies the Mesh Local Prefix.
      *
      */
     void ApplyMeshLocalPrefix(void);
 
     /**
-     * Updates the subscription of All Domain Backbone Routers Multicast Address.
+     * This method updates the subscription of All Domain Backbone Routers Multicast Address.
      *
-     * @param[in]  aEvent  The Domain Prefix event.
+     * @param[in]  aState  The Domain Prefix state or state change.
      *
      */
-    void HandleDomainPrefixUpdate(DomainPrefixEvent aEvent);
+    void HandleDomainPrefixUpdate(Leader::DomainPrefixState aState);
 
     /**
-     * Sets the Domain Prefix callback.
+     * This method sets the Domain Prefix callback.
      *
      * @param[in] aCallback  The callback function.
      * @param[in] aContext   A user context pointer.
      *
      */
-    void SetDomainPrefixCallback(otBackboneRouterDomainPrefixCallback aCallback, void *aContext)
-    {
-        mDomainPrefixCallback.Set(aCallback, aContext);
-    }
+    void SetDomainPrefixCallback(otBackboneRouterDomainPrefixCallback aCallback, void *aContext);
 
 private:
-    void SetState(State aState);
+    void SetState(BackboneRouterState aState);
     void RemoveService(void);
     void AddDomainPrefixToNetworkData(void);
     void RemoveDomainPrefixFromNetworkData(void);
@@ -281,11 +269,11 @@ private:
     void LogDomainPrefix(const char *, Error) {}
 #endif
 
-    State    mState;
-    uint32_t mMlrTimeout;
-    uint16_t mReregistrationDelay;
-    uint8_t  mSequenceNumber;
-    uint8_t  mRegistrationJitter;
+    BackboneRouterState mState;
+    uint32_t            mMlrTimeout;
+    uint16_t            mReregistrationDelay;
+    uint8_t             mSequenceNumber;
+    uint8_t             mRegistrationJitter;
 
     // Indicates whether or not already add Backbone Router Service to local server data.
     // Used to check whether or not in restore stage after reset or whether to remove
@@ -294,15 +282,14 @@ private:
 
     NetworkData::OnMeshPrefixConfig mDomainPrefixConfig;
 
-    Ip6::Netif::UnicastAddress                     mBackboneRouterPrimaryAloc;
-    Ip6::Address                                   mAllNetworkBackboneRouters;
-    Ip6::Address                                   mAllDomainBackboneRouters;
-    Callback<otBackboneRouterDomainPrefixCallback> mDomainPrefixCallback;
+    Ip6::Netif::UnicastAddress           mBackboneRouterPrimaryAloc;
+    Ip6::Address                         mAllNetworkBackboneRouters;
+    Ip6::Address                         mAllDomainBackboneRouters;
+    otBackboneRouterDomainPrefixCallback mDomainPrefixCallback;
+    void *                               mDomainPrefixCallbackContext;
 };
 
 } // namespace BackboneRouter
-
-DefineMapEnum(otBackboneRouterState, BackboneRouter::Local::State);
 
 /**
  * @}

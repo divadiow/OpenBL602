@@ -47,10 +47,10 @@ namespace ot {
 namespace Cli {
 
 /**
- * Implements the History Tracker CLI interpreter.
+ * This class implements the History Tracker CLI interpreter.
  *
  */
-class History : private Output
+class History : private OutputWrapper
 {
 public:
     typedef Utils::CmdLineParser::Arg Arg;
@@ -58,25 +58,18 @@ public:
     /**
      * Constructor
      *
-     * @param[in]  aInstance            The OpenThread Instance.
-     * @param[in]  aOutputImplementer   An `OutputImplementer`.
+     * @param[in]  aOutput The CLI console output context
      *
      */
-    History(otInstance *aInstance, OutputImplementer &aOutputImplementer)
-        : Output(aInstance, aOutputImplementer)
+    explicit History(Output &aOutput)
+        : OutputWrapper(aOutput)
     {
     }
 
     /**
-     * Processes a CLI sub-command.
+     * This method interprets a list of CLI arguments.
      *
-     * @param[in]  aArgs     An array of command line arguments.
-     *
-     * @retval OT_ERROR_NONE              Successfully executed the CLI command.
-     * @retval OT_ERROR_PENDING           The CLI command was successfully started but final result is pending.
-     * @retval OT_ERROR_INVALID_COMMAND   Invalid or unknown CLI command.
-     * @retval OT_ERROR_INVALID_ARGS      Invalid arguments.
-     * @retval ...                        Error during execution of the CLI command.
+     * @param[in]  aArgs        A pointer an array of command line arguments.
      *
      */
     otError Process(Arg aArgs[]);

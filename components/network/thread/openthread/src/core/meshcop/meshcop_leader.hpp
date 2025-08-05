@@ -38,13 +38,13 @@
 
 #if OPENTHREAD_FTD
 
+#include "coap/coap.hpp"
 #include "common/locator.hpp"
 #include "common/non_copyable.hpp"
 #include "common/timer.hpp"
 #include "meshcop/meshcop_tlvs.hpp"
 #include "net/udp6.hpp"
 #include "thread/mle.hpp"
-#include "thread/tmf.hpp"
 
 namespace ot {
 namespace MeshCoP {
@@ -66,11 +66,9 @@ public:
 
 class Leader : public InstanceLocator, private NonCopyable
 {
-    friend class Tmf::Agent;
-
 public:
     /**
-     * Initializes the Leader object.
+     * This constructor initializes the Leader object.
      *
      * @param[in]  aInstance     A reference to the OpenThread instance.
      *
@@ -78,7 +76,7 @@ public:
     explicit Leader(Instance &aInstance);
 
     /**
-     * Sends a MGMT_DATASET_CHANGED message to commissioner.
+     * This method sends a MGMT_DATASET_CHANGED message to commissioner.
      *
      * @param[in]  aAddress   The IPv6 address of destination.
      *
@@ -86,7 +84,7 @@ public:
     void SendDatasetChanged(const Ip6::Address &aAddress);
 
     /**
-     * Sets minimal delay timer.
+     * This method sets minimal delay timer.
      *
      * @param[in]  aDelayTimerMinimal The value of minimal delay timer (in ms).
      *
@@ -97,7 +95,7 @@ public:
     Error SetDelayTimerMinimal(uint32_t aDelayTimerMinimal);
 
     /**
-     * Gets minimal delay timer.
+     * This method gets minimal delay timer.
      *
      * @retval the minimal delay timer (in ms).
      *
@@ -105,7 +103,7 @@ public:
     uint32_t GetDelayTimerMinimal(void) const;
 
     /**
-     * Sets empty Commissioner Data TLV in the Thread Network Data.
+     * This method sets empty Commissioner Data TLV in the Thread Network Data.
      *
      */
     void SetEmptyCommissionerData(void);
@@ -113,34 +111,34 @@ public:
 private:
     static constexpr uint32_t kTimeoutLeaderPetition = 50; // TIMEOUT_LEAD_PET (seconds)
 
-    void HandleTimer(void);
+    static void HandleTimer(Timer &aTimer);
+    void        HandleTimer(void);
 
-    template <Uri kUri> void HandleTmf(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+    static void HandlePetition(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void        HandlePetition(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+    void        SendPetitionResponse(const Coap::Message &   aRequest,
+                                     const Ip6::MessageInfo &aMessageInfo,
+                                     StateTlv::State         aState);
 
-    void SendPetitionResponse(const Coap::Message    &aRequest,
-                              const Ip6::MessageInfo &aMessageInfo,
-                              StateTlv::State         aState);
-
-    void SendKeepAliveResponse(const Coap::Message    &aRequest,
-                               const Ip6::MessageInfo &aMessageInfo,
-                               StateTlv::State         aState);
+    static void HandleKeepAlive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void        HandleKeepAlive(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+    void        SendKeepAliveResponse(const Coap::Message &   aRequest,
+                                      const Ip6::MessageInfo &aMessageInfo,
+                                      StateTlv::State         aState);
 
     static void HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
 
     void ResignCommissioner(void);
 
-    using LeaderTimer = TimerMilliIn<Leader, &Leader::HandleTimer>;
-
-    LeaderTimer mTimer;
+    Coap::Resource mPetition;
+    Coap::Resource mKeepAlive;
+    TimerMilli     mTimer;
 
     uint32_t mDelayTimerMinimal;
 
     CommissionerIdTlv mCommissionerId;
     uint16_t          mSessionId;
 };
-
-DeclareTmfHandler(Leader, kUriLeaderPetition);
-DeclareTmfHandler(Leader, kUriLeaderKeepAlive);
 
 } // namespace MeshCoP
 } // namespace ot

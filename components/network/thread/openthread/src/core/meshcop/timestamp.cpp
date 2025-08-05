@@ -34,7 +34,6 @@
 #include "timestamp.hpp"
 
 #include "common/code_utils.hpp"
-#include "common/num_utils.hpp"
 
 namespace ot {
 namespace MeshCoP {
@@ -81,15 +80,39 @@ exit:
 
 int Timestamp::Compare(const Timestamp &aFirst, const Timestamp &aSecond)
 {
-    int rval;
+    int      rval;
+    uint64_t firstSeconds;
+    uint64_t secondSeconds;
+    uint16_t firstTicks;
+    uint16_t secondTicks;
+    bool     firstAuthoritative;
+    bool     secondAuthoritative;
 
-    rval = ThreeWayCompare(aFirst.GetSeconds(), aSecond.GetSeconds());
-    VerifyOrExit(rval == 0);
+    firstSeconds  = aFirst.GetSeconds();
+    secondSeconds = aSecond.GetSeconds();
 
-    rval = ThreeWayCompare(aFirst.GetTicks(), aSecond.GetTicks());
-    VerifyOrExit(rval == 0);
+    if (firstSeconds != secondSeconds)
+    {
+        ExitNow(rval = (firstSeconds > secondSeconds) ? 1 : -1);
+    }
 
-    rval = ThreeWayCompare(aFirst.GetAuthoritative(), aSecond.GetAuthoritative());
+    firstTicks  = aFirst.GetTicks();
+    secondTicks = aSecond.GetTicks();
+
+    if (firstTicks != secondTicks)
+    {
+        ExitNow(rval = (firstTicks > secondTicks) ? 1 : -1);
+    }
+
+    firstAuthoritative  = aFirst.GetAuthoritative();
+    secondAuthoritative = aSecond.GetAuthoritative();
+
+    if (firstAuthoritative != secondAuthoritative)
+    {
+        ExitNow(rval = firstAuthoritative ? 1 : -1);
+    }
+
+    rval = 0;
 
 exit:
     return rval;

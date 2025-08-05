@@ -10,9 +10,6 @@ endif
 ifeq ($(CONFIG_CHIP_NAME),BL702)
 CFLAGS += -DBL702
 endif
-ifeq ($(CONFIG_CHIP_NAME),BL702L)
-CFLAGS += -DBL702L
-endif
 ifeq ($(CONFIG_CHIP_NAME),BL808)
 CFLAGS += -DBL808
 endif
@@ -116,13 +113,9 @@ COMPONENT_SRCS := $(addprefix $(LIBRARY_DIR)/, $(LIBRARY_SRCS))
 COMPONENT_SRCS += \
         port/pkparse.c          \
         port/mbedtls_port_mem.c \
+        port/net_sockets.c      \
         port/hw_entropy_poll.c  \
         port/bignum_ext.c       \
-
-# Build net_sockets.c by default unless CONFIG_MBEDTLS_NET_SOCKET is defined as 0.
-ifneq ($(CONFIG_MBEDTLS_NET_SOCKET),0)
-COMPONENT_SRCS += port/net_sockets.c
-endif
 
 MBEDTLS_USE_HW=0
 
@@ -134,7 +127,6 @@ COMPONENT_SRCS += port/hw_acc/bignum_hw.c
 else
 COMPONENT_SRCS += $(addprefix $(LIBRARY_DIR)/, bignum.c)
 endif
-
 
 # Hash HW
 ifeq ($(CONFIG_MBEDTLS_SHA1_USE_HW),1)
@@ -150,11 +142,6 @@ endif
 # AES HW
 ifeq ($(CONFIG_MBEDTLS_AES_USE_HW),1)
 COMPONENT_SRCS += port/hw_acc/aes_alt.c
-endif
-
-# GCM HW
-ifeq ($(CONFIG_MBEDTLS_GCM_USE_HW),1)
-COMPONENT_SRCS += port/hw_acc/gcm_alt.c
 endif
 
 # ECC HW
@@ -176,4 +163,3 @@ COMPONENT_OBJS := $(patsubst %.c,%.o, $(COMPONENT_SRCS))
 COMPONENT_SRCDIRS := $(LIBRARY_DIR) port port/hw_acc
 
 ##
-CFLAGS += -msave-restore

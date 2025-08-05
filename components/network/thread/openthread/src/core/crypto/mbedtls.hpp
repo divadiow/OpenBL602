@@ -68,20 +68,20 @@ namespace Crypto {
  */
 
 /**
- * Implements mbedTLS memory.
+ * This class implements mbedTLS memory.
  *
  */
 class MbedTls : private NonCopyable
 {
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      */
     MbedTls(void);
 
     /**
-     * Converts an mbed TLS error to OpenThread error.
+     * This method converts an mbed TLS error to OpenThread error.
      *
      * @param[in] aMbedTlsError  The mbed TLS error.
      *
@@ -92,7 +92,7 @@ public:
 
 #if !OPENTHREAD_RADIO
     /**
-     * Fills a given buffer with cryptographically secure random bytes.
+     * This function fills a given buffer with cryptographically secure random bytes.
      *
      * @param[in]  aContext A pointer to arbitrary context.
      * @param[out] aBuffer  A pointer to a buffer to fill with the random bytes.

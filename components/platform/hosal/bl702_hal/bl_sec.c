@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
+ *
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #include <stdio.h>
 
 #include <sec_eng_reg.h>
@@ -21,69 +50,60 @@
 static uint32_t trng_buffer[TRNG_SIZE_IN_WORD];
 static unsigned int trng_idx = 0;
 
-static inline void _trng_ht_disable()
-{
-    uint32_t TRNGx = SEC_ENG_BASE;
-    uint32_t val;
-
-    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_TEST);
-    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_0_HT_DIS);
-    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_0_TEST, val);
-}
+static StaticSemaphore_t sha_mutex_buf;
+SemaphoreHandle_t g_bl_sec_sha_mutex = NULL;
 
 static inline void _trng_trigger()
 {
-    uint32_t TRNGx = SEC_ENG_BASE;
+    uint32_t TRNGx = SEC_ENG_BASE + SEC_ENG_TRNG_OFFSET;
     uint32_t val;
 
-    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0);    
-    if (BL_IS_REG_BIT_SET(val, SEC_ENG_SE_TRNG_0_BUSY)) {
+    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0);    
+    if (BL_IS_REG_BIT_SET(val, SEC_ENG_SE_TRNG_BUSY)) {
         return;
     }
-    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_1, trng_buffer[0]);
-    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_2, trng_buffer[1]);
-    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_0_INT_SET_1T);
-    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_0_INT_CLR_1T);
-    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_0_EN);
-    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_0_TRIG_1T);
+    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_1, trng_buffer[0]);
+    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_2, trng_buffer[1]);
+    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_INT_SET_1T);
+    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_INT_CLR_1T);
+    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_EN);
+    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_TRIG_1T);
 
-    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0, val);
+    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0, val);
 }
 
 static inline void wait_trng4feed()
 {
-    uint32_t TRNGx = SEC_ENG_BASE;
+    uint32_t TRNGx = SEC_ENG_BASE + SEC_ENG_TRNG_OFFSET;
     uint32_t val;
 
-    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0);
+    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0);
 
-    while (BL_IS_REG_BIT_SET(val, SEC_ENG_SE_TRNG_0_BUSY)) {
+    while (BL_IS_REG_BIT_SET(val, SEC_ENG_SE_TRNG_BUSY)) {
         /*wait until trng is NOT busy*/
-        val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0);
+        val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0);
     }
 
-    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_0_INT_CLR_1T);
-    val = BL_CLR_REG_BIT(val, SEC_ENG_SE_TRNG_0_TRIG_1T);
-    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0, val);
-
-    //blog_info("Feed random number is %08lx\r\n", trng_buffer[0]);
-
-    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0);
-    while (BL_IS_REG_BIT_SET(val, SEC_ENG_SE_TRNG_0_BUSY)) {
-        /*wait until trng is NOT busy*/
-        val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0);
-    }
-
-    trng_buffer[0] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_0);
-    trng_buffer[1] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_1);
-    trng_buffer[2] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_2);
-    trng_buffer[3] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_3);
-    trng_buffer[4] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_4);
-    trng_buffer[5] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_5);
-    trng_buffer[6] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_6);
-    trng_buffer[7] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_7);
+    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_INT_CLR_1T);
+    val = BL_CLR_REG_BIT(val, SEC_ENG_SE_TRNG_TRIG_1T);
+    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0, val);
 
     blog_info("Feed random number is %08lx\r\n", trng_buffer[0]);
+
+    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0);
+    while (BL_IS_REG_BIT_SET(val, SEC_ENG_SE_TRNG_BUSY)) {
+        /*wait until trng is NOT busy*/
+        val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0);
+    }
+
+    trng_buffer[0] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_0);
+    trng_buffer[1] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_1);
+    trng_buffer[2] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_2);
+    trng_buffer[3] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_3);
+    trng_buffer[4] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_4);
+    trng_buffer[5] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_5);
+    trng_buffer[6] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_6);
+    trng_buffer[7] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_7);
 }
 
 uint32_t bl_sec_get_random_word(void)
@@ -95,7 +115,7 @@ uint32_t bl_sec_get_random_word(void)
     return trng_buffer[trng_idx++];
 }
 
-int bl_rand_stream(uint8_t *buf, int len)
+void bl_rand_stream(uint8_t *buf, int len)
 {
     int i = 0;
 
@@ -107,8 +127,6 @@ int bl_rand_stream(uint8_t *buf, int len)
             _trng_trigger();
         }
     }
-
-    return 0;
 }
 
 int bl_rand()
@@ -134,37 +152,33 @@ int bl_rand()
 
 void sec_trng_IRQHandler(void)
 {
-    uint32_t TRNGx = SEC_ENG_BASE;
+    uint32_t TRNGx = SEC_ENG_BASE + SEC_ENG_TRNG_OFFSET;
     uint32_t val;
 
     if (aos_now_ms() < 1000 * 2) {
         /*debug when boot*/
         puts("[BL] [SEC] TRNG Handler\r\n");
     }
-    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0);
-    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_0_INT_CLR_1T);
-    val = BL_CLR_REG_BIT(val, SEC_ENG_SE_TRNG_0_TRIG_1T);
-    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_0_CTRL_0, val);
+    val = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0);
+    val = BL_SET_REG_BIT(val, SEC_ENG_SE_TRNG_INT_CLR_1T);
+    val = BL_CLR_REG_BIT(val, SEC_ENG_SE_TRNG_TRIG_1T);
+    BL_WR_REG(TRNGx, SEC_ENG_SE_TRNG_CTRL_0, val);
 
     blog_debug("random number is %08lx\r\n", trng_buffer[0]);
-    trng_buffer[0] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_0);
-    trng_buffer[1] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_1);
-    trng_buffer[2] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_2);
-    trng_buffer[3] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_3);
-    trng_buffer[4] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_4);
-    trng_buffer[5] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_5);
-    trng_buffer[6] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_6);
-    trng_buffer[7] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_0_DOUT_7);
+    trng_buffer[0] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_0);
+    trng_buffer[1] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_1);
+    trng_buffer[2] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_2);
+    trng_buffer[3] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_3);
+    trng_buffer[4] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_4);
+    trng_buffer[5] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_5);
+    trng_buffer[6] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_6);
+    trng_buffer[7] = BL_RD_REG(TRNGx, SEC_ENG_SE_TRNG_DOUT_7);
 }
 
 int bl_sec_init(void)
 {
-    bl_sec_sha_init();
+    g_bl_sec_sha_mutex = xSemaphoreCreateMutexStatic(&sha_mutex_buf);
     bl_sec_pka_init();
-    bl_sec_aes_init();
-
-    /*Disable health test to fix se_trng_0_ht_error, but will reduce security*/
-    _trng_ht_disable();
     _trng_trigger();
     wait_trng4feed();
     /*Trigger again*/
@@ -172,10 +186,6 @@ int bl_sec_init(void)
     wait_trng4feed();
     bl_irq_register(SEC_TRNG_IRQn, sec_trng_IRQHandler);
     bl_irq_enable(SEC_TRNG_IRQn);
-
-#if defined(CONFIG_HW_SEC_ENG_DISABLE)
-    srand(trng_buffer[0]);
-#endif
 
     return 0;
 }

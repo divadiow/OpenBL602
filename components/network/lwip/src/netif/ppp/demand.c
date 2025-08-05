@@ -397,7 +397,7 @@ demand_rexmit(proto, newip)
 		}
 
 		/* Log Packet */
-		strlcpy(ipstr,inet_ntoa(*( (struct in_addr *) (pkt->data+16))), sizeof(ipstr));
+		strcpy(ipstr,inet_ntoa(*( (struct in_addr *) (pkt->data+16))));
 		if (pkt->data[13] == 1) {
 		    syslog(LOG_INFO,"Open ICMP %s -> %s\n",
 			ipstr,

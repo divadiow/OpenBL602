@@ -1,11 +1,32 @@
 
-/**
- ****************************************************************************************
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
  *
- * @file ipc_shared.h
- * Copyright (C) Bouffalo Lab 2016-2018
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
  *
- ****************************************************************************************
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 
@@ -20,7 +41,6 @@
 #include "ipc_compat.h"
 #include "lmac_types.h"
 #include "lmac_mac.h"
-#include "utils_list.h"
 
 /*
  * DEFINES AND MACROS
@@ -136,52 +156,30 @@ struct hostdesc
     uint8_t tid;
     /// Interface Id
     uint8_t vif_idx;
-    /// VIF type
-    uint8_t vif_type; // 0: STA, 1: AP, [2-FF]:Other
     /// Station Id (0xFF if station is unknown)
     uint8_t staid;
     /// TX flags
     uint16_t flags;
     uint32_t pbuf_chained_ptr[4]; //max 4 chained pbuf for one output ethernet packet
     uint32_t pbuf_chained_len[4]; //max 4 chained pbuf for one output ethernet packet
-    /// Time when TX desc is postponed 
-    uint32_t postpone_time;
-};
-
-/// structure of a list element header
-struct co_list_hdr
-{
-    /// Pointer to the next element in the list
-    struct co_list_hdr *next;
-};
-
-/// structure of a list
-struct co_list
-{
-    /// pointer to first element of the list
-    struct co_list_hdr *first;
-    /// pointer to the last element
-    struct co_list_hdr *last;
-};
-
-/// upper part of struct txdesc
-struct txdesc_upper
-{
-    /// Pointer to the next element in the queue
-    struct co_list_hdr list_hdr;
-    /// Information provided by Host
-    struct hostdesc host;
 };
 
 struct txdesc_host
 {
-    struct utils_list_hdr list_hdr;
-
-    void *host_id;
-
     uint32_t ready;
 
-    uint32_t pad_txdesc[208/4];
+#if defined(CFG_CHIP_BL808)
+    uint32_t eth_packet[1600/4];
+#endif
+
+#if defined(CFG_CHIP_BL606P)
+    uint32_t eth_packet[1600/4];
+#endif
+
+    /// API of the embedded part
+    struct hostdesc host;
+
+    uint32_t pad_txdesc[204/4];
 
     uint32_t pad_buf[400/4];
 };
@@ -223,14 +221,6 @@ struct ipc_a2e_msg
 
 // Indexes are defined in the MIB shared structure
 
-#if defined(CFG_CHIP_BL808) || defined(CFG_CHIP_BL606P)
-struct txbuf_host
-{
-    uint32_t flag;
-    uint32_t buf[1600/4];
-};
-#endif
-
 struct ipc_shared_env_tag
 {
     volatile struct ipc_a2e_msg msg_a2e_buf; // room for MSG to be sent from App to Emb
@@ -238,20 +228,7 @@ struct ipc_shared_env_tag
     /// Host buffer address for the TX payload descriptor pattern
     volatile uint32_t  pattern_addr;
 
-#if defined(CFG_CHIP_BL808) || defined(CFG_CHIP_BL606P)
-    /// Array of TX buffer
-    struct txbuf_host txbuf[NX_TXDESC_CNT0];
-#endif
-
-    /// Array of TX descriptors for the BK queue
     volatile struct txdesc_host txdesc0[NX_TXDESC_CNT0];
-
-    /// List of free txdesc
-    struct utils_list list_free;
-    /// List of ongoing txdesc
-    struct utils_list list_ongoing;
-    /// List of cfm txdesc
-    struct utils_list list_cfm;
 };
 
 extern struct ipc_shared_env_tag ipc_shared_env;

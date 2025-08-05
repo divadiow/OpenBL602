@@ -122,7 +122,7 @@
 #define configCHECK_FOR_STACK_OVERFLOW	2
 #define configUSE_RECURSIVE_MUTEXES		1
 #define configUSE_MALLOC_FAILED_HOOK	1
-#define configUSE_APPLICATION_TASK_TAG	1
+#define configUSE_APPLICATION_TASK_TAG	0
 #define configUSE_COUNTING_SEMAPHORES	1
 #define configGENERATE_RUN_TIME_STATS	0
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
@@ -154,7 +154,6 @@ to exclude the API function. */
 #define INCLUDE_eTaskGetState			1
 #define INCLUDE_xTimerPendFunctionCall	1
 #define INCLUDE_uxTaskGetStackHighWaterMark 1
-#define INCLUDE_xTaskGetHandle                       1
 
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
@@ -176,12 +175,6 @@ Like all task stack sizes, the value is the number of words, not bytes. */
 #include "portmacro.h"
 extern void vApplicationSleep(TickType_t xExpectedIdleTime);
 #define portSUPPRESS_TICKS_AND_SLEEP(xExpectedIdleTime)    vApplicationSleep(xExpectedIdleTime)
-#endif
-
-/* Enable TLS */
-#ifdef config_ENABLE_OS_TLS_SWITCH
-#define configNUM_THREAD_LOCAL_STORAGE_POINTERS 1
-#define configTHREAD_LOCAL_STORAGE_DELETE_CALLBACKS 1
 #endif
 
 #endif /* FREERTOS_CONFIG_H */

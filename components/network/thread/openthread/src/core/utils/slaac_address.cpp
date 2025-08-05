@@ -136,7 +136,7 @@ exit:
 }
 
 bool Slaac::DoesConfigMatchNetifAddr(const NetworkData::OnMeshPrefixConfig &aConfig,
-                                     const Ip6::Netif::UnicastAddress      &aAddr)
+                                     const Ip6::Netif::UnicastAddress &     aAddr)
 {
     return (((aConfig.mOnMesh && (aAddr.mPrefixLength == aConfig.mPrefix.mLength)) ||
              (!aConfig.mOnMesh && (aAddr.mPrefixLength == 128))) &&
@@ -204,8 +204,7 @@ void Slaac::Update(UpdateMode aMode)
         {
             Ip6::Prefix &prefix = config.GetPrefix();
 
-            if (config.mDp || !config.mSlaac || (prefix.GetLength() != Ip6::NetworkPrefix::kLength) ||
-                ShouldFilter(prefix))
+            if (config.mDp || !config.mSlaac || ShouldFilter(prefix))
             {
                 continue;
             }
@@ -256,9 +255,9 @@ void Slaac::Update(UpdateMode aMode)
 }
 
 Error Slaac::GenerateIid(Ip6::Netif::UnicastAddress &aAddress,
-                         uint8_t                    *aNetworkId,
+                         uint8_t *                   aNetworkId,
                          uint8_t                     aNetworkIdLength,
-                         uint8_t                    *aDadCounter) const
+                         uint8_t *                   aDadCounter) const
 {
     /*
      *  This method generates a semantically opaque IID per RFC 7217.
@@ -335,11 +334,11 @@ void Slaac::GetIidSecretKey(IidSecretKey &aKey) const
     // If there is no previously saved secret key, generate
     // a random one and save it.
 
-    error = Random::Crypto::Fill(aKey);
+    error = Random::Crypto::FillBuffer(aKey.m8, sizeof(IidSecretKey));
 
     if (error != kErrorNone)
     {
-        IgnoreError(Random::Crypto::Fill(aKey));
+        IgnoreError(Random::Crypto::FillBuffer(aKey.m8, sizeof(IidSecretKey)));
     }
 
     IgnoreError(Get<Settings>().Save<Settings::SlaacIidSecretKey>(aKey));

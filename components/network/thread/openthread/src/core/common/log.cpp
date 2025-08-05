@@ -39,7 +39,6 @@
 
 #include "common/code_utils.hpp"
 #include "common/instance.hpp"
-#include "common/num_utils.hpp"
 #include "common/string.hpp"
 
 /*
@@ -98,7 +97,7 @@ void Logger::LogVarArgs(const char *aModuleName, LogLevel aLogLevel, const char 
     static_assert(sizeof(kModuleNamePadding) == kMaxLogModuleNameLength + 1, "Padding string is not correct");
 
 #if OPENTHREAD_CONFIG_LOG_PREPEND_UPTIME
-    ot::Uptime::UptimeToString(ot::Instance::Get().Get<ot::Uptime>().GetUptime(), logString, /* aInlcudeMsec */ true);
+    ot::Uptime::UptimeToString(ot::Instance::Get().Get<ot::Uptime>().GetUptime(), logString);
     logString.Append(" ");
 #endif
 
@@ -245,7 +244,7 @@ void Logger::DumpInModule(const char *aModuleName,
     for (uint16_t i = 0; i < aDataLength; i += kDumpBytesPerLine)
     {
         DumpLine(aModuleName, aLogLevel, static_cast<const uint8_t *>(aData) + i,
-                 Min(static_cast<uint8_t>(aDataLength - i), kDumpBytesPerLine));
+                 OT_MIN((aDataLength - i), kDumpBytesPerLine));
     }
 
     string.Clear();

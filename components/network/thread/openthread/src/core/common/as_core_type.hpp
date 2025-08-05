@@ -36,12 +36,10 @@
 
 #include "openthread-core-config.h"
 
-#include "common/debug.hpp"
-
 namespace ot {
 
 /**
- * Relates a given public OT type to its corresponding core C++ class/type.
+ * This structure relates a given public OT type to its corresponding core C++ class/type.
  *
  * @tparam FromType  The public OT type.
  *
@@ -54,7 +52,7 @@ namespace ot {
 template <typename FromType> struct CoreType;
 
 /**
- * Converts a pointer to public OT type (C struct) to the corresponding core C++ type reference.
+ * This function converts a pointer to public OT type (C struct) to the corresponding core C++ type reference.
  *
  * @tparam Type   The public OT type to convert.
  *
@@ -65,13 +63,11 @@ template <typename FromType> struct CoreType;
  */
 template <typename Type> typename CoreType<Type>::Type &AsCoreType(Type *aObject)
 {
-    AssertPointerIsNotNull(aObject);
-
     return *static_cast<typename CoreType<Type>::Type *>(aObject);
 }
 
 /**
- * Converts a const pointer to public OT type (C struct) to the corresponding core C++ type reference.
+ * This function converts a const pointer to public OT type (C struct) to the corresponding core C++ type reference.
  *
  * @tparam Type   The public OT type to convert.
  *
@@ -82,13 +78,11 @@ template <typename Type> typename CoreType<Type>::Type &AsCoreType(Type *aObject
  */
 template <typename Type> const typename CoreType<Type>::Type &AsCoreType(const Type *aObject)
 {
-    AssertPointerIsNotNull(aObject);
-
     return *static_cast<const typename CoreType<Type>::Type *>(aObject);
 }
 
 /**
- * Converts a pointer to public OT type (C struct) to the corresponding core C++ type pointer.
+ * This function converts a pointer to public OT type (C struct) to the corresponding core C++ type pointer.
  *
  * @tparam Type   The public OT type to convert.
  *
@@ -103,7 +97,7 @@ template <typename Type> typename CoreType<Type>::Type *AsCoreTypePtr(Type *aObj
 }
 
 /**
- * Converts a const pointer to public OT type (C struct) to the corresponding core C++ type pointer.
+ * This function converts a const pointer to public OT type (C struct) to the corresponding core C++ type pointer.
  *
  * @tparam Type   The public OT type to convert.
  *
@@ -118,7 +112,7 @@ template <typename Type> const typename CoreType<Type>::Type *AsCoreTypePtr(cons
 }
 
 /**
- * Maps two enumeration types.
+ * This structure maps two enumeration types.
  *
  * @tparam FromEnumType  The enum type.
  *
@@ -131,7 +125,7 @@ template <typename Type> const typename CoreType<Type>::Type *AsCoreTypePtr(cons
 template <typename FromEnumType> struct MappedEnum;
 
 /**
- * Convert an enumeration type value to a related enumeration type value.
+ * This function convert an enumeration type value to a related enumeration type value.
  *
  * @param[in] aValue   The enumeration value to convert
  *

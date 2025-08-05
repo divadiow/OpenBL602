@@ -35,8 +35,6 @@
 #ifndef CONFIG_IP6_H_
 #define CONFIG_IP6_H_
 
-#include "config/border_routing.h"
-
 /**
  * @def OPENTHREAD_CONFIG_IP6_MAX_EXT_UCAST_ADDRS
  *
@@ -136,7 +134,7 @@
  *
  */
 #ifndef OPENTHREAD_CONFIG_MPL_SEED_SET_ENTRIES
-#define OPENTHREAD_CONFIG_MPL_SEED_SET_ENTRIES 35
+#define OPENTHREAD_CONFIG_MPL_SEED_SET_ENTRIES 32
 #endif
 
 /**
@@ -173,16 +171,6 @@
 #endif
 
 /**
- * @def OPENTHREAD_CONFIG_TLS_ENABLE
- *
- * Define as 1 to enable support for TLS over TCP.
- *
- */
-#if OPENTHREAD_CONFIG_TCP_ENABLE && !defined(OPENTHREAD_CONFIG_TLS_ENABLE)
-#define OPENTHREAD_CONFIG_TLS_ENABLE 1
-#endif
-
-/**
  * @def OPENTHREAD_CONFIG_IP6_ALLOW_LOOP_BACK_HOST_DATAGRAMS
  *
  * Define as 1 to allow IPv6 datagrams from Host to be looped back to Host.
@@ -190,16 +178,6 @@
  */
 #ifndef OPENTHREAD_CONFIG_IP6_ALLOW_LOOP_BACK_HOST_DATAGRAMS
 #define OPENTHREAD_CONFIG_IP6_ALLOW_LOOP_BACK_HOST_DATAGRAMS 1
-#endif
-
-/**
- * @def OPENTHREAD_CONFIG_IP6_BR_COUNTERS_ENABLE
- *
- * Define as 1 to enable IPv6 Border Routing counters.
- *
- */
-#ifndef OPENTHREAD_CONFIG_IP6_BR_COUNTERS_ENABLE
-#define OPENTHREAD_CONFIG_IP6_BR_COUNTERS_ENABLE OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
 #endif
 
 #endif // CONFIG_IP6_H_

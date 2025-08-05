@@ -26,16 +26,9 @@ extern "C" {
 #define IOCTL_UART_IOC_HWFC_GET                  13 /* get hwfc */
 #define IOCTL_UART_IOC_DATABITS_SET              14 /* set data bits */
 #define IOCTL_UART_IOC_DATABITS_GET              15 /* set data bits */
-#define IOCTL_UART_IOC_WAITENDBYTE_MODE          16 /* last byte timeout */
 
-#ifdef SYS_ENABLE_COREDUMP
-#define IOCTL_UART_IOC_FORCE_PANIC               17 /* trigger panic via user input, for debug */
-#endif
-
-#define UART_FLAGS_READ_BLOCK    (1 << 0)
-#ifdef SYS_ENABLE_COREDUMP
-#define UART_FLAGS_FORCE_PANIC   (1 << 1)
-#endif
+#define UART_READ_CFG_BLOCK   1
+#define UART_READ_CFG_NOBLOCK 2
 
 typedef enum {
     IO_UART_PARITY_NONE,

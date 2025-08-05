@@ -37,7 +37,6 @@
 #include "openthread-core-config.h"
 
 #include "coap/coap.hpp"
-#include "common/as_core_type.hpp"
 #include "common/linked_list.hpp"
 #include "common/locator.hpp"
 #include "common/non_copyable.hpp"
@@ -47,7 +46,6 @@
 #include "net/icmp6.hpp"
 #include "net/udp6.hpp"
 #include "thread/thread_tlvs.hpp"
-#include "thread/tmf.hpp"
 
 namespace ot {
 
@@ -61,66 +59,41 @@ namespace ot {
  */
 
 /**
- * Implements the EID-to-RLOC mapping and caching.
+ * This class implements the EID-to-RLOC mapping and caching.
  *
  */
 class AddressResolver : public InstanceLocator, private NonCopyable
 {
     friend class TimeTicker;
-    friend class Tmf::Agent;
-
-    class CacheEntry;
-    class CacheEntryList;
 
 public:
     /**
-     * Represents an iterator used for iterating through the EID cache table entries.
+     * This type represents an iterator used for iterating through the EID cache table entries.
      *
      */
-    class Iterator : public otCacheEntryIterator, public Clearable<Iterator>
-    {
-        friend class AddressResolver;
-
-        static constexpr uint8_t kListIndex  = 0;
-        static constexpr uint8_t kEntryIndex = 1;
-
-        const CacheEntry     *GetEntry(void) const { return static_cast<const CacheEntry *>(mData[kEntryIndex]); }
-        void                  SetEntry(const CacheEntry *aEntry) { mData[kEntryIndex] = aEntry; }
-        const CacheEntryList *GetList(void) const { return static_cast<const CacheEntryList *>(mData[kListIndex]); }
-        void                  SetList(const CacheEntryList *aList) { mData[kListIndex] = aList; }
-    };
+    typedef otCacheEntryIterator Iterator;
 
     /**
-     * Represents an EID cache entry.
+     * This type represents an EID cache entry.
      *
      */
-    class EntryInfo : public otCacheEntryInfo, public Clearable<EntryInfo>
-    {
-    public:
-        enum State : uint8_t ///< Entry state.
-        {
-            kStateCached     = OT_CACHE_ENTRY_STATE_CACHED,      ///< Cached and in-use.
-            kStateSnooped    = OT_CACHE_ENTRY_STATE_SNOOPED,     ///< Created by snoop optimization.
-            kStateQuery      = OT_CACHE_ENTRY_STATE_QUERY,       ///< Ongoing query for the EID.
-            kStateRetryQuery = OT_CACHE_ENTRY_STATE_RETRY_QUERY, ///< In retry wait mode.
-        };
-    };
+    typedef otCacheEntryInfo EntryInfo;
 
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      */
     explicit AddressResolver(Instance &aInstance);
 
 #if OPENTHREAD_FTD
     /**
-     * Clears the EID-to-RLOC cache.
+     * This method clears the EID-to-RLOC cache.
      *
      */
     void Clear(void);
 
     /**
-     * Gets the information about the next EID cache entry (using an iterator).
+     * This method gets the information about the next EID cache entry (using an iterator).
      *
      * @param[out]    aInfo      An `EntryInfo` where the EID cache entry information is placed.
      * @param[in,out] aIterator  An iterator. It will be updated to point to the next entry on success.
@@ -134,40 +107,31 @@ public:
     Error GetNextCacheEntry(EntryInfo &aInfo, Iterator &aIterator) const;
 
     /**
-     * Removes the EID-to-RLOC cache entries corresponding to an RLOC16.
+     * This method removes the EID-to-RLOC cache entries corresponding to an RLOC16.
      *
      * @param[in]  aRloc16  The RLOC16 address.
      *
      */
-    void RemoveEntriesForRloc16(Mac::ShortAddress aRloc16);
+    void Remove(Mac::ShortAddress aRloc16);
 
     /**
-     * Removes all EID-to-RLOC cache entries associated with a Router ID.
+     * This method removes all EID-to-RLOC cache entries associated with a Router ID.
      *
      * @param[in]  aRouterId  The Router ID.
      *
      */
-    void RemoveEntriesForRouterId(uint8_t aRouterId);
+    void Remove(uint8_t aRouterId);
 
     /**
-     * Removes the cache entry for the EID.
+     * This method removes the cache entry for the EID.
      *
      * @param[in]  aEid               A reference to the EID.
      *
      */
-    void RemoveEntryForAddress(const Ip6::Address &aEid);
+    void Remove(const Ip6::Address &aEid);
 
     /**
-     * Replaces all EID-to-RLOC cache entries corresponding to an old RLOC16 with a new RLOC16.
-     *
-     * @param[in] aOldRloc16    The old RLOC16.
-     * @param[in] aNewRloc16    The new RLOC16.
-     *
-     */
-    void ReplaceEntriesForRloc16(uint16_t aOldRloc16, uint16_t aNewRloc16);
-
-    /**
-     * Updates an existing entry or adds a snooped cache entry for a given EID.
+     * This method updates an existing entry or adds a snooped cache entry for a given EID.
      *
      * The method is intended to add an entry for snoop optimization (inspection of a received message to create a
      * cache entry mapping an EID to a RLOC).
@@ -180,7 +144,7 @@ public:
     void UpdateSnoopedCacheEntry(const Ip6::Address &aEid, Mac::ShortAddress aRloc16, Mac::ShortAddress aDest);
 
     /**
-     * Returns the RLOC16 for a given EID, initiates an Address Query if the mapping is not known.
+     * This method returns the RLOC16 for a given EID, initiates an Address Query if the mapping is not known.
      *
      * @param[in]   aEid                A reference to the EID.
      * @param[out]  aRloc16             The RLOC16 corresponding to @p aEid.
@@ -197,7 +161,7 @@ public:
     }
 
     /**
-     * Looks up the RLOC16 for a given EID in the address cache.
+     * This method looks up the RLOC16 for a given EID in the address cache.
      *
      * @param[in]   aEid                A reference to the EID.
      *
@@ -207,7 +171,7 @@ public:
     Mac::ShortAddress LookUp(const Ip6::Address &aEid);
 
     /**
-     * Restarts any ongoing address queries.
+     * This method restarts any ongoing address queries.
      *
      * Any existing address queries will be restarted as if they are being sent for the first time.
      *
@@ -215,7 +179,7 @@ public:
     void RestartAddressQueries(void);
 
     /**
-     * Sends an Address Notification (ADDR_NTF.ans) message.
+     * This method sends an Address Notification (ADDR_NTF.ans) message.
      *
      * @param[in]  aTarget                  The target address of the ADDR_NTF.ans message.
      * @param[in]  aMeshLocalIid            The ML-IID of the ADDR_NTF.ans message.
@@ -224,22 +188,22 @@ public:
      * @param[in]  aDestination             The destination to send the ADDR_NTF.ans message.
      *
      */
-    void SendAddressQueryResponse(const Ip6::Address             &aTarget,
+    void SendAddressQueryResponse(const Ip6::Address &            aTarget,
                                   const Ip6::InterfaceIdentifier &aMeshLocalIid,
-                                  const uint32_t                 *aLastTransactionTimeTlv,
-                                  const Ip6::Address             &aDestination);
+                                  const uint32_t *                aLastTransactionTimeTlv,
+                                  const Ip6::Address &            aDestination);
 
     /**
-     * Sends an Address Error Notification (ADDR_ERR.ntf) message.
+     * This method sends an Address Error Notification (ADDR_ERR.ntf) message.
      *
      * @param aTarget        The target address of the ADDR_ERR.ntf message.
      * @param aMeshLocalIid  The ML-IID of the ADDR_ERR.ntf message.
      * @param aDestination   The destination to send the ADDR_ERR.ntf message.
      *
      */
-    void SendAddressError(const Ip6::Address             &aTarget,
+    void SendAddressError(const Ip6::Address &            aTarget,
                           const Ip6::InterfaceIdentifier &aMeshLocalIid,
-                          const Ip6::Address             *aDestination);
+                          const Ip6::Address *            aDestination);
 
 private:
     static constexpr uint16_t kCacheEntries                  = OPENTHREAD_CONFIG_TMF_ADDRESS_CACHE_ENTRIES;
@@ -251,12 +215,15 @@ private:
     static constexpr uint16_t kAddressQueryMaxRetryDelay     = OPENTHREAD_CONFIG_TMF_ADDRESS_QUERY_MAX_RETRY_DELAY;
     static constexpr uint16_t kSnoopBlockEvictionTimeout     = OPENTHREAD_CONFIG_TMF_SNOOP_CACHE_ENTRY_TIMEOUT;
 
+    static constexpr uint8_t kIteratorListIndex  = 0;
+    static constexpr uint8_t kIteratorEntryIndex = 1;
+
     class CacheEntry : public InstanceLocatorInit
     {
     public:
         void Init(Instance &aInstance);
 
-        CacheEntry       *GetNext(void);
+        CacheEntry *      GetNext(void);
         const CacheEntry *GetNext(void) const;
         void              SetNext(CacheEntry *aEntry);
 
@@ -285,9 +252,6 @@ private:
         bool CanEvict(void) const { return mInfo.mOther.mCanEvict; }
         void SetCanEvict(bool aCanEvict) { mInfo.mOther.mCanEvict = aCanEvict; }
 
-        bool IsInRampDown(void) const { return mInfo.mOther.mRampDown; }
-        void SetRampDown(bool aRampDown) { mInfo.mOther.mRampDown = aRampDown; }
-
         bool Matches(const Ip6::Address &aEid) const { return GetTarget() == aEid; }
 
     private:
@@ -311,17 +275,13 @@ private:
                 uint16_t mTimeout;
                 uint16_t mRetryDelay;
                 bool     mCanEvict;
-                bool     mRampDown;
             } mOther;
 
         } mInfo;
     };
 
     typedef Pool<CacheEntry, kCacheEntries> CacheEntryPool;
-
-    class CacheEntryList : public LinkedList<CacheEntry>
-    {
-    };
+    typedef LinkedList<CacheEntry>          CacheEntryList;
 
     enum EntryChange : uint8_t
     {
@@ -351,59 +311,61 @@ private:
     CacheEntry *NewCacheEntry(bool aSnoopedEntry);
     void        RemoveCacheEntry(CacheEntry &aEntry, CacheEntryList &aList, CacheEntry *aPrevEntry, Reason aReason);
     Error       UpdateCacheEntry(const Ip6::Address &aEid, Mac::ShortAddress aRloc16);
-    Error       SendAddressQuery(const Ip6::Address &aEid);
-#if OPENTHREAD_CONFIG_TMF_ALLOW_ADDRESS_RESOLUTION_USING_NET_DATA_SERVICES
-    Error ResolveUsingNetDataServices(const Ip6::Address &aEid, Mac::ShortAddress &aRloc16);
-#endif
+
+    Error SendAddressQuery(const Ip6::Address &aEid);
 
     static void HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
 
 #endif // OPENTHREAD_FTD
 
-    template <Uri kUri> void HandleTmf(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+    static void HandleAddressError(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void        HandleAddressError(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
 
 #if OPENTHREAD_FTD
+    static void HandleAddressQuery(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void        HandleAddressQuery(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
 
-    static void HandleIcmpReceive(void                *aContext,
-                                  otMessage           *aMessage,
+    static void HandleAddressNotification(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void        HandleAddressNotification(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+
+    static void HandleIcmpReceive(void *               aContext,
+                                  otMessage *          aMessage,
                                   const otMessageInfo *aMessageInfo,
                                   const otIcmp6Header *aIcmpHeader);
-    void        HandleIcmpReceive(Message                 &aMessage,
-                                  const Ip6::MessageInfo  &aMessageInfo,
+    void        HandleIcmpReceive(Message &                aMessage,
+                                  const Ip6::MessageInfo & aMessageInfo,
                                   const Ip6::Icmp::Header &aIcmpHeader);
 
-    void        HandleTimeTick(void);
-    void        LogCacheEntryChange(EntryChange       aChange,
-                                    Reason            aReason,
-                                    const CacheEntry &aEntry,
-                                    CacheEntryList   *aList = nullptr);
+    void HandleTimeTick(void);
+
+    void LogCacheEntryChange(EntryChange       aChange,
+                             Reason            aReason,
+                             const CacheEntry &aEntry,
+                             CacheEntryList *  aList = nullptr);
+
     const char *ListToString(const CacheEntryList *aList) const;
 
     static AddressResolver::CacheEntry *GetEntryAfter(CacheEntry *aPrev, CacheEntryList &aList);
 
-    CacheEntryPool     mCacheEntryPool;
-    CacheEntryList     mCachedList;
-    CacheEntryList     mSnoopedList;
-    CacheEntryList     mQueryList;
-    CacheEntryList     mQueryRetryList;
-    Ip6::Icmp::Handler mIcmpHandler;
-
 #endif // OPENTHREAD_FTD
-};
-
-DeclareTmfHandler(AddressResolver, kUriAddressError);
+    Coap::Resource mAddressError;
 #if OPENTHREAD_FTD
-DeclareTmfHandler(AddressResolver, kUriAddressQuery);
-DeclareTmfHandler(AddressResolver, kUriAddressNotify);
-#endif
+    Coap::Resource mAddressQuery;
+    Coap::Resource mAddressNotification;
+
+    CacheEntryPool mCacheEntryPool;
+    CacheEntryList mCachedList;
+    CacheEntryList mSnoopedList;
+    CacheEntryList mQueryList;
+    CacheEntryList mQueryRetryList;
+
+    Ip6::Icmp::Handler mIcmpHandler;
+#endif //  OPENTHREAD_FTD
+};
 
 /**
  * @}
  */
-
-DefineCoreType(otCacheEntryIterator, AddressResolver::Iterator);
-DefineCoreType(otCacheEntryInfo, AddressResolver::EntryInfo);
-DefineMapEnum(otCacheEntryState, AddressResolver::EntryInfo::State);
 
 } // namespace ot
 

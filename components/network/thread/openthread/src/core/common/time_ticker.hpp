@@ -46,7 +46,7 @@
 namespace ot {
 
 /**
- * Represents a time ticker.
+ * This class represents a time ticker.
  *
  * The time ticker emits periodic ticks (with 1 second period interval) to a set of registered tick receiver modules.
  * The tick receivers (OpenThread objects) are identified by the `Receiver` enumeration. The receiver objects
@@ -57,9 +57,9 @@ class TimeTicker : public InstanceLocator, private NonCopyable
 {
 public:
     /**
-     * Represents time tick receivers.
+     * This enumeration represents time tick receivers.
      *
-     * Contains the list of all OpenThread modules that can be registered as time tick receivers.
+     * This enumeration contains the list of all OpenThread modules that can be registered as time tick receivers.
      *
      */
     enum Receiver : uint8_t
@@ -67,24 +67,23 @@ public:
         kMeshForwarder,          ///< `MeshForwarder`
         kMleRouter,              ///< `Mle::MleRouter`
         kAddressResolver,        ///< `AddressResolver`
-        kChildSupervisor,        ///< `ChildSupervisor`
+        kChildSupervisor,        ///< `Utils::ChildSupervisor`
         kIp6FragmentReassembler, ///< `Ip6::Ip6` (handling of fragmented messages)
         kDuaManager,             ///< `DuaManager`
         kMlrManager,             ///< `MlrManager`
         kNetworkDataNotifier,    ///< `NetworkData::Notifier`
-        kIp6Mpl,                 ///< `Ip6::Mpl`
 
         kNumReceivers, ///< Number of receivers.
     };
 
     /**
-     * Initializes the `TimeTicker` instance.
+     * This constructor initializes the `TimeTicker` instance.
      *
      */
     explicit TimeTicker(Instance &aInstance);
 
     /**
-     * Registers a receiver with `TimeTicker` to receive periodic ticks.
+     * This method registers a receiver with `TimeTicker` to receive periodic ticks.
      *
      * @param[in] aReceiver   A tick receiver identifier.
      *
@@ -92,7 +91,7 @@ public:
     void RegisterReceiver(Receiver aReceiver);
 
     /**
-     * Unregisters a receiver with `TimeTicker` to receive periodic ticks.
+     * This method unregisters a receiver with `TimeTicker` to receive periodic ticks.
      *
      * @param[in] aReceiver   A tick receiver identifier.
      *
@@ -100,7 +99,7 @@ public:
     void UnregisterReceiver(Receiver aReceiver);
 
     /**
-     * Indicates whether a receiver is registered with `TimeTicker` to receive periodic ticks.
+     * This method indicates whether a receiver is registered with `TimeTicker` to receive periodic ticks.
      *
      * @param[in] aReceiver   A tick receiver identifier.
      *
@@ -116,12 +115,11 @@ private:
 
     constexpr static uint32_t Mask(Receiver aReceiver) { return static_cast<uint32_t>(1U) << aReceiver; }
 
-    void HandleTimer(void);
+    static void HandleTimer(Timer &aTimer);
+    void        HandleTimer(void);
 
-    using TickerTimer = TimerMilliIn<TimeTicker, &TimeTicker::HandleTimer>;
-
-    uint32_t    mReceivers;
-    TickerTimer mTimer;
+    uint32_t   mReceivers;
+    TimerMilli mTimer;
 
     static_assert(kNumReceivers < sizeof(mReceivers) * CHAR_BIT, "Too many `Receiver`s - does not fit in a bit mask");
 };

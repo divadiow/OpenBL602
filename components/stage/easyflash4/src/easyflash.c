@@ -56,8 +56,6 @@
 #if !defined(EF_ERASE_MIN_SIZE)
 #error "Please configure minimum size of flash erasure (in ef_cfg.h)"
 #endif
-/* initialize OK flag */
-static bool easyflash_init_ok = false;
 
 /**
  * EasyFlash system initialize.
@@ -74,10 +72,6 @@ EfErrCode easyflash_init(void) {
     const ef_env *default_env_set;
     EfErrCode result = EF_NO_ERR;
 
-    if(easyflash_init_ok)
-    {
-        return EF_NO_ERR;
-    }
     result = ef_port_init(&default_env_set, &default_env_set_size);
 
 #ifdef EF_USING_ENV
@@ -100,7 +94,6 @@ EfErrCode easyflash_init(void) {
 
     if (result == EF_NO_ERR) {
         EF_INFO("EasyFlash V%s is initialize success.\r\n", EF_SW_VERSION);
-        easyflash_init_ok = true;
     } else {
         EF_INFO("EasyFlash V%s is initialize fail.\r\n", EF_SW_VERSION);
     }

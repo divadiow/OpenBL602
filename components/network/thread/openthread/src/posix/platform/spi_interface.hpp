@@ -38,31 +38,35 @@
 
 #include "platform-posix.h"
 #include "lib/hdlc/hdlc.hpp"
-#include "lib/spinel/multi_frame_buffer.hpp"
-#include "lib/spinel/spi_frame.hpp"
 #include "lib/spinel/spinel_interface.hpp"
 
 #include <openthread/openthread-system.h>
+
+#if OPENTHREAD_POSIX_CONFIG_RCP_BUS == OT_POSIX_RCP_BUS_SPI
+
+#include "ncp/ncp_spi.hpp"
 
 namespace ot {
 namespace Posix {
 
 /**
- * Defines an SPI interface to the Radio Co-processor (RCP).
+ * This class defines an SPI interface to the Radio Co-processor (RCP).
  *
  */
-class SpiInterface : public ot::Spinel::SpinelInterface
+class SpiInterface
 {
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      * @param[in] aCallback         A reference to a `Callback` object.
      * @param[in] aCallbackContext  The context pointer passed to the callback.
      * @param[in] aFrameBuffer      A reference to a `RxFrameBuffer` object.
      *
      */
-    SpiInterface(ReceiveFrameCallback aCallback, void *aCallbackContext, RxFrameBuffer &aFrameBuffer);
+    SpiInterface(Spinel::SpinelInterface::ReceiveFrameCallback aCallback,
+                 void *                                        aCallbackContext,
+                 Spinel::SpinelInterface::RxFrameBuffer &      aFrameBuffer);
 
     /**
      * This destructor deinitializes the object.
@@ -71,7 +75,7 @@ public:
     ~SpiInterface(void);
 
     /**
-     * Initializes the interface to the Radio Co-processor (RCP).
+     * This method initializes the interface to the Radio Co-processor (RCP).
      *
      * @note This method should be called before reading and sending spinel frames to the interface.
      *
@@ -85,13 +89,13 @@ public:
     otError Init(const Url::Url &aRadioUrl);
 
     /**
-     * Deinitializes the interface to the RCP.
+     * This method deinitializes the interface to the RCP.
      *
      */
     void Deinit(void);
 
     /**
-     * Encodes and sends a spinel frame to Radio Co-processor (RCP) over the socket.
+     * This method encodes and sends a spinel frame to Radio Co-processor (RCP) over the socket.
      *
      * @param[in] aFrame     A pointer to buffer containing the spinel frame to send.
      * @param[in] aLength    The length (number of bytes) in the frame.
@@ -105,7 +109,7 @@ public:
     otError SendFrame(const uint8_t *aFrame, uint16_t aLength);
 
     /**
-     * Waits for receiving part or all of spinel frame within specified interval.
+     * This method waits for receiving part or all of spinel frame within specified interval.
      *
      * @param[in]  aTimeout  The timeout value in microseconds.
      *
@@ -116,23 +120,26 @@ public:
     otError WaitForFrame(uint64_t aTimeoutUs);
 
     /**
-     * Updates the file descriptor sets with file descriptors used by the radio driver.
+     * This method updates the file descriptor sets with file descriptors used by the radio driver.
      *
-     * @param[in,out]   aMainloopContext  A pointer to the mainloop context containing fd_sets.
-     *
-     */
-    void UpdateFdSet(void *aMainloopContext);
-
-    /**
-     * Performs radio driver processing.
-     *
-     * @param[in]   aMainloopContext  A pointer to the mainloop context containing fd_sets.
+     * @param[in,out]  aReadFdSet   A reference to the read file descriptors.
+     * @param[in,out]  aWriteFdSet  A reference to the write file descriptors.
+     * @param[in,out]  aMaxFd       A reference to the max file descriptor.
+     * @param[in,out]  aTimeout     A reference to the timeout.
      *
      */
-    void Process(const void *aMainloopContext);
+    void UpdateFdSet(fd_set &aReadFdSet, fd_set &aWriteFdSet, int &aMaxFd, struct timeval &aTimeout);
 
     /**
-     * Returns the bus speed between the host and the radio.
+     * This method performs radio driver processing.
+     *
+     * @param[in]   aContext        The context containing fd_sets.
+     *
+     */
+    void Process(const RadioProcessContext &aContext);
+
+    /**
+     * This method returns the bus speed between the host and the radio.
      *
      * @returns   Bus speed in bits/second.
      *
@@ -140,16 +147,20 @@ public:
     uint32_t GetBusSpeed(void) const { return ((mSpiDevFd >= 0) ? mSpiSpeedHz : 0); }
 
     /**
-     * Hardware resets the RCP.
-     *
-     * @retval OT_ERROR_NONE            Successfully reset the RCP.
-     * @retval OT_ERROR_NOT_IMPLEMENT   The hardware reset is not implemented.
+     * This method is called when RCP failure detected and resets internal states of the interface.
      *
      */
-    otError HardwareReset(void);
+    void OnRcpReset(void);
 
     /**
-     * Returns the RCP interface metrics.
+     * This method is called when RCP is reset to recreate the connection with it.
+     * Intentionally empty.
+     *
+     */
+    otError ResetConnection(void) { return OT_ERROR_NONE; }
+
+    /**
+     * This method returns the RCP interface metrics.
      *
      * @returns The RCP interface metrics.
      *
@@ -157,7 +168,6 @@ public:
     const otRcpInterfaceMetrics *GetRcpInterfaceMetrics(void) const { return &mInterfaceMetrics; }
 
 private:
-    void    ResetStates(void);
     int     SetupGpioHandle(int aFd, uint8_t aLine, uint32_t aHandleFlags, const char *aLabel);
     int     SetupGpioEvent(int aFd, uint8_t aLine, uint32_t aHandleFlags, uint32_t aEventFlags, const char *aLabel);
     void    SetGpioValue(int aFd, uint8_t aValue);
@@ -171,6 +181,7 @@ private:
     uint8_t *GetRealRxFrameStart(uint8_t *aSpiRxFrameBuffer, uint8_t aAlignAllowance, uint16_t &aSkipLength);
     otError  DoSpiTransfer(uint8_t *aSpiRxFrameBuffer, uint32_t aTransferLength);
     otError  PushPullSpi(void);
+    void     Process(const fd_set *aReadFdSet, const fd_set *aWriteFdSet);
 
     bool CheckInterrupt(void);
     void LogStats(void);
@@ -204,9 +215,14 @@ private:
         kSlowRetryTimeoutUs      = 33 * kUsecPerMsec,
     };
 
-    ReceiveFrameCallback mReceiveFrameCallback;
-    void                *mReceiveFrameContext;
-    RxFrameBuffer       &mRxFrameBuffer;
+    enum
+    {
+        kMaxFrameSize = Spinel::SpinelInterface::kMaxFrameSize,
+    };
+
+    Spinel::SpinelInterface::ReceiveFrameCallback mReceiveFrameCallback;
+    void *                                        mReceiveFrameContext;
+    Spinel::SpinelInterface::RxFrameBuffer &      mRxFrameBuffer;
 
     int mSpiDevFd;
     int mResetGpioValueFd;
@@ -243,4 +259,5 @@ private:
 } // namespace Posix
 } // namespace ot
 
+#endif // OPENTHREAD_POSIX_CONFIG_RCP_BUS == OT_POSIX_RCP_BUS_SPI
 #endif // POSIX_APP_SPI_INTERFACE_HPP_

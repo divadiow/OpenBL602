@@ -44,15 +44,11 @@ using namespace ot;
 
 char *otSrpClientBuffersGetHostNameString(otInstance *aInstance, uint16_t *aSize)
 {
-    AssertPointerIsNotNull(aSize);
-
     return AsCoreType(aInstance).Get<Utils::SrpClientBuffers>().GetHostNameString(*aSize);
 }
 
 otIp6Address *otSrpClientBuffersGetHostAddressesArray(otInstance *aInstance, uint8_t *aArrayLength)
 {
-    AssertPointerIsNotNull(aArrayLength);
-
     return AsCoreType(aInstance).Get<Utils::SrpClientBuffers>().GetHostAddressesArray(*aArrayLength);
 }
 
@@ -73,29 +69,21 @@ void otSrpClientBuffersFreeAllServices(otInstance *aInstance)
 
 char *otSrpClientBuffersGetServiceEntryServiceNameString(otSrpClientBuffersServiceEntry *aEntry, uint16_t *aSize)
 {
-    AssertPointerIsNotNull(aSize);
-
     return AsCoreType(aEntry).GetServiceNameString(*aSize);
 }
 
 char *otSrpClientBuffersGetServiceEntryInstanceNameString(otSrpClientBuffersServiceEntry *aEntry, uint16_t *aSize)
 {
-    AssertPointerIsNotNull(aSize);
-
     return AsCoreType(aEntry).GetInstanceNameString(*aSize);
 }
 
 uint8_t *otSrpClientBuffersGetServiceEntryTxtBuffer(otSrpClientBuffersServiceEntry *aEntry, uint16_t *aSize)
 {
-    AssertPointerIsNotNull(aSize);
-
     return AsCoreType(aEntry).GetTxtBuffer(*aSize);
 }
 
 const char **otSrpClientBuffersGetSubTypeLabelsArray(otSrpClientBuffersServiceEntry *aEntry, uint16_t *aArrayLength)
 {
-    AssertPointerIsNotNull(aArrayLength);
-
     return AsCoreType(aEntry).GetSubTypeLabelsArray(*aArrayLength);
 }
 

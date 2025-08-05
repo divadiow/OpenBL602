@@ -65,7 +65,7 @@ namespace Trel {
  */
 
 /**
- * Represents a Thread Radio Encapsulation Link (TREL).
+ * This class represents a Thread Radio Encapsulation Link (TREL).
  *
  */
 class Link : public InstanceLocator
@@ -79,7 +79,7 @@ public:
     static constexpr uint8_t  kFcsSize = 0;                          ///< FCS size for TREL frame.
 
     /**
-     * Initializes the `Link` object.
+     * This constructor initializes the `Link` object.
      *
      * @param[in]  aInstance  A reference to the OpenThread instance.
      *
@@ -87,7 +87,7 @@ public:
     explicit Link(Instance &aInstance);
 
     /**
-     * Sets the PAN Identifier.
+     * This method sets the PAN Identifier.
      *
      * @param[in] aPanId   A PAN Identifier.
      *
@@ -95,32 +95,32 @@ public:
     void SetPanId(Mac::PanId aPanId) { mPanId = aPanId; }
 
     /**
-     * Notifies TREL radio link that device's extended MAC address has changed for it to update any
+     * This method notifies TREL radio link that device's extended MAC address has changed for it to update any
      * internal address/state.
      *
      */
     void HandleExtAddressChange(void) { mInterface.HandleExtAddressChange(); }
 
     /**
-     * Enables the TREL radio link.
+     * This method enables the TREL radio link.
      *
      */
     void Enable(void);
 
     /**
-     * Disables the TREL radio link.
+     * This method disables the TREL radio link.
      *
      */
     void Disable(void);
 
     /**
-     * Requests TREL radio link to transition to Sleep mode
+     * This method requests TREL radio link to transition to Sleep mode
      *
      */
     void Sleep(void);
 
     /**
-     * Requests TREL radio link to transition to Receive mode on a given channel.
+     * This method requests TREL radio link to transition to Receive mode on a given channel.
      *
      * `Mac::HandleReceivedFrame()` is used to notify MAC layer upon receiving a frame.
      *
@@ -130,7 +130,7 @@ public:
     void Receive(uint8_t aChannel);
 
     /**
-     * Gets the radio transmit frame for TREL radio link.
+     * This method gets the radio transmit frame for TREL radio link.
      *
      * @returns The transmit frame.
      *
@@ -138,7 +138,7 @@ public:
     Mac::TxFrame &GetTransmitFrame(void) { return mTxFrame; }
 
     /**
-     * Requests a frame to be sent over TREL radio link.
+     * This method requests a frame to be sent over TREL radio link.
      *
      * The frame should be already placed in `GetTransmitFrame()` frame.
      *
@@ -153,7 +153,6 @@ private:
     static constexpr uint16_t k154AckFrameSize = 3 + kFcsSize;
     static constexpr int8_t   kRxRssi          = -20; // The RSSI value used for received frames on TREL radio link.
     static constexpr uint32_t kAckWaitWindow   = 750; // (in msec)
-    static constexpr uint16_t kFcfFramePending = 1 << 4;
 
     enum State : uint8_t
     {
@@ -174,20 +173,21 @@ private:
     void ReportDeferredAckStatus(Neighbor &aNeighbor, Error aError);
     void HandleTimer(Neighbor &aNeighbor);
     void HandleNotifierEvents(Events aEvents);
-    void HandleTxTasklet(void);
-    void HandleTimer(void);
+
+    static void HandleTxTasklet(Tasklet &aTasklet);
+    void        HandleTxTasklet(void);
+
+    static void HandleTimer(Timer &aTimer);
+    void        HandleTimer(void);
 
     static const char *StateToString(State aState);
-
-    using TxTasklet    = TaskletIn<Link, &Link::HandleTxTasklet>;
-    using TimeoutTimer = TimerMilliIn<Link, &Link::HandleTimer>;
 
     State        mState;
     uint8_t      mRxChannel;
     Mac::PanId   mPanId;
     uint32_t     mTxPacketNumber;
-    TxTasklet    mTxTasklet;
-    TimeoutTimer mTimer;
+    Tasklet      mTxTasklet;
+    TimerMilli   mTimer;
     Interface    mInterface;
     Mac::RxFrame mRxFrame;
     Mac::TxFrame mTxFrame;
@@ -197,7 +197,7 @@ private:
 };
 
 /**
- * Defines all the neighbor info required for TREL link.
+ * This class defines all the neighbor info required for TREL link.
  *
  * `Neighbor` class publicly inherits from this class.
  *

@@ -40,6 +40,12 @@
 namespace ot {
 namespace MeshCoP {
 
+const char NetworkNameManager::sNetworkNameInit[] = "OpenThread";
+
+#if (OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2)
+const char NetworkNameManager::sDomainNameInit[] = "DefaultDomain";
+#endif
+
 uint8_t NameData::CopyTo(char *aBuffer, uint8_t aMaxSize) const
 {
     MutableData<kWithUint8Length> destData;
@@ -65,9 +71,6 @@ Error NetworkName::Set(const char *aNameString)
     // chars. The `+ 1` ensures that a `aNameString` with length
     // longer than `kMaxSize` is correctly rejected (returning error
     // `kErrorInvalidArgs`).
-    // Additionally, no minimum length is verified in order to ensure
-    // backwards compatibility with previous versions that allowed
-    // a zero-length name.
 
     Error    error;
     NameData data(aNameString, kMaxSize + 1);
@@ -86,7 +89,7 @@ Error NetworkName::Set(const NameData &aNameData)
     NameData data   = aNameData;
     uint8_t  newLen = static_cast<uint8_t>(StringLength(data.GetBuffer(), data.GetLength()));
 
-    VerifyOrExit(newLen <= kMaxSize, error = kErrorInvalidArgs);
+    VerifyOrExit((0 < newLen) && (newLen <= kMaxSize), error = kErrorInvalidArgs);
 
     data.SetLength(newLen);
 
@@ -103,15 +106,18 @@ exit:
     return error;
 }
 
-bool NetworkName::operator==(const NetworkName &aOther) const { return GetAsData() == aOther.GetAsData(); }
+bool NetworkName::operator==(const NetworkName &aOther) const
+{
+    return GetAsData() == aOther.GetAsData();
+}
 
 NetworkNameManager::NetworkNameManager(Instance &aInstance)
     : InstanceLocator(aInstance)
 {
-    IgnoreError(SetNetworkName(NetworkName::kNetworkNameInit));
+    IgnoreError(SetNetworkName(sNetworkNameInit));
 
 #if (OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2)
-    IgnoreError(SetDomainName(NetworkName::kDomainNameInit));
+    IgnoreError(SetDomainName(sDomainNameInit));
 #endif
 }
 

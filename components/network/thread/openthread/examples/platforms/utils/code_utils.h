@@ -72,7 +72,7 @@
     } while (0)
 
 /**
- * Calculates the number of elements in an array.
+ * This macro calculates the number of elements in an array.
  *
  * @param[in] aArray  Name of the array variable.
  *

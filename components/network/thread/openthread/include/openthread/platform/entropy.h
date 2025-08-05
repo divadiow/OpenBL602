@@ -56,7 +56,7 @@ extern "C" {
 /**
  * Fill buffer with entropy.
  *
- * MUST be implemented using a true random number generator (TRNG).
+ * This function MUST be implemented using a true random number generator (TRNG).
  *
  * @param[out]  aOutput              A pointer to where the true random values are placed.  Must not be NULL.
  * @param[in]   aOutputLength        Size of @p aBuffer.

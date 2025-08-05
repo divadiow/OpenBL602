@@ -52,7 +52,7 @@ extern "C" {
 #endif
 
 /**
- * Represents default parameters for the SPI interface.
+ * This enumeration represents default parameters for the SPI interface.
  *
  */
 enum
@@ -60,7 +60,7 @@ enum
     OT_PLATFORM_CONFIG_SPI_DEFAULT_MODE           = 0,       ///< Default SPI Mode: CPOL=0, CPHA=0.
     OT_PLATFORM_CONFIG_SPI_DEFAULT_SPEED_HZ       = 1000000, ///< Default SPI speed in hertz.
     OT_PLATFORM_CONFIG_SPI_DEFAULT_CS_DELAY_US    = 20,      ///< Default delay after SPI C̅S̅ assertion, in µsec.
-    OT_PLATFORM_CONFIG_SPI_DEFAULT_RESET_DELAY_MS = 0, ///< Default delay after R̅E̅S̅E̅T̅ assertion, in milliseconds.
+    OT_PLATFORM_CONFIG_SPI_DEFAULT_RESET_DELAY_MS = 0, ///< Default delay after R̅E̅S̅E̅T̅ assertion, in miliseconds.
     OT_PLATFORM_CONFIG_SPI_DEFAULT_ALIGN_ALLOWANCE =
         16, ///< Default maximum number of 0xFF bytes to clip from start of MISO frame.
     OT_PLATFORM_CONFIG_SPI_DEFAULT_SMALL_PACKET_SIZE =
@@ -69,7 +69,7 @@ enum
 };
 
 /**
- * Represents platform specific configurations.
+ * This structure represents platform specific configurations.
  *
  */
 typedef struct otPlatformConfig
@@ -80,13 +80,12 @@ typedef struct otPlatformConfig
     uint8_t     mRadioUrlNum;                                  ///< Number of Radio URLs.
     int         mRealTimeSignal;                               ///< The real-time signal for microsecond timer.
     uint32_t    mSpeedUpFactor;                                ///< Speed up factor.
-    bool        mPersistentInterface;                          ///< Whether persistent the interface
     bool        mDryRun;                                       ///< If 'DryRun' is set, the posix daemon will exit
                                                                ///< directly after initialization.
 } otPlatformConfig;
 
 /**
- * Represents RCP interface metrics.
+ * This structure represents RCP interface metrics.
  *
  */
 typedef struct otRcpInterfaceMetrics
@@ -102,7 +101,7 @@ typedef struct otRcpInterfaceMetrics
 } otRcpInterfaceMetrics;
 
 /**
- * Performs all platform-specific initialization of OpenThread's drivers and initializes the OpenThread
+ * This function performs all platform-specific initialization of OpenThread's drivers and initializes the OpenThread
  * instance.
  *
  * @note This function is not called by the OpenThread library. Instead, the system/RTOS should call this function
@@ -116,7 +115,7 @@ typedef struct otRcpInterfaceMetrics
 otInstance *otSysInit(otPlatformConfig *aPlatformConfig);
 
 /**
- * Finalizes the OpenThread instance and performs all platform-specific deinitialization for OpenThread's
+ * This function finalizes the OpenThread instance and performs all platform-specific deinitialization for OpenThread's
  * drivers.
  *
  * @note This function is not called by the OpenThread library. Instead, the system/RTOS should call this function
@@ -126,7 +125,7 @@ otInstance *otSysInit(otPlatformConfig *aPlatformConfig);
 void otSysDeinit(void);
 
 /**
- * Represents a context for a select() based mainloop.
+ * This structure represents a context for a select() based mainloop.
  *
  */
 typedef struct otSysMainloopContext
@@ -139,7 +138,7 @@ typedef struct otSysMainloopContext
 } otSysMainloopContext;
 
 /**
- * Updates the file descriptor sets with file descriptors used by OpenThread drivers.
+ * This function updates the file descriptor sets with file descriptors used by OpenThread drivers.
  *
  * @param[in]       aInstance   The OpenThread instance structure.
  * @param[in,out]   aMainloop   A pointer to the mainloop context.
@@ -148,7 +147,7 @@ typedef struct otSysMainloopContext
 void otSysMainloopUpdate(otInstance *aInstance, otSysMainloopContext *aMainloop);
 
 /**
- * Polls OpenThread's mainloop.
+ * This function polls OpenThread's mainloop.
  *
  * @param[in,out]   aMainloop   A pointer to the mainloop context.
  *
@@ -158,7 +157,7 @@ void otSysMainloopUpdate(otInstance *aInstance, otSysMainloopContext *aMainloop)
 int otSysMainloopPoll(otSysMainloopContext *aMainloop);
 
 /**
- * Performs all platform-specific processing for OpenThread's example applications.
+ * This function performs all platform-specific processing for OpenThread's example applications.
  *
  * @note This function is not called by the OpenThread library. Instead, the system/RTOS should call this function
  *       in the main loop when processing OpenThread's drivers is most appropriate.
@@ -170,7 +169,7 @@ int otSysMainloopPoll(otSysMainloopContext *aMainloop);
 void otSysMainloopProcess(otInstance *aInstance, const otSysMainloopContext *aMainloop);
 
 /**
- * Returns the radio url help string.
+ * This method returns the radio url help string.
  *
  * @returns the radio url help string.
  *
@@ -180,7 +179,7 @@ const char *otSysGetRadioUrlHelpString(void);
 extern otPlatResetReason gPlatResetReason;
 
 /**
- * Returns the Thread network interface name.
+ * This method returns the Thread network interface name.
  *
  * @returns The Thread network interface name.
  *
@@ -188,7 +187,7 @@ extern otPlatResetReason gPlatResetReason;
 const char *otSysGetThreadNetifName(void);
 
 /**
- * Returns the Thread network interface index.
+ * This method returns the Thread network interface index.
  *
  * @returns The Thread network interface index.
  *
@@ -196,7 +195,7 @@ const char *otSysGetThreadNetifName(void);
 unsigned int otSysGetThreadNetifIndex(void);
 
 /**
- * Returns the infrastructure network interface name.
+ * This method returns the infrastructure network interface name.
  *
  * @returns The infrastructure network interface name, or `nullptr` if not specified.
  *
@@ -204,7 +203,7 @@ unsigned int otSysGetThreadNetifIndex(void);
 const char *otSysGetInfraNetifName(void);
 
 /**
- * Returns the radio spinel metrics.
+ * This method returns the radio spinel metrics.
  *
  * @returns The radio spinel metrics.
  *
@@ -212,35 +211,12 @@ const char *otSysGetInfraNetifName(void);
 const otRadioSpinelMetrics *otSysGetRadioSpinelMetrics(void);
 
 /**
- * Returns the RCP interface metrics.
+ * This method returns the RCP interface metrics.
  *
  * @returns The RCP interface metrics.
  *
  */
 const otRcpInterfaceMetrics *otSysGetRcpInterfaceMetrics(void);
-
-/**
- * Returns the ifr_flags of the infrastructure network interface.
- *
- * @returns The ifr_flags of infrastructure network interface.
- *
- */
-uint32_t otSysGetInfraNetifFlags(void);
-
-typedef struct otSysInfraNetIfAddressCounters
-{
-    uint32_t mLinkLocalAddresses;
-    uint32_t mUniqueLocalAddresses;
-    uint32_t mGlobalUnicastAddresses;
-} otSysInfraNetIfAddressCounters;
-
-/**
- * This functions counts the number of addresses on the infrastructure network interface.
- *
- * @param[out] aAddressCounters  The counters of addresses on infrastructure network interface.
- *
- */
-void otSysCountInfraNetifAddresses(otSysInfraNetIfAddressCounters *aAddressCounters);
 
 #ifdef __cplusplus
 } // end of extern "C"

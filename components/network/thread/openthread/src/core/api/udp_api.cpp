@@ -62,7 +62,7 @@ otError otUdpClose(otInstance *aInstance, otUdpSocket *aSocket)
 
 otError otUdpBind(otInstance *aInstance, otUdpSocket *aSocket, const otSockAddr *aSockName, otNetifIdentifier aNetif)
 {
-    return AsCoreType(aInstance).Get<Ip6::Udp>().Bind(AsCoreType(aSocket), AsCoreType(aSockName), MapEnum(aNetif));
+    return AsCoreType(aInstance).Get<Ip6::Udp>().Bind(AsCoreType(aSocket), AsCoreType(aSockName), aNetif);
 }
 
 otError otUdpConnect(otInstance *aInstance, otUdpSocket *aSocket, const otSockAddr *aSockName)
@@ -76,7 +76,10 @@ otError otUdpSend(otInstance *aInstance, otUdpSocket *aSocket, otMessage *aMessa
                                                         AsCoreType(aMessageInfo));
 }
 
-otUdpSocket *otUdpGetSockets(otInstance *aInstance) { return AsCoreType(aInstance).Get<Ip6::Udp>().GetUdpSockets(); }
+otUdpSocket *otUdpGetSockets(otInstance *aInstance)
+{
+    return AsCoreType(aInstance).Get<Ip6::Udp>().GetUdpSockets();
+}
 
 #if OPENTHREAD_CONFIG_UDP_FORWARD_ENABLE
 void otUdpForwardSetForwarder(otInstance *aInstance, otUdpForwarder aForwarder, void *aContext)
@@ -84,13 +87,15 @@ void otUdpForwardSetForwarder(otInstance *aInstance, otUdpForwarder aForwarder, 
     AsCoreType(aInstance).Get<Ip6::Udp>().SetUdpForwarder(aForwarder, aContext);
 }
 
-void otUdpForwardReceive(otInstance         *aInstance,
-                         otMessage          *aMessage,
+void otUdpForwardReceive(otInstance *        aInstance,
+                         otMessage *         aMessage,
                          uint16_t            aPeerPort,
                          const otIp6Address *aPeerAddr,
                          uint16_t            aSockPort)
 {
     Ip6::MessageInfo messageInfo;
+
+    OT_ASSERT(aMessage != nullptr && aPeerAddr != nullptr);
 
     messageInfo.SetSockAddr(AsCoreType(aInstance).Get<Mle::MleRouter>().GetMeshLocal16());
     messageInfo.SetSockPort(aSockPort);

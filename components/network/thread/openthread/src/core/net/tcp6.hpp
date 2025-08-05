@@ -55,16 +55,7 @@ extern "C" {
 struct tcpcb;
 struct tcpcb_listen;
 struct tcplp_signals;
-
-/*
- * The next two declarations intentionally change argument names from the
- * original declarations in TCPlp, in order to comply with OpenThread's format.
- */
-
-// NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name)
 void tcplp_sys_set_timer(struct tcpcb *aTcb, uint8_t aTimerFlag, uint32_t aDelay);
-
-// NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name)
 void tcplp_sys_stop_timer(struct tcpcb *aTcb, uint8_t aTimerFlag);
 }
 
@@ -82,14 +73,14 @@ namespace Ip6 {
  */
 
 /**
- * Implements TCP message handling.
+ * This class implements TCP message handling.
  *
  */
 class Tcp : public InstanceLocator, private NonCopyable
 {
 public:
     /**
-     * Represents an endpoint of a TCP/IPv6 connection.
+     * This class represents an endpoint of a TCP/IPv6 connection.
      *
      */
     class Endpoint : public otTcpEndpoint, public LinkedListEntry<Endpoint>, public GetProvider<Endpoint>
@@ -400,15 +391,15 @@ public:
         size_t GetInFlightBytes(void) const;
         size_t GetBacklogBytes(void) const;
 
-        Address       &GetLocalIp6Address(void);
+        Address &      GetLocalIp6Address(void);
         const Address &GetLocalIp6Address(void) const;
-        Address       &GetForeignIp6Address(void);
+        Address &      GetForeignIp6Address(void);
         const Address &GetForeignIp6Address(void) const;
         bool           Matches(const MessageInfo &aMessageInfo) const;
     };
 
     /**
-     * Represents a TCP/IPv6 listener.
+     * This class represents a TCP/IPv6 listener.
      *
      */
     class Listener : public otTcpListener, public LinkedListEntry<Listener>, public GetProvider<Listener>
@@ -529,13 +520,13 @@ public:
         bool IsClosed(void) const;
 
     private:
-        Address       &GetLocalIp6Address(void);
+        Address &      GetLocalIp6Address(void);
         const Address &GetLocalIp6Address(void) const;
         bool           Matches(const MessageInfo &aMessageInfo) const;
     };
 
     /**
-     * Implements TCP header parsing.
+     * This class implements TCP header parsing.
      *
      */
     OT_TOOL_PACKED_BEGIN
@@ -545,7 +536,7 @@ public:
         static constexpr uint8_t kChecksumFieldOffset = 16; ///< Byte offset of the Checksum field in the TCP header.
 
         /**
-         * Returns the TCP Source Port.
+         * This method returns the TCP Source Port.
          *
          * @returns The TCP Source Port.
          *
@@ -553,7 +544,7 @@ public:
         uint16_t GetSourcePort(void) const { return HostSwap16(mSource); }
 
         /**
-         * Returns the TCP Destination Port.
+         * This method returns the TCP Destination Port.
          *
          * @returns The TCP Destination Port.
          *
@@ -561,7 +552,7 @@ public:
         uint16_t GetDestinationPort(void) const { return HostSwap16(mDestination); }
 
         /**
-         * Returns the TCP Sequence Number.
+         * This method returns the TCP Sequence Number.
          *
          * @returns The TCP Sequence Number.
          *
@@ -569,7 +560,7 @@ public:
         uint32_t GetSequenceNumber(void) const { return HostSwap32(mSequenceNumber); }
 
         /**
-         * Returns the TCP Acknowledgment Sequence Number.
+         * This method returns the TCP Acknowledgment Sequence Number.
          *
          * @returns The TCP Acknowledgment Sequence Number.
          *
@@ -577,7 +568,7 @@ public:
         uint32_t GetAcknowledgmentNumber(void) const { return HostSwap32(mAckNumber); }
 
         /**
-         * Returns the TCP Flags.
+         * This method returns the TCP Flags.
          *
          * @returns The TCP Flags.
          *
@@ -585,7 +576,7 @@ public:
         uint16_t GetFlags(void) const { return HostSwap16(mFlags); }
 
         /**
-         * Returns the TCP Window.
+         * This method returns the TCP Window.
          *
          * @returns The TCP Window.
          *
@@ -593,7 +584,7 @@ public:
         uint16_t GetWindow(void) const { return HostSwap16(mWindow); }
 
         /**
-         * Returns the TCP Checksum.
+         * This method returns the TCP Checksum.
          *
          * @returns The TCP Checksum.
          *
@@ -601,7 +592,7 @@ public:
         uint16_t GetChecksum(void) const { return HostSwap16(mChecksum); }
 
         /**
-         * Returns the TCP Urgent Pointer.
+         * This method returns the TCP Urgent Pointer.
          *
          * @returns The TCP Urgent Pointer.
          *
@@ -620,7 +611,7 @@ public:
     } OT_TOOL_PACKED_END;
 
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      * @param[in] aInstance  A reference to the OpenThread instance.
      *
@@ -678,23 +669,22 @@ private:
     static constexpr uint8_t kReceiveAvailableCallbackFlag = (1 << 3);
     static constexpr uint8_t kDisconnectedCallbackFlag     = (1 << 4);
 
-    void ProcessSignals(Endpoint             &aEndpoint,
-                        otLinkedBuffer       *aPriorHead,
+    void ProcessSignals(Endpoint &            aEndpoint,
+                        otLinkedBuffer *      aPriorHead,
                         size_t                aPriorBacklog,
-                        struct tcplp_signals &aSignals) const;
+                        struct tcplp_signals &aSignals);
 
     static Error BsdErrorToOtError(int aBsdError);
     bool         CanBind(const SockAddr &aSockName);
 
-    void HandleTimer(void);
+    static void HandleTimer(Timer &aTimer);
+    void        ProcessTimers(void);
 
-    void ProcessCallbacks(void);
+    static void HandleTasklet(Tasklet &aTasklet);
+    void        ProcessCallbacks(void);
 
-    using TcpTasklet = TaskletIn<Tcp, &Tcp::ProcessCallbacks>;
-    using TcpTimer   = TimerMilliIn<Tcp, &Tcp::HandleTimer>;
-
-    TcpTimer   mTimer;
-    TcpTasklet mTasklet;
+    TimerMilli mTimer;
+    Tasklet    mTasklet;
 
     LinkedList<Endpoint> mEndpoints;
     LinkedList<Listener> mListeners;

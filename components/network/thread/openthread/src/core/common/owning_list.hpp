@@ -43,7 +43,7 @@
 namespace ot {
 
 /**
- * Represents a singly linked list which owns its entries and frees them upon destruction of the
+ * This template class represents a singly linked list which owns its entries and frees them upon destruction of the
  * list.
  *
  */
@@ -68,7 +68,7 @@ public:
     ~OwningList(void) { Free(); }
 
     /**
-     * Clears the list and frees all existing entries in it.
+     * This method clears the list and frees all existing entries in it.
      *
      */
     void Free(void)
@@ -79,13 +79,13 @@ public:
     }
 
     /**
-     * Clears the list and frees all existing entries in it.
+     * This method clears the list and frees all existing entries in it.
      *
      */
     void Clear(void) { Free(); }
 
     /**
-     * Pops an entry from head of the linked list and return an `OwnedPtr` to it.
+     * This method pops an entry from head of the linked list and return an `OwnedPtr` to it.
      *
      * @note This method does not change the popped entry itself, i.e., the popped entry next pointer stays as before.
      *
@@ -95,7 +95,7 @@ public:
     OwnedPtr<Type> Pop(void) { return OwnedPtr<Type>(LinkedList<Type>::Pop()); }
 
     /**
-     * Pops an entry after a given previous entry.
+     * This method pops an entry after a given previous entry.
      *
      * @note This method does not change the popped entry itself, i.e., the popped entry next pointer stays as before.
      *
@@ -108,7 +108,7 @@ public:
     OwnedPtr<Type> PopAfter(Type *aPrevEntry) { return OwnedPtr<Type>(LinkedList<Type>::PopAfter(aPrevEntry)); }
 
     /**
-     * Removes an entry matching a given entry indicator from the linked list.
+     * This template method removes an entry matching a given entry indicator from the linked list.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against entries
      * in the list. To check that an entry matches the given indicator, the `Matches()` method is invoked on each
@@ -130,7 +130,7 @@ public:
     }
 
     /**
-     * Removes all entries in the list matching a given entry indicator from the list and adds
+     * This template method removes all entries in the list matching a given entry indicator from the list and adds
      * them to a new list.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against entries

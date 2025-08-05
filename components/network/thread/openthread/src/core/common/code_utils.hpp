@@ -41,7 +41,7 @@
 #include "common/arg_macros.hpp"
 
 /**
- * Calculates the number of elements in an array.
+ * This macro calculates the number of elements in an array.
  *
  * @param[in] aArray  Name of the array variable.
  *
@@ -51,7 +51,7 @@
 #define OT_ARRAY_LENGTH(aArray) (sizeof(aArray) / sizeof(aArray[0]))
 
 /**
- * Returns a pointer to end of a given array (pointing to the past-the-end element).
+ * This macro returns a pointer to end of a given array (pointing to the past-the-end element).
  *
  * Note that the past-the-end element is a theoretical element that would follow the last element in the array. It does
  * not point to an actual element in array, and thus should not be dereferenced.
@@ -64,7 +64,7 @@
 #define OT_ARRAY_END(aArray) (&aArray[OT_ARRAY_LENGTH(aArray)])
 
 /**
- * Returns a pointer aligned by @p aAlignment.
+ * This macro returns a pointer aligned by @p aAlignment.
  *
  * @param[in] aPointer      A pointer to contiguous space.
  * @param[in] aAlignment    The desired alignment.
@@ -83,19 +83,19 @@
     align_type name[(((size) + (sizeof(align_type) - 1)) / sizeof(align_type))]
 
 /**
- * Returns the smaller of @p a and @p b.
+ * This macro returns the smaller of @p a and @p b.
  *
  */
 #define OT_MIN(a, b) ((b) < (a) ? (b) : (a))
 
 /**
- * Returns the greater of @p a and @p b.
+ * This macro returns the greater of @p a and @p b.
  *
  */
 #define OT_MAX(a, b) ((a) < (b) ? (b) : (a))
 
 /**
- * Checks for the specified status, which is expected to commonly be successful, and branches to the local
+ * This macro checks for the specified status, which is expected to commonly be successful, and branches to the local
  * label 'exit' if the status is unsuccessful.
  *
  * @param[in]  aStatus     A scalar status to be evaluated against zero (0).
@@ -111,7 +111,7 @@
     } while (false)
 
 /**
- * Checks for the specified condition, which is expected to commonly be true, and both executes @a ... and
+ * This macro checks for the specified condition, which is expected to commonly be true, and both executes @a ... and
  * branches to the local label 'exit' if the condition is false.
  *
  * @param[in]  aCondition  A Boolean expression to be evaluated.
@@ -129,7 +129,7 @@
     } while (false)
 
 /**
- * Unconditionally executes @a ... and branches to the local label 'exit'.
+ * This macro unconditionally executes @a ... and branches to the local label 'exit'.
  *
  * @note The use of this interface implies neither success nor failure for the overall exit status of the enclosing
  *       function body.
@@ -145,7 +145,7 @@
     } while (false)
 
 /*
- * Executes the `statement` and ignores the return value.
+ * This macro executes the `statement` and ignores the return value.
  *
  * This is primarily used to indicate the intention of developer that the return value of a function/method can be
  * safely ignored.
@@ -162,7 +162,7 @@
     } while (false)
 
 /**
- * Ignores an error explicitly.
+ * This function ignores an error explicitly.
  *
  * This is primarily used to indicate the intention of developer that
  * the error can be safely ignored or there is guaranteed to be no error.
@@ -170,6 +170,9 @@
  * @param[in]  aError  The error to be ignored.
  *
  */
-static inline void IgnoreError(otError aError) { OT_UNUSED_VARIABLE(aError); }
+static inline void IgnoreError(otError aError)
+{
+    OT_UNUSED_VARIABLE(aError);
+}
 
 #endif // CODE_UTILS_HPP_

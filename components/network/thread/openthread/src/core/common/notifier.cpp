@@ -46,11 +46,12 @@ RegisterLogModule("Notifier");
 
 Notifier::Notifier(Instance &aInstance)
     : InstanceLocator(aInstance)
-    , mTask(aInstance)
+    , mTask(aInstance, Notifier::EmitEvents)
 {
     for (ExternalCallback &callback : mExternalCallbacks)
     {
-        callback.Clear();
+        callback.mHandler = nullptr;
+        callback.mContext = nullptr;
     }
 }
 
@@ -63,17 +64,23 @@ Error Notifier::RegisterCallback(otStateChangedCallback aCallback, void *aContex
 
     for (ExternalCallback &callback : mExternalCallbacks)
     {
-        VerifyOrExit(!callback.Matches(aCallback, aContext), error = kErrorAlready);
-
-        if (!callback.IsSet() && (unusedCallback == nullptr))
+        if (callback.mHandler == nullptr)
         {
-            unusedCallback = &callback;
+            if (unusedCallback == nullptr)
+            {
+                unusedCallback = &callback;
+            }
+
+            continue;
         }
+
+        VerifyOrExit((callback.mHandler != aCallback) || (callback.mContext != aContext), error = kErrorAlready);
     }
 
     VerifyOrExit(unusedCallback != nullptr, error = kErrorNoBufs);
 
-    unusedCallback->Set(aCallback, aContext);
+    unusedCallback->mHandler = aCallback;
+    unusedCallback->mContext = aContext;
 
 exit:
     return error;
@@ -85,9 +92,10 @@ void Notifier::RemoveCallback(otStateChangedCallback aCallback, void *aContext)
 
     for (ExternalCallback &callback : mExternalCallbacks)
     {
-        if (callback.Matches(aCallback, aContext))
+        if ((callback.mHandler == aCallback) && (callback.mContext == aContext))
         {
-            callback.Clear();
+            callback.mHandler = nullptr;
+            callback.mContext = nullptr;
         }
     }
 
@@ -108,6 +116,11 @@ void Notifier::SignalIfFirst(Event aEvent)
     {
         Signal(aEvent);
     }
+}
+
+void Notifier::EmitEvents(Tasklet &aTasklet)
+{
+    aTasklet.Get<Notifier>().EmitEvents();
 }
 
 void Notifier::EmitEvents(void)
@@ -133,7 +146,9 @@ void Notifier::EmitEvents(void)
 #if OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE
     Get<BackboneRouter::Manager>().HandleNotifierEvents(events);
 #endif
-    Get<ChildSupervisor>().HandleNotifierEvents(events);
+#if OPENTHREAD_CONFIG_CHILD_SUPERVISION_ENABLE
+    Get<Utils::ChildSupervisor>().HandleNotifierEvents(events);
+#endif
 #if OPENTHREAD_CONFIG_DATASET_UPDATER_ENABLE || OPENTHREAD_CONFIG_CHANNEL_MANAGER_ENABLE
     Get<MeshCoP::DatasetUpdater>().HandleNotifierEvents(events);
 #endif
@@ -189,7 +204,10 @@ void Notifier::EmitEvents(void)
 
     for (ExternalCallback &callback : mExternalCallbacks)
     {
-        callback.InvokeIfSet(events.GetAsFlags());
+        if (callback.mHandler != nullptr)
+        {
+            callback.mHandler(events.GetAsFlags(), callback.mContext);
+        }
     }
 
 exit:
@@ -215,7 +233,7 @@ void Notifier::LogEvents(Events aEvents) const
         {
             if (string.GetLength() >= kFlagsStringLineLimit)
             {
-                LogInfo("StateChanged (0x%08lx) %s%s ...", ToUlong(aEvents.GetAsFlags()), didLog ? "... " : "[",
+                LogInfo("StateChanged (0x%08x) %s%s ...", aEvents.GetAsFlags(), didLog ? "... " : "[",
                         string.AsCString());
                 string.Clear();
                 didLog   = true;
@@ -230,7 +248,7 @@ void Notifier::LogEvents(Events aEvents) const
     }
 
 exit:
-    LogInfo("StateChanged (0x%08lx) %s%s]", ToUlong(aEvents.GetAsFlags()), didLog ? "... " : "[", string.AsCString());
+    LogInfo("StateChanged (0x%08x) %s%s]", aEvents.GetAsFlags(), didLog ? "... " : "[", string.AsCString());
 }
 
 const char *Notifier::EventToString(Event aEvent) const
@@ -271,8 +289,6 @@ const char *Notifier::EventToString(Event aEvent) const
         "JoinerState",       // kEventJoinerStateChanged               (1 << 27)
         "ActDset",           // kEventActiveDatasetChanged             (1 << 28)
         "PndDset",           // kEventPendingDatasetChanged            (1 << 29)
-        "Nat64",             // kEventNat64TranslatorStateChanged      (1 << 30)
-        "ParentLq",          // kEventParentLinkQualityChanged         (1 << 31)
     };
 
     for (uint8_t index = 0; index < GetArrayLength(kEventStrings); index++)
@@ -289,9 +305,14 @@ const char *Notifier::EventToString(Event aEvent) const
 
 #else // #if OT_SHOULD_LOG_AT( OT_LOG_LEVEL_INFO)
 
-void Notifier::LogEvents(Events) const {}
+void Notifier::LogEvents(Events) const
+{
+}
 
-const char *Notifier::EventToString(Event) const { return ""; }
+const char *Notifier::EventToString(Event) const
+{
+    return "";
+}
 
 #endif // #if OT_SHOULD_LOG_AT( OT_LOG_LEVEL_INFO)
 

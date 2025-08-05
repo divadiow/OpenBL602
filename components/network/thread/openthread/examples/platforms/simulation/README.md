@@ -4,6 +4,20 @@ This directory contains example platform drivers for simulation on POSIX.
 
 ## Build Examples
 
+### Build using autotools
+
+```bash
+$ cd <path-to-openthread>
+$ ./bootstrap
+$ make -f examples/Makefile-simulation
+```
+
+After a successful build, the `elf` files are found in:
+
+- `<path-to-openthread>/output/<platform>/bin`
+
+### Build using cmake/ninja
+
 ```bash
 $ cd <path-to-openthread>
 $ mkdir build && cd build
@@ -21,7 +35,7 @@ After a successful build, the `elf` files are found in:
 1. Spawn the process:
 
 ```bash
-$ cd <path-to-openthread>/build/simulation/examples/apps/cli
+$ cd <path-to-openthread>/output/<platform>/bin
 $ ./ot-cli-ftd 1
 ```
 

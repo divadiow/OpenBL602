@@ -62,14 +62,14 @@ namespace Crypto {
  */
 
 /**
- * Implements SHA-256 computation.
+ * This class implements SHA-256 computation.
  *
  */
 class Sha256
 {
 public:
     /**
-     * Represents a SHA-256 hash.
+     * This type represents a SHA-256 hash.
      *
      */
     class Hash : public otCryptoSha256Hash, public Clearable<Hash>, public Equatable<Hash>
@@ -78,7 +78,7 @@ public:
         static const uint8_t kSize = OT_CRYPTO_SHA256_HASH_SIZE; ///< SHA-256 hash size (bytes)
 
         /**
-         * Returns a pointer to a byte array containing the hash value.
+         * This method returns a pointer to a byte array containing the hash value.
          *
          * @returns A pointer to a byte array containing the hash.
          *
@@ -99,13 +99,13 @@ public:
     ~Sha256(void);
 
     /**
-     * Starts the SHA-256 computation.
+     * This method starts the SHA-256 computation.
      *
      */
     void Start(void);
 
     /**
-     * Inputs bytes into the SHA-256 computation.
+     * This method inputs bytes into the SHA-256 computation.
      *
      * @param[in]  aBuf        A pointer to the input buffer.
      * @param[in]  aBufLength  The length of @p aBuf in bytes.
@@ -114,7 +114,7 @@ public:
     void Update(const void *aBuf, uint16_t aBufLength);
 
     /**
-     * Inputs an object (treated as a sequence of bytes) into the SHA-256 computation.
+     * This method inputs an object (treated as a sequence of bytes) into the SHA-256 computation.
      *
      * @tparam    ObjectType   The object type.
      *
@@ -128,7 +128,7 @@ public:
     }
 
     /**
-     * Inputs the bytes read from a given message into the SHA-256 computation.
+     * This method inputs the bytes read from a given message into the SHA-256 computation.
      *
      * @param[in] aMessage    The message to read the data from.
      * @param[in] aOffset     The offset into @p aMessage to start to read.
@@ -138,7 +138,7 @@ public:
     void Update(const Message &aMessage, uint16_t aOffset, uint16_t aLength);
 
     /**
-     * Finalizes the hash computation.
+     * This method finalizes the hash computation.
      *
      * @param[out]  aHash  A reference to a `Hash` to output the calculated hash.
      *

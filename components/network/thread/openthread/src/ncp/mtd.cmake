@@ -49,6 +49,5 @@ target_link_libraries(openthread-ncp-mtd
         ${OT_MBEDTLS}
         openthread-hdlc
         openthread-spinel-ncp
-        ot-config-mtd
         ot-config
 )

@@ -41,7 +41,10 @@
 
 using namespace ot;
 
-otLogLevel otLoggingGetLevel(void) { return static_cast<otLogLevel>(Instance::GetLogLevel()); }
+otLogLevel otLoggingGetLevel(void)
+{
+    return static_cast<otLogLevel>(Instance::GetLogLevel());
+}
 
 #if OPENTHREAD_CONFIG_LOG_LEVEL_DYNAMIC_ENABLE
 otError otLoggingSetLevel(otLogLevel aLogLevel)

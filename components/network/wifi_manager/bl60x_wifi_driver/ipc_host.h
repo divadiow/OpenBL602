@@ -1,8 +1,36 @@
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
+ *
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #ifndef __IPC_HOST_H__
 #define __IPC_HOST_H__
 #include <stdint.h>
 #include "ipc_shared.h"
-#include "utils_list.h"
 
 enum ipc_host_desc_status
 {
@@ -74,7 +102,7 @@ struct ipc_host_env_tag
 
     /// Pointer to the shared environment
     struct ipc_shared_env_tag *shared;
-#if 0
+
     // Array used to store the descriptor addresses
     struct ipc_hostbuf ipc_host_rxdesc_array[IPC_RXDESC_CNT];
     // Index of the host RX descriptor array (ipc_shared environment)
@@ -88,11 +116,7 @@ struct ipc_host_env_tag
     uint32_t rx_bufnb;
     // Store the size of the Rx Data buffers
     uint32_t rx_bufsz;
-#endif
-#if defined(CFG_CHIP_BL808) || defined(CFG_CHIP_BL606P)
-    // Pointer to the different TX buffer
-    struct txbuf_host *txbuf;
-#endif
+
     // Index used that points to the first free TX desc
     uint32_t txdesc_free_idx;
     // Index used that points to the first used TX desc
@@ -104,13 +128,6 @@ struct ipc_host_env_tag
     // Pointer to the different TX descriptor arrays, per IPC queue
     volatile struct txdesc_host *txdesc;
 
-    /// List of free txdesc
-    struct utils_list *list_free;
-    /// List of ongoing txdesc
-    struct utils_list *list_ongoing;
-    /// List of cfm txdesc
-    struct utils_list *list_cfm;
-#if 0
     /// Fields for Emb->App MSGs handling
     // Global array used to store the hostid and hostbuf addresses for msg/ind
     struct ipc_hostbuf ipc_host_msgbuf_array[IPC_MSGE2A_BUF_CNT];
@@ -120,7 +137,7 @@ struct ipc_host_env_tag
     uint32_t ipc_e2amsg_bufnb;
     // Store the size of the E2A MSG buffers
     uint32_t ipc_e2amsg_bufsz;
-#endif
+
     /// E2A ACKs of A2E MSGs
     uint8_t msga2e_cnt;
     void *msga2e_hostid;
@@ -146,10 +163,6 @@ void ipc_host_init(struct ipc_host_env_tag *env,
 int ipc_host_msg_push(struct ipc_host_env_tag *env, void *msg_buf, uint16_t len);
 uint32_t ipc_host_get_status(struct ipc_host_env_tag *env);
 uint32_t ipc_host_get_rawstatus(struct ipc_host_env_tag *env);
-#if defined(CFG_CHIP_BL808) || defined(CFG_CHIP_BL606P)
-void ipc_host_txbuf_free(struct txbuf_host *buf);
-volatile struct txbuf_host *ipc_host_txbuf_get(struct ipc_host_env_tag *env);
-#endif
 volatile struct txdesc_host *ipc_host_txdesc_get(struct ipc_host_env_tag *env);
 void ipc_host_txdesc_push(struct ipc_host_env_tag *env, void *host_id);
 void ipc_host_irq(struct ipc_host_env_tag *env, uint32_t status);

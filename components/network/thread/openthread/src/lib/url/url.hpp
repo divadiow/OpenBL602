@@ -34,7 +34,7 @@
 /**
  * @struct otUrl
  *
- * Represents a URL.
+ * This structure represents a URL.
  *
  */
 struct otUrl
@@ -49,14 +49,14 @@ namespace ot {
 namespace Url {
 
 /**
- * Implements the URL processing.
+ * This class implements the URL processing.
  *
  */
 class Url : public otUrl
 {
 public:
     /**
-     * Initializes the URL.
+     * This method initializes the URL.
      *
      * @param[in]   aUrl    A buffer stores the null-terminated URL string.
      *
@@ -67,7 +67,7 @@ public:
     otError Init(char *aUrl);
 
     /**
-     * Gets the path in URL.
+     * This method gets the path in URL.
      *
      * @returns The path in URL.
      *
@@ -75,7 +75,7 @@ public:
     const char *GetPath(void) const { return mPath; }
 
     /**
-     * Gets the value of parameter @p aName.
+     * This method gets the value of parameter @p aName.
      *
      * @param[in] aName       The parameter name.
      * @param[in] aLastValue  The last iterated parameter value, nullptr for the first value.
@@ -86,7 +86,7 @@ public:
     const char *GetValue(const char *aName, const char *aLastValue = nullptr) const;
 
     /**
-     * Returns the URL protocol.
+     * This method returns the URL protocol.
      *
      * @returns The URL protocol.
      *

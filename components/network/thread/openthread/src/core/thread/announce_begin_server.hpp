@@ -36,31 +36,29 @@
 
 #include "openthread-core-config.h"
 
+#include "coap/coap.hpp"
 #include "common/locator.hpp"
 #include "common/timer.hpp"
 #include "net/ip6_address.hpp"
 #include "thread/announce_sender.hpp"
-#include "thread/tmf.hpp"
 
 namespace ot {
 
 /**
- * Implements handling Announce Begin Requests.
+ * This class implements handling Announce Begin Requests.
  *
  */
 class AnnounceBeginServer : public AnnounceSenderBase
 {
-    friend class Tmf::Agent;
-
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      */
     explicit AnnounceBeginServer(Instance &aInstance);
 
     /**
-     * Begins the MLE Announce transmission process.
+     * This method begins the MLE Announce transmission process.
      *
      * @param[in]  aChannelMask   The channels to use for transmission.
      * @param[in]  aCount         The number of transmissions per channel.
@@ -74,12 +72,13 @@ private:
     static constexpr uint16_t kDefaultPeriod = 1000;
     static constexpr uint16_t kDefaultJitter = 0;
 
-    template <Uri kUri> void HandleTmf(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+    static void HandleRequest(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void        HandleRequest(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
 
     static void HandleTimer(Timer &aTimer);
-};
 
-DeclareTmfHandler(AnnounceBeginServer, kUriAnnounceBegin);
+    Coap::Resource mAnnounceBegin;
+};
 
 /**
  * @}

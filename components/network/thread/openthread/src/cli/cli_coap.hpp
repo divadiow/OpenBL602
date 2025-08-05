@@ -46,10 +46,10 @@ namespace ot {
 namespace Cli {
 
 /**
- * Implements the CLI CoAP server and client.
+ * This class implements the CLI CoAP server and client.
  *
  */
-class Coap : private Output
+class Coap : private OutputWrapper
 {
 public:
     typedef Utils::CmdLineParser::Arg Arg;
@@ -57,22 +57,15 @@ public:
     /**
      * Constructor
      *
-     * @param[in]  aInstance            The OpenThread Instance.
-     * @param[in]  aOutputImplementer   An `OutputImplementer`.
+     * @param[in]  aOutput The CLI console output context
      *
      */
-    Coap(otInstance *aInstance, OutputImplementer &aOutputImplementer);
+    explicit Coap(Output &aOutput);
 
     /**
-     * Processes a CLI sub-command.
+     * This method interprets a list of CLI arguments.
      *
-     * @param[in]  aArgs     An array of command line arguments.
-     *
-     * @retval OT_ERROR_NONE              Successfully executed the CLI command.
-     * @retval OT_ERROR_PENDING           The CLI command was successfully started but final result is pending.
-     * @retval OT_ERROR_INVALID_COMMAND   Invalid or unknown CLI command.
-     * @retval OT_ERROR_INVALID_ARGS      Invalid arguments.
-     * @retval ...                        Error during execution of the CLI command.
+     * @param[in]  aArgs        An array of command line arguments.
      *
      */
     otError Process(Arg aArgs[]);
@@ -112,8 +105,8 @@ private:
     void        HandleRequest(otMessage *aMessage, const otMessageInfo *aMessageInfo);
 
 #if OPENTHREAD_CONFIG_COAP_OBSERVE_API_ENABLE
-    static void HandleNotificationResponse(void                *aContext,
-                                           otMessage           *aMessage,
+    static void HandleNotificationResponse(void *               aContext,
+                                           otMessage *          aMessage,
                                            const otMessageInfo *aMessageInfo,
                                            otError              aError);
     void        HandleNotificationResponse(otMessage *aMessage, const otMessageInfo *aMessageInfo, otError aError);
@@ -124,7 +117,7 @@ private:
 
 #if OPENTHREAD_CONFIG_COAP_BLOCKWISE_TRANSFER_ENABLE
 
-    static otError BlockwiseReceiveHook(void          *aContext,
+    static otError BlockwiseReceiveHook(void *         aContext,
                                         const uint8_t *aBlock,
                                         uint32_t       aPosition,
                                         uint16_t       aBlockLength,
@@ -135,11 +128,11 @@ private:
                                         uint16_t       aBlockLength,
                                         bool           aMore,
                                         uint32_t       aTotalLength);
-    static otError BlockwiseTransmitHook(void     *aContext,
-                                         uint8_t  *aBlock,
+    static otError BlockwiseTransmitHook(void *    aContext,
+                                         uint8_t * aBlock,
                                          uint32_t  aPosition,
                                          uint16_t *aBlockLength,
-                                         bool     *aMore);
+                                         bool *    aMore);
     otError        BlockwiseTransmitHook(uint8_t *aBlock, uint32_t aPosition, uint16_t *aBlockLength, bool *aMore);
 #endif
 

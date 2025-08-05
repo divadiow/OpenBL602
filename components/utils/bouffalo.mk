@@ -36,10 +36,6 @@ COMPONENT_SRCS := src/utils_hex.c \
                   #src/utils_hmac_sha1_fast.c \
                   #src/utils_psk_fast.c \
 
-ifeq ("$(CONFIG_CHIP_NAME)", "BL616")
-COMPONENT_SRCS += src/time_statics.c
-endif
-
 else
 ifeq ("$(CONFIG_CHIP_NAME)", "BL808")
 COMPONENT_SRCS := src/utils_hex.c \
@@ -93,8 +89,6 @@ COMPONENT_SRCS := src/utils_hex.c \
 
 endif
 endif
-
-
 COMPONENT_OBJS := $(patsubst %.c,%.o, $(COMPONENT_SRCS))
 
 COMPONENT_SRCDIRS := src src/test
@@ -104,10 +98,6 @@ COMPONENT_SRCDIRS := src src/test
 #CPPFLAGS +=
 ifeq ($(CONFIG_UTIL_BASE64_ENABLE),1)
 CPPFLAGS += -DUTILS_BASE64
-endif
-
-ifneq ($(CONFIG_CLI_CMD_ENABLE),0)
-CPPFLAGS += -DCONFIG_CLI_CMD_ENABLE
 endif
 
 CPPFLAGS += -D$(CONFIG_CHIP_NAME)

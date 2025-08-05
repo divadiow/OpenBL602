@@ -44,7 +44,7 @@ using namespace ot;
 
 otError otBackboneRouterGetPrimary(otInstance *aInstance, otBackboneRouterConfig *aConfig)
 {
-    AssertPointerIsNotNull(aConfig);
+    OT_ASSERT(aConfig != nullptr);
 
     return AsCoreType(aInstance).Get<BackboneRouter::Leader>().GetConfig(*aConfig);
 }

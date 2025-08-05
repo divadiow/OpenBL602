@@ -7,10 +7,15 @@
 #include <bl_uart.h>
 #include <hosal_uart.h>
 
-#include <openthread_port.h>
+#include <openthread-core-config.h>
+#include <openthread/config.h>
+
 #include <openthread/platform/debug_uart.h>
 #include <openthread/platform/logging.h>
+#include <openthread_port.h>
 #include <utils/uart.h>
+
+
 
 #if SYS_AOS_LOOP_ENABLE
 #include <vfs.h>
@@ -25,33 +30,27 @@ extern hosal_uart_dev_t uart_stdio;
 
 static void ot_uartCli(char* pcWriteBuffer, int xWriteBufferLen, int argc, char** argv)
 {
-    char* buf = argv[1];
-    int len;
-    if (argc <= 1) {
-        return;
-    }
+    static char buf[384];
 
-    for(int i = 1; i < argc - 1; ++i){
-        buf[strlen(buf)] = ' ';
-    }
-    len = strlen(buf);
-    buf[len] = '\r';
+    if (argc) {
+        char *p = buf;
+        for (uint32_t i = 1; i < argc; i ++) {
+            memcpy(p, argv[i], strlen(argv[i]));
+            p += strlen(argv[i]);
+            *p++ = ' ';
+        }
+        p --;
+        *p++ = '\r';
+        *p++ = '\n';
 
-#ifdef CFG_PREFIX
-    otPlatUartSend((const uint8_t *)CFG_PREFIX, strlen(CFG_PREFIX));
-    otPlatUartSend((const uint8_t *)" ", 1);
-#endif
-    OT_THREAD_SAFE(
-        otPlatUartReceived((uint8_t *)buf, len+1); 
-    );
+        OT_THREAD_SAFE(
+            otPlatUartReceived((uint8_t *)buf, p - buf);
+        );
+    }
 }
 
 const struct cli_command otcCliSet[] STATIC_CLI_CMD_ATTRIBUTE = {
-#ifdef CFG_PREFIX
-    { CFG_PREFIX, "orignal openthread command line", ot_uartCli},
-#else
     { "otc", "orignal openthread command line", ot_uartCli},
-#endif
 };
 
 static void ot_uart_cb_read(int fd, void *param)
@@ -168,6 +167,7 @@ otError otPlatUartEnable(void)
 
     memset(&otUart_var, 0, sizeof(otUart_t));
 
+
     return OT_ERROR_NONE;
 }
 
@@ -180,8 +180,12 @@ otError otPlatUartDisable(void)
 
 otError otPlatUartSend(const uint8_t *aBuf, uint16_t aBufLength)
 {
+    OT_CLI_UART_OUTPUT_LOCK();
+
     hosal_uart_send(&uart_stdio, aBuf, aBufLength);
     otPlatUartSendDone();
+
+    OT_CLI_UART_OUTPUT_UNLOCK();
 
     return OT_ERROR_NONE;
 }
@@ -215,7 +219,7 @@ static int ot_uartRxdCb(void *p_arg)
         len = (otUart_var.start + OT_UART_RX_BUFFSIZE - otUart_var.end) % OT_UART_RX_BUFFSIZE;
         if (otUart_var.recvLen != len) {
             otUart_var.recvLen = len;
-            otrNotifyEvent(OT_SYSTEM_EVENT_UART_RXD);
+            OT_NOTIFY_ISR(OT_SYSTEM_EVENT_UART_RXD);
         }
     }
 
@@ -229,7 +233,7 @@ void ot_uartTask (ot_system_event_t sevent)
     }
 
     if (OT_SYSTEM_EVENT_UART_RXD & sevent) {
-        uint32_t tag = otrEnterCrit();
+        OT_ENTER_CRITICAL();
 
         if (otUart_var.start != otUart_var.end) {
             if (otUart_var.start > otUart_var.end) {
@@ -248,7 +252,7 @@ void ot_uartTask (ot_system_event_t sevent)
 
         otUart_var.start = otUart_var.end = 0;
         otUart_var.recvLen = 0;
-        otrExitCrit(tag);
+        OT_EXIT_CRITICAL();
     }
 }
 #endif
@@ -268,3 +272,5 @@ void ot_uartLog(const char *fmt, va_list argp)
     }
 #endif
 }
+
+

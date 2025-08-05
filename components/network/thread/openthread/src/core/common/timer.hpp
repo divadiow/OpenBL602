@@ -62,7 +62,7 @@ namespace ot {
  */
 
 /**
- * Implements a timer.
+ * This class implements a timer.
  *
  */
 class Timer : public InstanceLocator, public LinkedListEntry<Timer>
@@ -77,7 +77,7 @@ public:
     static const uint32_t kMaxDelay = (Time::kMaxDuration >> 1);
 
     /**
-     * Defines a function reference which is invoked when the timer expires.
+     * This type defines a function reference which is invoked when the timer expires.
      *
      * @param[in]  aTimer    A reference to the expired timer instance.
      *
@@ -85,7 +85,7 @@ public:
     typedef void (&Handler)(Timer &aTimer);
 
     /**
-     * Returns the fire time of the timer.
+     * This method returns the fire time of the timer.
      *
      * @returns The fire time.
      *
@@ -93,7 +93,7 @@ public:
     Time GetFireTime(void) const { return mFireTime; }
 
     /**
-     * Indicates whether or not the timer instance is running.
+     * This method indicates whether or not the timer instance is running.
      *
      * @retval TRUE   If the timer is running.
      * @retval FALSE  If the timer is not running.
@@ -140,20 +140,20 @@ protected:
 
     Handler mHandler;
     Time    mFireTime;
-    Timer  *mNext;
+    Timer * mNext;
 };
 
 extern "C" void otPlatAlarmMilliFired(otInstance *aInstance);
 
 /**
- * Implements the millisecond timer.
+ * This class implements the millisecond timer.
  *
  */
 class TimerMilli : public Timer
 {
 public:
     /**
-     * Implements the millisecond timer scheduler.
+     * This class implements the millisecond timer scheduler.
      *
      */
     class Scheduler : private Timer::Scheduler
@@ -163,7 +163,7 @@ public:
 
     public:
         /**
-         * Initializes the object.
+         * This constructor initializes the object.
          *
          * @param[in]  aInstance  A reference to the instance object.
          *
@@ -183,7 +183,7 @@ public:
     };
 
     /**
-     * Creates a millisecond timer instance.
+     * This constructor creates a millisecond timer instance.
      *
      * @param[in]  aInstance   A reference to the OpenThread instance.
      * @param[in]  aHandler    A pointer to a function that is called when the timer expires.
@@ -195,7 +195,7 @@ public:
     }
 
     /**
-     * Schedules the timer to fire after a given delay (in milliseconds) from now.
+     * This method schedules the timer to fire after a given delay (in milliseconds) from now.
      *
      * @param[in]  aDelay   The delay in milliseconds. It must not be longer than `kMaxDelay`.
      *
@@ -203,7 +203,7 @@ public:
     void Start(uint32_t aDelay);
 
     /**
-     * Schedules the timer to fire after a given delay (in milliseconds) from a given start time.
+     * This method schedules the timer to fire after a given delay (in milliseconds) from a given start time.
      *
      * @param[in]  aStartTime  The start time.
      * @param[in]  aDelay      The delay in milliseconds. It must not be longer than `kMaxDelay`.
@@ -212,7 +212,7 @@ public:
     void StartAt(TimeMilli aStartTime, uint32_t aDelay);
 
     /**
-     * Schedules the timer to fire at a given fire time.
+     * This method schedules the timer to fire at a given fire time.
      *
      * @param[in]  aFireTime  The fire time.
      *
@@ -229,13 +229,13 @@ public:
     void FireAtIfEarlier(TimeMilli aFireTime);
 
     /**
-     * Stops the timer.
+     * This method stops the timer.
      *
      */
     void Stop(void);
 
     /**
-     * Returns the current time in milliseconds.
+     * This static method returns the current time in milliseconds.
      *
      * @returns The current time in milliseconds.
      *
@@ -247,34 +247,7 @@ protected:
 };
 
 /**
- * Defines a timer owned by a specific type and using a method on owner type as the callback.
- *
- * @tparam Owner              The type of the owner of this timer.
- * @tparam HandleTimerPtr     A pointer to a non-static member method of `Owner` to use as timer handler.
- *
- * The `Owner` MUST be a type that is accessible using `InstanceLocator::Get<Owner>()`.
- *
- */
-template <typename Owner, void (Owner::*HandleTimerPtr)(void)> class TimerMilliIn : public TimerMilli
-{
-public:
-    /**
-     * Initializes the timer.
-     *
-     * @param[in]  aInstance   The OpenThread instance.
-     *
-     */
-    explicit TimerMilliIn(Instance &aInstance)
-        : TimerMilli(aInstance, HandleTimer)
-    {
-    }
-
-private:
-    static void HandleTimer(Timer &aTimer); // Implemented in `locator_getters.hpp`
-};
-
-/**
- * Implements a millisecond timer that also maintains a user context pointer.
+ * This class implements a millisecond timer that also maintains a user context pointer.
  *
  * In typical `TimerMilli`/`TimerMicro` use, in the timer callback handler, the owner of the timer is determined using
  * `GetOwner<Type>` method. This method works if there is a single instance of `Type` within OpenThread instance
@@ -286,7 +259,7 @@ class TimerMilliContext : public TimerMilli
 {
 public:
     /**
-     * Creates a millisecond timer that also maintains a user context pointer.
+     * This constructor creates a millisecond timer that also maintains a user context pointer.
      *
      * @param[in]  aInstance   A reference to the OpenThread instance.
      * @param[in]  aHandler    A pointer to a function that is called when the timer expires.
@@ -300,7 +273,7 @@ public:
     }
 
     /**
-     * Returns the pointer to the arbitrary context information.
+     * This method returns the pointer to the arbitrary context information.
      *
      * @returns Pointer to the arbitrary context information.
      *
@@ -316,14 +289,14 @@ private:
 extern "C" void otPlatAlarmMicroFired(otInstance *aInstance);
 
 /**
- * Implements the microsecond timer.
+ * This class implements the microsecond timer.
  *
  */
 class TimerMicro : public Timer
 {
 public:
     /**
-     * Implements the microsecond timer scheduler.
+     * This class implements the microsecond timer scheduler.
      *
      */
     class Scheduler : private Timer::Scheduler
@@ -333,7 +306,7 @@ public:
 
     public:
         /**
-         * Initializes the object.
+         * This constructor initializes the object.
          *
          * @param[in]  aInstance  A reference to the instance object.
          *
@@ -353,7 +326,7 @@ public:
     };
 
     /**
-     * Creates a timer instance.
+     * This constructor creates a timer instance.
      *
      * @param[in]  aInstance   A reference to the OpenThread instance.
      * @param[in]  aHandler    A pointer to a function that is called when the timer expires.
@@ -365,7 +338,7 @@ public:
     }
 
     /**
-     * Schedules the timer to fire after a given delay (in microseconds) from now.
+     * This method schedules the timer to fire after a given delay (in microseconds) from now.
      *
      * @param[in]  aDelay   The delay in microseconds. It must not be be longer than `kMaxDelay`.
      *
@@ -373,7 +346,7 @@ public:
     void Start(uint32_t aDelay);
 
     /**
-     * Schedules the timer to fire after a given delay (in microseconds) from a given start time.
+     * This method schedules the timer to fire after a given delay (in microseconds) from a given start time.
      *
      * @param[in]  aStartTime  The start time.
      * @param[in]  aDelay      The delay in microseconds. It must not be longer than `kMaxDelay`.
@@ -382,7 +355,7 @@ public:
     void StartAt(TimeMicro aStartTime, uint32_t aDelay);
 
     /**
-     * Schedules the timer to fire at a given fire time.
+     * This method schedules the timer to fire at a given fire time.
      *
      * @param[in]  aFireTime  The fire time.
      *
@@ -390,13 +363,13 @@ public:
     void FireAt(TimeMicro aFireTime);
 
     /**
-     * Stops the timer.
+     * This method stops the timer.
      *
      */
     void Stop(void);
 
     /**
-     * Returns the current time in microseconds.
+     * This static method returns the current time in microseconds.
      *
      * @returns The current time in microseconds.
      *
@@ -406,34 +379,6 @@ public:
 protected:
     static void RemoveAll(Instance &aInstance);
 };
-
-/**
- * Defines a timer owned by a specific type and using a method on owner type as the callback.
- *
- * @tparam Owner              The type of the owner of this timer.
- * @tparam HandleTimerPtr     A pointer to a non-static member method of `Owner` to use as timer handler.
- *
- * The `Owner` MUST be a type that is accessible using `InstanceLocator::Get<Owner>()`.
- *
- */
-template <typename Owner, void (Owner::*HandleTimerPtr)(void)> class TimerMicroIn : public TimerMicro
-{
-public:
-    /**
-     * Initializes the timer.
-     *
-     * @param[in]  aInstance   The OpenThread instance.
-     *
-     */
-    explicit TimerMicroIn(Instance &aInstance)
-        : TimerMicro(aInstance, HandleTimer)
-    {
-    }
-
-private:
-    static void HandleTimer(Timer &aTimer); // Implemented in `locator_getters.hpp`
-};
-
 #endif // OPENTHREAD_CONFIG_PLATFORM_USEC_TIMER_ENABLE
 
 /**

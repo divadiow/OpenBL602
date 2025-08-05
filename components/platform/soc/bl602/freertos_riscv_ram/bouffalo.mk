@@ -31,7 +31,3 @@ CFLAGS := $(patsubst -Os,-O2,$(CFLAGS))
 endif
 
 ASMFLAGS += -DportasmHANDLE_INTERRUPT=interrupt_entry
-
-ifeq ($(CONFIG_ENABLE_OS_TLS),1)
-CFLAGS += -Dconfig_ENABLE_OS_TLS_SWITCH
-endif

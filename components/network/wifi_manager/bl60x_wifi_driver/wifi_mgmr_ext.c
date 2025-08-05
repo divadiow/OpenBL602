@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
+ *
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #include <string.h>
 #include <bl60x_fw_api.h>
 #include <lwip/tcpip.h>
@@ -6,9 +35,8 @@
 #include <ethernetif.h>
 #include <bl_wifi.h>
 #include <utils_hex.h>
-#include <semphr.h>
-#include <aos/kernel.h>
-#include <aos/yloop.h>
+// #include <semphr.h>
+// #include <aos/kernel.h>
 
 #include <bl_os_private.h>
 #include "bl_main.h"
@@ -26,9 +54,6 @@
 #include <supplicant_api.h>
 #include <bl_wpa.h>
 
-#ifdef CFG_NETBUS_WIFI_ENABLE
-#include "netbus_mgmr.h"
-#endif
 /*just limit packet len with a reasonable value*/
 #define LEN_PKT_RAW_80211   (480)
 
@@ -101,20 +126,6 @@ static int mac_is_unvalid(uint8_t mac[6])
     return 0;
 }
 
-#ifdef CONFIG_ENABLE_IPV6_ADDR_CALLBACK
-static void netif_nd6_callback(struct netif *netif, uint8_t ip_index)
-{
-    aos_post_event(EV_WIFI, CODE_WIFI_ON_GOT_IP6, 0);
-}
-
-void nd6_set_cb(struct netif *netif, void (*cb)(struct netif *netif, u8_t ip_index))
-{
-  if (netif != NULL) {
-      netif->ipv6_addr_cb = cb;
-  }
-}
-#endif
-
 static void wifi_eth_sta_enable(struct netif *netif, uint8_t mac[6])
 {
     ip4_addr_t ipaddr;
@@ -162,17 +173,10 @@ static void wifi_eth_sta_enable(struct netif *netif, uint8_t mac[6])
     * The init function pointer must point to a initialization function for
     * your ethernet netif interface. The following code illustrates it's use.*/
 
+    netifapi_netif_add(netif, &ipaddr, &netmask, &gw, NULL, &bl606a0_wifi_netif_init, &tcpip_input);
     netif->name[0] = 's';
     netif->name[1] = 't';
-#ifdef CFG_NETBUS_WIFI_ENABLE
-    g_netbus_wifi_mgmr_env.sta_netif = netif;
-#endif
-    netifapi_netif_add(netif, &ipaddr, &netmask, &gw, NULL, &bl606a0_wifi_netif_init, &tcpip_input);
-
-#ifdef CONFIG_ENABLE_IPV6_ADDR_CALLBACK
-    nd6_set_cb(netif, netif_nd6_callback);
-#endif
-
+    netif->flags |=  NETIF_FLAG_LINK_UP | NETIF_FLAG_IGMP;
     netifapi_netif_set_default(netif);
     netifapi_netif_set_up(netif);
 }
@@ -181,10 +185,6 @@ int wifi_mgmr_psk_cal(char *password, char *ssid, int ssid_len, char *output)
 {
     int ret;
     char psk[32];
-
-    if (password == NULL || ssid == NULL || output == NULL) {
-        return -1;
-    }
 
     ret = pbkdf2_sha1(password, ssid, ssid_len, 4096, (uint8_t *)psk, sizeof(psk));
     if (0 == ret) {
@@ -196,26 +196,14 @@ int wifi_mgmr_psk_cal(char *password, char *ssid, int ssid_len, char *output)
 
 int wifi_mgmr_drv_init(wifi_conf_t *conf)
 {
-    int ret;
-    if (conf == NULL) {
-        return -1;
-    }
-
-    ret = bl606a0_wifi_init(conf);
-    if (ret != 0) {
-        goto err;
-    }
+    bl606a0_wifi_init(conf);
     wifi_mgmr_init();
-    ret = wifi_mgmr_api_ifaceup();
-err:
-    return ret;
+    wifi_mgmr_api_ifaceup();
+    return 0;
 }
 
 void wifi_mgmr_get_wifi_channel_conf(wifi_conf_t *wifi_chan_conf)
 {
-    if (wifi_chan_conf == NULL) {
-        return;
-    }
     strncpy(wifi_chan_conf->country_code, wifiMgmr.country_code, sizeof(wifiMgmr.country_code));
     wifi_chan_conf->channel_nums = wifiMgmr.channel_nums;
 }
@@ -239,7 +227,8 @@ wifi_interface_t wifi_mgmr_sta_enable(void)
 
 int wifi_mgmr_sta_disable(wifi_interface_t *interface)
 {
-    return wifi_mgmr_api_idle();
+    wifi_mgmr_api_idle();
+    return 0;
 }
 
 struct netif *wifi_mgmr_sta_netif_get(void)
@@ -254,18 +243,12 @@ struct netif *wifi_mgmr_ap_netif_get(void)
 
 int wifi_mgmr_sta_mac_set(uint8_t mac[6])
 {
-    if (mac == NULL) {
-        return -1;
-    }
     memcpy(wifiMgmr.wlan_sta.mac, mac, 6);
     return 0;
 }
 
 int wifi_mgmr_sta_mac_get(uint8_t mac[6])
 {
-    if (mac == NULL) {
-        return -1;
-    }
     /*should we set default mac address/get efuse address here?*/
     //TODO use unified mac address init
     if (mac_is_unvalid(wifiMgmr.wlan_sta.mac)) {
@@ -287,10 +270,6 @@ int wifi_mgmr_sta_mac_get(uint8_t mac[6])
 
 int wifi_mgmr_sta_ip_get(uint32_t *ip, uint32_t *gw, uint32_t *mask)
 {
-    if (ip == NULL || gw == NULL || mask == NULL) {
-        return -1;
-    }
-
     *ip = netif_ip4_addr(&wifiMgmr.wlan_sta.netif)->addr;
     *mask = netif_ip4_netmask(&wifiMgmr.wlan_sta.netif)->addr;
     *gw = netif_ip4_gw(&wifiMgmr.wlan_sta.netif)->addr;
@@ -301,16 +280,6 @@ int wifi_mgmr_sta_ip_get(uint32_t *ip, uint32_t *gw, uint32_t *mask)
 int wifi_mgmr_sta_dns_get(uint32_t *dns1, uint32_t *dns2)
 {
     const ip_addr_t* dns;
-
-    if (dns1 == NULL || dns2 == NULL) {
-        return -1;
-    }
-
-    if (!netif_is_link_up(&wifiMgmr.wlan_sta.netif)) {
-        ip_addr_set_any(0, (ip_addr_t*)dns1);
-        ip_addr_set_any(0, (ip_addr_t*)dns2);
-        return 0;
-    }
 
     /*Get DNS1*/
     dns = dns_getserver(0);
@@ -339,7 +308,9 @@ int wifi_mgmr_sta_ip_set(uint32_t ip, uint32_t mask, uint32_t gw, uint32_t dns1,
 
     bl_os_exit_critical();
 
-    return wifi_mgmr_api_ip_update();
+    wifi_mgmr_api_ip_update();
+
+    return 0;
 }
 
 int wifi_mgmr_sta_ip_unset(void)
@@ -349,35 +320,17 @@ int wifi_mgmr_sta_ip_unset(void)
 
 int wifi_mgmr_sta_connect_ext(wifi_interface_t *wifi_interface, char *ssid, char *passphr, const ap_connect_adv_t *conn_adv_param)
 {
-    int ssid_len = ssid ? strlen(ssid) : 0;
-    int passphr_len = passphr ? strlen(passphr) : 0;
-
-    if (conn_adv_param == NULL) {
-        return -1;
-    }
-    int psk_len = conn_adv_param->psk ? strlen(conn_adv_param->psk) : 0;
-
-    if (!ssid || ssid_len > 32) {
-        return -1;
-    }
-
-    if ((passphr && ((passphr_len < 8 && passphr_len != 5) || passphr_len > 63)) ||
-        (conn_adv_param->psk && (psk_len != 64)))
-    {
-        return -1;
-    }
-
     wifi_mgmr_sta_ssid_set(ssid);
     wifi_mgmr_sta_passphr_set(passphr);
 
     return wifi_mgmr_api_connect(ssid, passphr, conn_adv_param);
 }
 
-int wifi_mgmr_sta_connect_mid(wifi_interface_t *wifi_interface, char *ssid, char *passphrase, char *psk, uint8_t *mac, uint8_t band, uint8_t chan_id, uint8_t use_dhcp, uint32_t flags)
+int wifi_mgmr_sta_connect_mid(wifi_interface_t *wifi_interface, char *ssid, char *psk, char *pmk, uint8_t *mac, uint8_t band, uint8_t chan_id, uint8_t use_dhcp, uint32_t flags)
 {
     struct ap_connect_adv ext_param;
 
-    ext_param.psk = psk;
+    ext_param.psk = pmk;
     ext_param.ap_info.type = AP_INFO_TYPE_SUGGEST;
     ext_param.ap_info.time_to_live = 5;
     ext_param.ap_info.bssid = mac;
@@ -389,17 +342,18 @@ int wifi_mgmr_sta_connect_mid(wifi_interface_t *wifi_interface, char *ssid, char
     }
     ext_param.ap_info.use_dhcp = use_dhcp;
     ext_param.flags = (flags & WIFI_CONNECT_DEFAULT) ? (flags | WIFI_CONNECT_PMF_CAPABLE) : (flags);
-    return wifi_mgmr_sta_connect_ext(wifi_interface, ssid, passphrase, &ext_param);
+    return wifi_mgmr_sta_connect_ext(wifi_interface, ssid, psk, &ext_param);
 }
 
-int wifi_mgmr_sta_connect(wifi_interface_t *wifi_interface, char *ssid, char *passphrase, char *psk, uint8_t *mac, uint8_t band, uint8_t chan_id)
+int wifi_mgmr_sta_connect(wifi_interface_t *wifi_interface, char *ssid, char *psk, char *pmk, uint8_t *mac, uint8_t band, uint8_t chan_id)
 {
-    return wifi_mgmr_sta_connect_mid(wifi_interface, ssid, passphrase, psk, mac, band, chan_id, 1, WIFI_CONNECT_DEFAULT);
+    return wifi_mgmr_sta_connect_mid(wifi_interface, ssid, psk, pmk, mac, band, chan_id, 1, WIFI_CONNECT_DEFAULT);
 }
 
 int wifi_mgmr_sta_disconnect(void)
 {
-    return wifi_mgmr_api_disconnect();
+    wifi_mgmr_api_disconnect();
+    return 0;
 }
 
 int wifi_sta_ip4_addr_get(uint32_t *addr, uint32_t *mask, uint32_t *gw, uint32_t *dns)
@@ -428,36 +382,26 @@ int wifi_mgmr_sta_pm_ops(void *arg)
     int mode;
 
     mode = (int )arg;
-    return wifi_mgmr_api_fw_powersaving(mode);
+    wifi_mgmr_api_fw_powersaving(mode);
+
+    return 0;
 }
 
 int wifi_mgmr_pm_ops_register(void)
 {
-    int ret;
-    ret = wifi_hosal_pm_event_register(WLAN_PM_EVENT_CONTROL, WLAN_CODE_PM_NOTIFY_START, NODE_CAP_BIT_UAPSD_MODE, 8, wifi_mgmr_sta_pm_ops, (void *)PS_MODE_ON_DYN, PM_ENABLE);
-    if (ret != 0) {
-        goto err;
-    }
-    ret = wifi_hosal_pm_event_register(WLAN_PM_EVENT_CONTROL, WLAN_CODE_PM_NOTIFY_STOP, NODE_CAP_BIT_UAPSD_MODE, 6, wifi_mgmr_sta_pm_ops, (void *)PS_MODE_OFF, PM_ENABLE);
-err:
-    return ret;
+    wifi_hosal_pm_event_register(WLAN_PM_EVENT_CONTROL, WLAN_CODE_PM_NOTIFY_START, NODE_CAP_BIT_UAPSD_MODE, 8, wifi_mgmr_sta_pm_ops, (void *)PS_MODE_ON_DYN, PM_ENABLE);
+    wifi_hosal_pm_event_register(WLAN_PM_EVENT_CONTROL, WLAN_CODE_PM_NOTIFY_STOP, NODE_CAP_BIT_UAPSD_MODE, 6, wifi_mgmr_sta_pm_ops, (void *)PS_MODE_OFF, PM_ENABLE);
+
+    return 0;
 }
 
 int wifi_mgmr_fw_affair_ops(void)
 {
-    int ret;
-    ret = wifi_hosal_pm_event_switch(WLAN_PM_EVENT_BEACON_LOSS, WLAN_CODE_BEACON_LOSS, PM_ENABLE);
-    if (ret != 0) {
-        goto err;
-    }
+    wifi_hosal_pm_event_switch(WLAN_PM_EVENT_BEACON_LOSS, WLAN_CODE_BEACON_LOSS, PM_ENABLE);
+    wifi_hosal_pm_event_switch(WLAN_PM_EVENT_SEND_NULLDATA, WLAN_CODE_PM_NULLDATA_NOACK, PM_ENABLE);
+    wifi_hosal_pm_event_switch(WLAN_PM_EVENT_EXIT_SLEEP, WLAN_CODE_PM_ENTER_SLEEP_PRE_FAILED, PM_ENABLE);
 
-    ret = wifi_hosal_pm_event_switch(WLAN_PM_EVENT_SEND_NULLDATA, WLAN_CODE_PM_NULLDATA_NOACK, PM_ENABLE);
-    if (ret != 0) {
-        goto err;
-    }
-    ret = wifi_hosal_pm_event_switch(WLAN_PM_EVENT_EXIT_SLEEP, WLAN_CODE_PM_ENTER_SLEEP_PRE_FAILED, PM_ENABLE);
-err:
-    return ret;
+    return 0;
 }
 
 int wifi_mgmr_sta_ps_enter(uint32_t ps_level)
@@ -475,31 +419,26 @@ int wifi_mgmr_sta_ps_enter(uint32_t ps_level)
 
 int wifi_mgmr_sta_ps_exit(void)
 {
-    return wifi_hosal_pm_post_event(WLAN_PM_EVENT_CONTROL, WLAN_CODE_PM_NOTIFY_STOP, NULL);
-}
+    wifi_hosal_pm_post_event(WLAN_PM_EVENT_CONTROL, WLAN_CODE_PM_NOTIFY_STOP, NULL); 
 
-int wifi_mgmr_sta_ps_get(void)
-{
-    return wifi_mgmr_api_fw_powersaving_get();
+    return 0;
 }
 
 int wifi_mgmr_sta_autoconnect_enable(void)
 {
-    return wifi_mgmr_api_enable_autoreconnect();
+    wifi_mgmr_api_enable_autoreconnect();
+    return 0;
 }
 
 int wifi_mgmr_sta_autoconnect_disable(void)
 {
-    return wifi_mgmr_api_disable_autoreconnect();
+    wifi_mgmr_api_disable_autoreconnect();
+    return 0;
 }
 
 void wifi_mgmr_sta_connect_ind_stat_get(wifi_mgmr_sta_connect_ind_stat_info_t *wifi_mgmr_ind_stat)
 {
     int ssid_len = strlen(wifiMgmr.wifi_mgmr_stat_info.ssid);
-
-    if (wifi_mgmr_ind_stat == NULL) {
-        return;
-    }
     if (ssid_len > 0) {
         memcpy(wifi_mgmr_ind_stat->ssid, wifiMgmr.wifi_mgmr_stat_info.ssid, ssid_len);
         wifi_mgmr_ind_stat->ssid[ssid_len] = '\0';
@@ -596,49 +535,34 @@ static void wifi_eth_ap_enable(struct netif *netif, uint8_t mac[6])
         memcpy(mac, netif->hwaddr, 6);//overwrite mac address in netif
     }
 
-#ifdef CFG_NETBUS_WIFI_ENABLE
-    g_netbus_wifi_mgmr_env.ap_netif = netif;
-#endif
+    netifapi_netif_add(netif, &ipaddr, &netmask, &gw, NULL, &bl606a0_wifi_netif_init, &tcpip_input);
     netif->name[0] = 'a';
     netif->name[1] = 'p';
-
-    netifapi_netif_add(netif, &ipaddr, &netmask, &gw, NULL, &bl606a0_wifi_netif_init, &tcpip_input);
+    netifapi_netif_set_default(netif);
     netifapi_netif_set_up(netif);
 }
 
 wifi_interface_t wifi_mgmr_ap_enable()
 {
-    static int done = 0;                                                                                                             
-                                                                                                                                    
-    if (1 == done) {                                                                                                                 
-        bl_os_printf("----- AP has already been enable\r\n");                                                                        
-        return &(wifiMgmr.wlan_ap);                                                                                                  
+    //bl_os_printf("wifiMgmr.wlan_ap.mode = %d \r\n", wifiMgmr.wlan_ap.mode);
+    //TODO should add lock to avoid being called at the same time
+    if (wifiMgmr.inf_ap_enabled) {
+        /*nothing here*/
+    } else {
+        wifiMgmr.wlan_ap.mode = 1;//ap mode
+        wifi_eth_ap_enable(&(wifiMgmr.wlan_ap.netif), wifiMgmr.wlan_ap.mac);
     }
-    done = 1;                                                                                                                        
-                                                                                                                                    
-    bl_os_printf("---------AP enable\r\n");                                                                                          
-                                                                                                                                    
-    wifiMgmr.wlan_ap.mode = 1;//ap mode                                                                                              
-    wifi_eth_ap_enable(&(wifiMgmr.wlan_ap.netif), wifiMgmr.wlan_ap.mac);
-
     return &(wifiMgmr.wlan_ap);
 }
 
 int wifi_mgmr_ap_mac_set(uint8_t mac[6])
 {
-    if (mac == NULL) {
-        return -1;
-    }
     memcpy(wifiMgmr.wlan_ap.mac, mac, 6);
     return 0;
 }
 
 int wifi_mgmr_ap_mac_get(uint8_t mac[6])
 {
-    if (mac == NULL) {
-        return -1;
-    }
-
     /*should we set default mac address/get efuse address here?*/
     //TODO use unified mac address init
     mac_is_unvalid(wifiMgmr.wlan_ap.mac);
@@ -659,10 +583,6 @@ int wifi_mgmr_ap_mac_get(uint8_t mac[6])
 
 int wifi_mgmr_ap_ip_get(uint32_t *ip, uint32_t *gw, uint32_t *mask)
 {
-    if (ip == NULL || gw == NULL || mask == NULL) {
-        return -1;
-    }
-
     *ip = netif_ip4_addr(&wifiMgmr.wlan_ap.netif)->addr;
     *mask = netif_ip4_netmask(&wifiMgmr.wlan_ap.netif)->addr;
     *gw = netif_ip4_gw(&wifiMgmr.wlan_ap.netif)->addr;
@@ -673,7 +593,20 @@ int wifi_mgmr_ap_ip_get(uint32_t *ip, uint32_t *gw, uint32_t *mask)
 //TODO this API is still NOT completed, more features need to be implemented
 int wifi_mgmr_ap_start(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel)
 {
-    return wifi_mgmr_api_ap_start(ssid, passwd, channel, hidden_ssid, -1, 1);
+    wifi_mgmr_api_ap_start(ssid, passwd, channel, hidden_ssid, -1, 1);
+    return 0;
+}
+
+int wifi_mgmr_ap_start_adv(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel, uint8_t use_dhcp)
+{
+    wifi_mgmr_api_ap_start(ssid, passwd, channel, hidden_ssid, -1, use_dhcp);
+    return 0;
+}
+
+int wifi_mgmr_ap_start_atcmd(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel, int max_sta_supported)
+{
+    wifi_mgmr_api_ap_start(ssid, passwd, channel, hidden_ssid, max_sta_supported, 1);
+    return 0;
 }
 
 int wifi_mgmr_ap_chan_switch(wifi_interface_t *interface, int channel, uint8_t cs_count)
@@ -681,35 +614,20 @@ int wifi_mgmr_ap_chan_switch(wifi_interface_t *interface, int channel, uint8_t c
     return wifi_mgmr_api_chan_switch(channel, cs_count);
 }
 
-int wifi_mgmr_ap_start_adv(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel, uint8_t use_dhcp)
-{
-    return wifi_mgmr_api_ap_start(ssid, passwd, channel, hidden_ssid, -1, use_dhcp);
-}
-
-int wifi_mgmr_ap_start_atcmd(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel, int max_sta_supported)
-{
-    return wifi_mgmr_api_ap_start(ssid, passwd, channel, hidden_ssid, max_sta_supported, 1);
-}
-
 int wifi_mgmr_ap_stop(wifi_interface_t *interface)
 {
-    return wifi_mgmr_api_ap_stop();
+    wifi_mgmr_api_ap_stop();
+    return 0;
 }
 
 int wifi_mgmr_ap_sta_cnt_get(uint8_t *sta_cnt)
 {
-    if (sta_cnt == NULL) {
-        return -1;
-    }
-    return wifi_mgmr_ap_sta_cnt_get_internal(sta_cnt);
+    wifi_mgmr_ap_sta_cnt_get_internal(sta_cnt);
+    return 0;
 }
 
 int wifi_mgmr_ap_sta_info_get(struct wifi_sta_basic_info *sta_info, uint8_t idx)
 {
-    if (sta_info == NULL) {
-        return -1;
-    }
-
     struct wifi_mgmr_sta_basic_info sta_info_internal;
     memset(&sta_info_internal, 0, sizeof(struct wifi_mgmr_sta_basic_info));
     wifi_mgmr_ap_sta_info_get_internal(&sta_info_internal, idx);
@@ -725,7 +643,8 @@ int wifi_mgmr_ap_sta_info_get(struct wifi_sta_basic_info *sta_info, uint8_t idx)
 
 int wifi_mgmr_ap_sta_delete(uint8_t sta_idx)
 {
-    return wifi_mgmr_ap_sta_delete_internal(sta_idx);
+    wifi_mgmr_ap_sta_delete_internal(sta_idx);
+    return 0;
 }
 
 int wifi_mgmr_ap_set_gateway(char *gateway)
@@ -736,32 +655,38 @@ int wifi_mgmr_ap_set_gateway(char *gateway)
 
 int wifi_mgmr_sniffer_register(void *env, sniffer_cb_t cb)
 {
-    return bl_rx_pkt_cb_register(env, cb);
+    bl_rx_pkt_cb_register(env, cb);
+    return 0;
 }
 
 int wifi_mgmr_sniffer_unregister(void *env)
 {
-    return bl_rx_pkt_cb_unregister(env);
+    bl_rx_pkt_cb_unregister(env);
+    return 0;
 }
 
 int wifi_mgmr_sniffer_register_adv(void *env, sniffer_cb_adv_t cb)
 {
-    return bl_rx_pkt_adv_cb_register(env, cb);
+    bl_rx_pkt_adv_cb_register(env, cb);
+    return 0;
 }
 
 int wifi_mgmr_sniffer_unregister_adv(void *env)
 {
-    return bl_rx_pkt_adv_cb_unregister(env);
+    bl_rx_pkt_adv_cb_unregister(env);
+    return 0;
 }
 
 int wifi_mgmr_sniffer_enable()
 {
-    return wifi_mgmr_api_sniffer_enable();
+    wifi_mgmr_api_sniffer_enable();
+    return 0;
 }
 
 int wifi_mgmr_sniffer_disable()
 {
-    return wifi_mgmr_api_idle();
+    wifi_mgmr_api_idle();
+    return 0;
 }
 
 int wifi_mgmr_rate_config(uint16_t config)
@@ -776,54 +701,37 @@ int wifi_mgmr_conf_max_sta(uint8_t max_sta_supported)
 
 int wifi_mgmr_state_get(int *state)
 {
-    if (state == NULL) {
-        return -1;
-    }
-
     return wifi_mgmr_state_get_internal(state);
 }
 
 int wifi_mgmr_detailed_state_get(int *state, int *state_detailed)
 {
-    if (state == NULL || state_detailed == NULL) {
-        return -1;
-    }
     return wifi_mgmr_detailed_state_get_internal(state, state_detailed);
 }
 
 int wifi_mgmr_status_code_get(int *s_code)
 {
-    if (s_code == NULL) {
-        return -1;
-    }
     return wifi_mgmr_status_code_get_internal(s_code);
 }
 
 int wifi_mgmr_rssi_get(int *rssi)
 {
-    if (rssi == NULL) {
-        return -1;
-    }
     *rssi = wifiMgmr.wlan_sta.sta.rssi;
     return 0;
 }
 
 int wifi_mgmr_channel_get(int *channel)
 {
-    if (channel == NULL) {
-        return -1;
-    }
     *channel = wifiMgmr.channel;
     return 0;
 }
 
 int wifi_mgmr_channel_set(int channel, int use_40Mhz)
 {
-    int ret;
     wifiMgmr.channel = channel;
-    ret = wifi_mgmr_api_channel_set(channel, use_40Mhz);
+    wifi_mgmr_api_channel_set(channel, use_40Mhz);
     bl_os_printf("set channel %d, 40Mhz %d\r\n", channel, use_40Mhz);
-    return ret;
+    return 0;
 }
 
 int wifi_mgmr_raw_80211_send(uint8_t *pkt, int len)
@@ -832,7 +740,9 @@ int wifi_mgmr_raw_80211_send(uint8_t *pkt, int len)
         /*raw packet len is too long*/
         return -1;
     }
-    return wifi_mgmr_api_raw_send(pkt, len);
+    wifi_mgmr_api_raw_send(pkt, len);
+
+    return 0;
 }
 
 int wifi_mgmr_all_ap_scan(wifi_mgmr_ap_item_t **ap_ary, uint32_t *num)
@@ -875,75 +785,54 @@ int wifi_mgmr_all_ap_scan(wifi_mgmr_ap_item_t **ap_ary, uint32_t *num)
 
 int wifi_mgmr_scan(void *data, scan_complete_cb_t cb)
 {
-    wifi_mgmr_scan_params_t *scan_params = NULL;
-
-    scan_params = (wifi_mgmr_scan_params_t *)bl_os_zalloc(sizeof(wifi_mgmr_scan_params_t));
-    if (!scan_params) {
-        bl_os_printf("%s malloc scan_params failed!\r\n", __FUNCTION__);
-        return -1;
-    }
+    wifi_mgmr_scan_params_t scan_params;
 
     scan_cb = cb;
     scan_data = data;
 
-    scan_params->channel_num = 0;
-    memcpy(scan_params->bssid, (uint8_t *)&mac_addr_bcst, sizeof(struct mac_addr));
-    scan_params->ssid.length = 0;
-    scan_params->scan_mode = SCAN_ACTIVE;
+    scan_params.channel_num = 0;
+    memcpy(scan_params.bssid, (uint8_t *)&mac_addr_bcst, sizeof(struct mac_addr));
+    scan_params.ssid.length = 0;
+    scan_params.scan_mode = SCAN_ACTIVE;
     /*if 0, use default scan time in fw,
      * unit:us*/
-    scan_params->duration_scan = 0;
+    scan_params.duration_scan = 0;
 
-    return wifi_mgmr_api_fw_scan(scan_params);
+    wifi_mgmr_api_fw_scan(scan_params);
+
+    return 0;
 }
 
 int wifi_mgmr_scan_adv(void *data, scan_complete_cb_t cb, uint16_t *channels, uint16_t channel_num, const uint8_t bssid[6], const char *ssid, uint8_t scan_mode, uint32_t duration_scan)
 {
-    wifi_mgmr_scan_params_t* scan_params = NULL;
-
-    if (0 != channel_num && NULL == channels) {
-        bl_os_printf("%s channels is NULL while has channel_num!\r\n", __FUNCTION__);
-        return -1;
-    }
-
-    if (channel_num > MAX_FIXED_CHANNELS_LIMIT) {
-        bl_os_printf("%s exceed max channel number!\r\n", __FUNCTION__);
-        return -1;
-    }
-
-    scan_params = (wifi_mgmr_scan_params_t *)bl_os_zalloc(sizeof(wifi_mgmr_scan_params_t) + sizeof(uint16_t)*channel_num);
-    if (!scan_params) {
-        bl_os_printf("%s malloc scan_params failed!\r\n", __FUNCTION__);
-        return -1;
-    }
+    wifi_mgmr_scan_params_t scan_params;
 
     scan_cb = cb;
     scan_data = data;
 
-    scan_params->scan_mode = scan_mode;
-    scan_params->duration_scan = duration_scan;
-
-    if (bssid) {
-        memcpy(scan_params->bssid, bssid, ETH_ALEN);
-    } else {
-        memset(scan_params->bssid, 0xff, ETH_ALEN);
-    }
-
-    scan_params->channel_num = channel_num;
-    if (channel_num) {
-        memcpy(scan_params->channels, channels, sizeof(uint16_t) * channel_num);
+    scan_params.channel_num = channel_num;
+    scan_params.scan_mode = scan_mode;
+    scan_params.duration_scan = duration_scan;
+    memcpy(scan_params.bssid, bssid, ETH_ALEN);
+    if (scan_params.channel_num) {
+        memcpy(scan_params.channels, channels, sizeof(scan_params.channels[0]) * scan_params.channel_num);
     }
 
     if (ssid != NULL) {
-        scan_params->ssid.length = strlen(ssid);
-        scan_params->ssid.length = (scan_params->ssid.length > MAC_SSID_LEN) ? MAC_SSID_LEN : scan_params->ssid.length;
-        memcpy(scan_params->ssid.array, ssid, scan_params->ssid.length);
-        scan_params->ssid.array_tail[0] = '\0';
+        scan_params.ssid.length = strlen(ssid);
+        scan_params.ssid.length = (scan_params.ssid.length > MAC_SSID_LEN) ? MAC_SSID_LEN : scan_params.ssid.length;
+        memcpy(scan_params.ssid.array, ssid, scan_params.ssid.length);
+        scan_params.ssid.array_tail[0] = '\0';
     } else {
-        scan_params->ssid.length = 0;
+        scan_params.ssid.length = 0;
     }
 
-    return wifi_mgmr_api_fw_scan(scan_params);
+    if (0 != scan_params.channel_num && NULL == scan_params.channels) {
+        return -1;
+    }
+
+    wifi_mgmr_api_fw_scan(scan_params);
+    return 0;
 }
 
 int wifi_mgmr_cfg_req(uint32_t ops, uint32_t task, uint32_t element, uint32_t type, uint32_t length, uint32_t *buf)
@@ -987,10 +876,6 @@ int wifi_mgmr_scan_ap(char *ssid, wifi_mgmr_ap_item_t *item)
     int8_t rssi = -127;//FIXME magic here?
     wifi_mgmr_scan_item_t *scan;
 
-    if (NULL == ssid || NULL == item) {
-        return -1;
-    }
-
     for (i = 0; i < sizeof(wifiMgmr.scan_items)/sizeof(wifiMgmr.scan_items[0]); i++) {
         if (wifiMgmr.scan_items[i].is_used &&
                 (!wifi_mgmr_scan_item_is_timeout(&wifiMgmr, &(wifiMgmr.scan_items[i]))) && 0 == strcmp(wifiMgmr.scan_items[i].ssid, ssid)) {
@@ -1020,21 +905,6 @@ int wifi_mgmr_scan_ap(char *ssid, wifi_mgmr_ap_item_t *item)
     return 0;
 }
 
-uint32_t wifi_mgmr_sta_scanlist_nums_get()
-{
-    uint32_t i, cnt = 0;
-    wifi_mgmr_scan_item_t *scan;
-
-    for (i = 0; i < sizeof(wifiMgmr.scan_items) / sizeof(wifiMgmr.scan_items[0]); i++) {
-        scan = &wifiMgmr.scan_items[i];
-        if (scan->is_used && (!wifi_mgmr_scan_item_is_timeout(&wifiMgmr, &(wifiMgmr.scan_items[i])))) {
-            cnt++;
-        }
-    }
-
-    return cnt;
-}
-
 int wifi_mgmr_scan_ap_all(wifi_mgmr_ap_item_t *env, uint32_t *param1, scan_item_cb_t cb)
 {
     int i;
@@ -1062,23 +932,21 @@ int wifi_mgmr_scan_ap_all(wifi_mgmr_ap_item_t *env, uint32_t *param1, scan_item_
 
 int wifi_mgmr_set_country_code(char *country_code)
 {
-    if (NULL == country_code) {
-        return -1;
-    }
     bl_os_printf("%s:code = %s\r\n", __func__, country_code);
-    return wifi_mgmr_api_set_country_code(country_code);
+    wifi_mgmr_api_set_country_code(country_code);
+
+    return 0;
 }
 
 int wifi_mgmr_set_wifi_active_time(uint32_t ms)
 {
-    if (ms < 10 || ms > 80) {
-        bl_os_printf("Wrong, MUST set wifi ps acitve [10, 80] ms\r\n");
+    if (ms < 15 || ms > 85) {
+        bl_os_printf("Wrong, MUST set wifi ps acitve [20, 80] ms\r\n");
         return -1;
     }
 
     void td_set_tim_time(uint8_t vif_index, uint32_t us);
-    extern struct bl_hw wifi_hw;
-    td_set_tim_time(wifi_hw.vif_table[BL_VIF_STA].vif_idx, ms * 1000);
+    td_set_tim_time(wifiMgmr.wlan_sta.vif_index, ms * 1000);
 
     return 0;
 }
@@ -1106,6 +974,70 @@ void wifi_mgmr_conn_result_get(uint16_t *status_code, uint16_t *reason_code)
 	}
     (*status_code) = wifiMgmr.wifi_mgmr_stat_info.status_code;
     (*reason_code) = wifiMgmr.wifi_mgmr_stat_info.reason_code;
+}
+
+int wifi_mgmr_bcnind_auth_to_ext(int auth)
+{
+    int ret;
+    switch (auth) {
+    case WIFI_EVENT_BEACON_IND_AUTH_OPEN:
+        ret = WM_WIFI_AUTH_OPEN;
+        break;
+    case WIFI_EVENT_BEACON_IND_AUTH_WEP:
+        ret = WM_WIFI_AUTH_WEP;
+        break;
+    case WIFI_EVENT_BEACON_IND_AUTH_WPA_PSK:
+        ret = WM_WIFI_AUTH_WPA_PSK;
+        break;
+    case WIFI_EVENT_BEACON_IND_AUTH_WPA2_PSK:
+        ret = WM_WIFI_AUTH_WPA2_PSK;
+        break;
+    case WIFI_EVENT_BEACON_IND_AUTH_WPA_WPA2_PSK:
+        ret = WM_WIFI_AUTH_WPA_WPA2_PSK;
+        break;
+    case WIFI_EVENT_BEACON_IND_AUTH_WPA_ENT:
+        ret = WM_WIFI_AUTH_WPA_ENTERPRISE;
+        break;
+    case WIFI_EVENT_BEACON_IND_AUTH_WPA3_SAE:
+        ret = WM_WIFI_AUTH_WPA3_SAE;
+        break;
+    case WIFI_EVENT_BEACON_IND_AUTH_WPA2_PSK_WPA3_SAE:
+        ret = WM_WIFI_AUTH_WPA2_PSK_WPA3_SAE;
+        break;
+    case WIFI_EVENT_BEACON_IND_AUTH_UNKNOWN:
+        ret = WM_WIFI_AUTH_UNKNOWN;
+        break;
+    default:
+        ret = WM_WIFI_AUTH_UNKNOWN;
+        break;
+    }
+    return ret;
+}
+
+int wifi_mgmr_bcnind_cipher_to_ext(int cipher)
+{
+    int ret;
+    switch (cipher) {
+    case WIFI_EVENT_BEACON_IND_CIPHER_NONE:
+        ret = WM_WIFI_CIPHER_NONE;
+        break;
+    case WIFI_EVENT_BEACON_IND_CIPHER_WEP:
+        ret = WM_WIFI_CIPHER_WEP;
+        break;
+    case WIFI_EVENT_BEACON_IND_CIPHER_AES:
+        ret = WM_WIFI_CIPHER_AES;
+        break;
+    case WIFI_EVENT_BEACON_IND_CIPHER_TKIP:
+        ret = WM_WIFI_CIPHER_TKIP;
+        break;
+    case WIFI_EVENT_BEACON_IND_CIPHER_TKIP_AES:
+        ret = WM_WIFI_CIPHER_TKIP_AES;
+        break;
+    default:
+        ret = WM_WIFI_CIPHER_NONE;
+        break;
+    }
+    return ret;
 }
 
 void wifi_mgmr_diagnose_tlv_free(struct sm_tlv_list* list)

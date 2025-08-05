@@ -43,7 +43,7 @@ extern "C" {
 #endif
 
 /**
- * Represents exit codes used when OpenThread exits.
+ * This enumeration represents exit codes used when OpenThread exits.
  *
  */
 enum
@@ -85,7 +85,7 @@ enum
 };
 
 /**
- * Converts an exit code into a string.
+ * This function converts an exit code into a string.
  *
  * @param[in]  aExitCode  An exit code.
  *
@@ -95,7 +95,7 @@ enum
 const char *otExitCodeToString(uint8_t aExitCode);
 
 /**
- * Checks for the specified condition, which is expected to commonly be true,
+ * This macro checks for the specified condition, which is expected to commonly be true,
  * and both records exit status and terminates the program if the condition is false.
  *
  * @param[in]   aCondition  The condition to verify
@@ -116,7 +116,7 @@ const char *otExitCodeToString(uint8_t aExitCode);
     } while (false)
 
 /**
- * Checks for the specified error code, which is expected to commonly be successful,
+ * This macro checks for the specified error code, which is expected to commonly be successful,
  * and both records exit status and terminates the program if the error code is unsuccessful.
  *
  * @param[in]  aError  An error code to be evaluated against OT_ERROR_NONE.
@@ -127,7 +127,7 @@ const char *otExitCodeToString(uint8_t aExitCode);
                 (aError == OT_ERROR_INVALID_ARGS ? OT_EXIT_INVALID_ARGUMENTS : OT_EXIT_FAILURE))
 
 /**
- * Unconditionally both records exit status and terminates the program.
+ * This macro unconditionally both records exit status and terminates the program.
  *
  * @param[in]   aExitCode   The exit code.
  *
@@ -135,7 +135,7 @@ const char *otExitCodeToString(uint8_t aExitCode);
 #define DieNow(aExitCode) VerifyOrDie(false, aExitCode)
 
 /**
- * Unconditionally both records exit status and exit message and terminates the program.
+ * This macro unconditionally both records exit status and exit message and terminates the program.
  *
  * @param[in]   aMessage    The exit message.
  * @param[in]   aExitCode   The exit code.

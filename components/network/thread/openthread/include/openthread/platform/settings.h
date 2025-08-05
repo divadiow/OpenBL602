@@ -52,7 +52,7 @@ extern "C" {
  */
 
 /**
- * Defines the keys of settings.
+ * This enumeration defines the keys of settings.
  *
  * Note: When adding a new settings key, if the settings corresponding to the key contains security sensitive
  *       information, the developer MUST add the key to the array `aSensitiveKeys` which is passed in
@@ -72,8 +72,6 @@ enum
     OT_SETTINGS_KEY_SRP_CLIENT_INFO      = 0x000c, ///< The SRP client info (selected SRP server address).
     OT_SETTINGS_KEY_SRP_SERVER_INFO      = 0x000d, ///< The SRP server info (UDP port).
     OT_SETTINGS_KEY_BR_ULA_PREFIX        = 0x000f, ///< BR ULA prefix.
-    OT_SETTINGS_KEY_BR_ON_LINK_PREFIXES  = 0x0010, ///< BR local on-link prefixes.
-    OT_SETTINGS_KEY_BORDER_AGENT_ID      = 0x0011, ///< Unique Border Agent/Router ID.
 
     // Deprecated and reserved key values:
     //
@@ -90,7 +88,7 @@ enum
 /**
  * Performs any initialization for the settings subsystem, if necessary.
  *
- * Also sets the sensitive keys that should be stored in the secure area.
+ * This function also sets the sensitive keys that should be stored in the secure area.
  *
  * Note that the memory pointed by @p aSensitiveKeys MUST not be released before @p aInstance is destroyed.
  *
@@ -113,13 +111,13 @@ void otPlatSettingsDeinit(otInstance *aInstance);
 /**
  * Fetches the value of a setting.
  *
- * Fetches the value of the setting identified
+ * This function fetches the value of the setting identified
  * by @p aKey and write it to the memory pointed to by aValue.
  * It then writes the length to the integer pointed to by
  * @p aValueLength. The initial value of @p aValueLength is the
  * maximum number of bytes to be written to @p aValue.
  *
- * Can be used to check for the existence of
+ * This function can be used to check for the existence of
  * a key without fetching the value by setting @p aValue and
  * @p aValueLength to NULL. You can also check the length of
  * the setting without fetching it by setting only aValue
@@ -149,7 +147,7 @@ otError otPlatSettingsGet(otInstance *aInstance, uint16_t aKey, int aIndex, uint
 /**
  * Sets or replaces the value of a setting.
  *
- * Sets or replaces the value of a setting
+ * This function sets or replaces the value of a setting
  * identified by @p aKey.
  *
  * Calling this function successfully may cause unrelated
@@ -178,7 +176,7 @@ otError otPlatSettingsSet(otInstance *aInstance, uint16_t aKey, const uint8_t *a
 /**
  * Adds a value to a setting.
  *
- * Adds the value to a setting
+ * This function adds the value to a setting
  * identified by @p aKey, without replacing any existing
  * values.
  *
@@ -214,7 +212,7 @@ otError otPlatSettingsAdd(otInstance *aInstance, uint16_t aKey, const uint8_t *a
 /**
  * Removes a setting from the setting store.
  *
- * Deletes a specific value from the
+ * This function deletes a specific value from the
  * setting identified by aKey from the settings store.
  *
  * Note that the underlying implementation is not required
@@ -235,7 +233,7 @@ otError otPlatSettingsDelete(otInstance *aInstance, uint16_t aKey, int aIndex);
 /**
  * Removes all settings from the setting store.
  *
- * Deletes all settings from the settings
+ * This function deletes all settings from the settings
  * store, resetting it to its initial factory state.
  *
  * @param[in] aInstance  The OpenThread instance structure.

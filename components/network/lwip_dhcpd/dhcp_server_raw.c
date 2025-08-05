@@ -8,10 +8,8 @@
  ****************************************************************************************
  */
 
-/** only supported for IPv4 */
-#undef LWIP_IPV6
-#define LWIP_IPV6 0
 
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <FreeRTOS.h>
@@ -20,13 +18,11 @@
 #include <lwip/sockets.h>
 #include <lwip/inet_chksum.h>
 #include <netif/etharp.h>
+#include <lwip/ip.h>
 #include <lwip/init.h>
-#include <lwip/prot/dhcp.h>
-#include <dhcp_server.h>
-#include <lwip/netifapi.h>
-#include <lwip/tcpip.h>
 
-#define DHCPD_MAX_DNS_SERVER_NUM    2
+
+#include <lwip/prot/dhcp.h>
 
 /* DHCP server option */
 #define DHCP_CLIENT_PORT  68
@@ -93,13 +89,6 @@ struct dhcp_server
     ip4_addr_t start;
     ip4_addr_t end;
     ip4_addr_t current;
-    ip4_addr_t dnsserver[DHCPD_MAX_DNS_SERVER_NUM];
-};
-
-struct dhcp_server_arg {
-    struct netif *netif;
-    ip4_addr_t start;
-    ip4_addr_t end;
 };
 
 static u8_t *dhcp_server_option_find(u8_t *buf, u16_t len, u8_t option);
@@ -194,7 +183,7 @@ dhcp_client_find(struct dhcp_server *dhcpserver, struct dhcp_msg *msg,
                 return node;
             } else {
                 puts("IP Found, but MAC address is NOT the same\r\n");
-                // return node;  //FIXME use hostname instead of mac address
+                return node;  //FIXME use hostname instead of mac address
             }
         }
     }
@@ -230,10 +219,7 @@ dhcp_client_alloc(struct dhcp_server *dhcpserver, struct dhcp_msg *msg,
         node = dhcp_client_find_by_ip(dhcpserver, &opt[2]);
         if (node != NULL)
         {
-            //Fix http://jira.bouffalolab.com/browse/WIFI6-15
-            if (0 == memcmp(node->chaddr, msg->chaddr, msg->hlen)) {
-                return node;
-            }
+            return node;
         }
     }
 
@@ -404,36 +390,19 @@ dhcp_server_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t
             opt_buf += 4;
 
             *opt_buf++ = DHCP_OPTION_DNS_SERVER;
-#ifdef DHCP_DNS_SERVER_IP
             *opt_buf++ = 4;
+#ifdef DHCP_DNS_SERVER_IP
             {
-                const ip_addr_t *dns_getserver(u8_t numdns);
-                ip_addr_t dns_addr = *(dns_getserver(0));
-                // ipaddr_aton(DHCP_DNS_SERVER_IP, &dns_addr);
+                ip_addr_t dns_addr;
+                ipaddr_aton(DHCP_DNS_SERVER_IP, &dns_addr);
                 SMEMCPY(opt_buf, &ip_2_ip4(&dns_addr)->addr, 4);
             }
-            opt_buf += 4;
 #else
-            u8_t* dns_len = opt_buf++;
-            *dns_len = 0;
-            for (u8_t i = 0; i < DHCPD_MAX_DNS_SERVER_NUM; i++)
-            {
-                if (!ip4_addr_isany(&dhcp_server->dnsserver[i]))
-                {
-                    SMEMCPY(opt_buf, &(dhcp_server->dnsserver[i].addr), 4);
-                    opt_buf += 4;
-                    *dns_len += 4;
-                }
-            }
-            if (*dns_len == 0)
-            {
-                /* default use gatewary dns server */
-                //FIXME we use ip_addr_t as ip4_addr_t here
-                SMEMCPY(opt_buf, &(dhcp_server->netif->ip_addr), 4);
-                opt_buf += 4;
-                *dns_len += 4;
-            }
+            /* default use gatewary dns server */
+            //FIXME we use ip_addr_t as ip4_addr_t here
+            SMEMCPY(opt_buf, &(dhcp_server->netif->ip_addr), 4);
 #endif /* DHCP_DNS_SERVER_IP */
+            opt_buf += 4;
 
             *opt_buf++ = DHCP_OPTION_ROUTER;
             *opt_buf++ = 4;
@@ -503,36 +472,19 @@ dhcp_server_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t
                         opt_buf += 4;
 
                         *opt_buf++ = DHCP_OPTION_DNS_SERVER;
-#ifdef DHCP_DNS_SERVER_IP
                         *opt_buf++ = 4;
+#ifdef DHCP_DNS_SERVER_IP
                         {
-                            const ip_addr_t *dns_getserver(u8_t numdns);
-                            ip_addr_t dns_addr = *(dns_getserver(0));
-                            // ipaddr_aton(DHCP_DNS_SERVER_IP, &dns_addr);
+                            ip_addr_t dns_addr;
+                            ipaddr_aton(DHCP_DNS_SERVER_IP, &dns_addr);
                             SMEMCPY(opt_buf, &ip_2_ip4(&dns_addr)->addr, 4);
                         }
-                        opt_buf += 4;
 #else
-                        u8_t* dns_len = opt_buf++;
-                        *dns_len = 0;
-                        for (u8_t i = 0; i < DHCPD_MAX_DNS_SERVER_NUM; i++)
-                        {
-                            if (!ip4_addr_isany(&dhcp_server->dnsserver[i]))
-                            {
-                                SMEMCPY(opt_buf, &(dhcp_server->dnsserver[i].addr), 4);
-                                opt_buf += 4;
-                                *dns_len += 4;
-                            }
-                        }
-                        if (*dns_len == 0)
-                        {
-                            /* default use gatewary dns server */
-                            //FIXME we use ip_addr_t as ip4_addr_t here
-                            SMEMCPY(opt_buf, &(dhcp_server->netif->ip_addr), 4);
-                            opt_buf += 4;
-                            *dns_len += 4;
-                        }
+                        /* default use gatewary dns server */
+                        //FIXME we use ip_addr_t as ip4_addr_t here
+                        SMEMCPY(opt_buf, &(dhcp_server->netif->ip_addr), 4);
 #endif /* DHCP_DNS_SERVER_IP */
+                        opt_buf += 4;
 
                         *opt_buf++ = DHCP_OPTION_ROUTER;
                         *opt_buf++ = 4;
@@ -645,22 +597,18 @@ free_pbuf_and_return:
 * - ERR_MEM - Out of memory
 */
 err_t
-dhcp_server_start(void *ctx)
+dhcp_server_start(struct netif *netif, ip4_addr_t *start, ip4_addr_t *end)
 {
     struct dhcp_server *dhcp_server;
-    struct dhcp_server_arg *arg = (struct dhcp_server_arg *)ctx;
-    ip4_addr_t start = arg->start, end = arg->end;
-    struct netif *netif = arg->netif;
-    free(ctx);
 
     /* If this netif alreday use the dhcp server. */
     for (dhcp_server = lw_dhcp_server; dhcp_server != NULL; dhcp_server = dhcp_server->next)
     {
         if (dhcp_server->netif == netif)
         {
-            dhcp_server->start = start;
-            dhcp_server->end = end;
-            dhcp_server->current = start;
+            dhcp_server->start = *start;
+            dhcp_server->end = *end;
+            dhcp_server->current = *start;
             return ERR_OK;
         }
     }
@@ -682,9 +630,9 @@ dhcp_server_start(void *ctx)
     lw_dhcp_server = dhcp_server;
     dhcp_server->netif = netif;
     dhcp_server->node_list = NULL;
-    dhcp_server->start = start;
-    dhcp_server->end = end;
-    dhcp_server->current = start;
+    dhcp_server->start = *start;
+    dhcp_server->end = *end;
+    dhcp_server->current = *start;
 
     /* allocate UDP PCB */
     dhcp_server->pcb = udp_new();
@@ -734,118 +682,48 @@ err_t dhcp_server_stop(struct netif *netif)
     return ERR_OK;
 }
 
-static err_t dhcp_server_op_dns_server(void* netif, const ip_addr_t *dnsserver, int reset)
+static void set_if(struct netif *netif, char* ip_addr, char* gw_addr, char* nm_addr)
 {
-    struct dhcp_server *dhcp_server;
-    int found = 0, free = 0;
+    ip4_addr_t *ip;
+    ip4_addr_t addr;
 
-    if (!netif || !dnsserver) {
-        return ERR_VAL;
+    ip = (ip4_addr_t *)&addr;
+
+    /* set ip address */
+    if ((ip_addr != NULL) && ip4addr_aton(ip_addr, &addr)) {
+        netif_set_ipaddr(netif, ip);
     }
 
-    for (dhcp_server = lw_dhcp_server; dhcp_server != NULL; dhcp_server = dhcp_server->next) {
-        if (dhcp_server->netif == netif) {
-            break;
-        }
-    }
-    if (!dhcp_server) {
-        return ERR_VAL;
+    /* set gateway address */
+    if ((gw_addr != NULL) && ip4addr_aton(gw_addr, &addr)) {
+        netif_set_gw(netif, ip);
     }
 
-    for (int i = 0; i < DHCPD_MAX_DNS_SERVER_NUM; i++) {
-        if (ip4_addr_cmp(ip_2_ip4(dnsserver), &dhcp_server->dnsserver[i])) {
-            found = i;
-        }
-        if (!free && ip4_addr_isany(&dhcp_server->dnsserver[i])) {
-            free = i;
-        }
+    /* set netmask address */
+    if ((nm_addr != NULL) && ip4addr_aton(nm_addr, &addr)) {
+        netif_set_netmask(netif, ip);
     }
-
-    /* Set */
-    if (!reset && free) {
-        ip4_addr_set(&dhcp_server->dnsserver[free], ip_2_ip4(dnsserver));
-    }
-    /* Reset */
-    else if (reset && found) {
-        ip4_addr_set_zero(&dhcp_server->dnsserver[found]);
-    }
-
-    return ERR_OK;
-}
-
-static void dhcp_server_clear_dns_server(void)
-{
-    struct dhcp_server *dhcp_server;
-
-    for (dhcp_server = lw_dhcp_server; dhcp_server != NULL; dhcp_server = dhcp_server->next) {
-        for (int i = 0; i < DHCPD_MAX_DNS_SERVER_NUM; i++) {
-            ip4_addr_set_zero(&dhcp_server->dnsserver[i]);
-        }
-    }
-}
-
-void dhcpd_clear_dns_server(void* netif)
-{
-    struct dhcp_server *dhcp_server;
-
-    for (dhcp_server = lw_dhcp_server; dhcp_server != NULL; dhcp_server = dhcp_server->next) {
-        if (dhcp_server->netif == netif) {
-            for (int i = 0; i < DHCPD_MAX_DNS_SERVER_NUM; i++) {
-                ip4_addr_set_zero(&dhcp_server->dnsserver[i]);
-            }
-        }
-    }
-}
-
-err_t dhcpd_add_dns_server(void* netif, const ip_addr_t *dnsserver)
-{
-    return dhcp_server_op_dns_server(netif, dnsserver, 0);
-}
-
-err_t dhcpd_remove_dns_server(void* netif, const ip_addr_t *dnsserver)
-{
-    return dhcp_server_op_dns_server(netif, dnsserver, 1);
 }
 
 //TODO better dhcpd_stop flow?
-void dhcpd_start(struct netif *netif, int start, int limit)
+void dhcpd_start(struct netif *netif)
 {
     err_t res;
-    char str_tmp[IP4ADDR_STRLEN_MAX] = DHCPD_SERVER_IP;
-    char *p = str_tmp;
-    int start_num = DHCPD_CLIENT_IP_MIN, end_num = DHCPD_CLIENT_IP_MAX;
-    ip4_addr_t ip_start, ip_end;
-    struct dhcp_server_arg *arg;
-    ip4_addr_t default_addr, default_mask, default_gw;
 
     if (1)
     {
-        netifapi_dhcp_stop(netif);
+        dhcp_stop(netif);
 
-        if(start == -1 || limit == -1 || ip4_addr_isany_val(*netif_ip4_addr(netif)))
-        {
-            ip4addr_aton(DHCPD_SERVER_IP, &default_addr);
-            ip4addr_aton("255.255.255.0", &default_mask);
-            ip4addr_aton("0.0.0.0", &default_gw);
-            netifapi_netif_set_addr(netif, &default_addr, &default_mask, &default_gw);
-        }
-        else
-        {
-            memset(str_tmp, 0, IP4ADDR_STRLEN_MAX);
-            ip4addr_ntoa_r(netif_ip4_addr(netif), str_tmp, IP4ADDR_STRLEN_MAX);
-            start_num = start;
-            end_num = start + limit - 1;
-        }
+        set_if(netif, DHCPD_SERVER_IP, "0.0.0.0", "255.255.255.0");
 
-        if(start_num > 254 || start_num < 2 || end_num > 254 || end_num < 2 || start_num >= end_num) {
-            DEBUG_PRINTF("dhcp start arg error, range %d - %d \r\n", start_num, end_num);
-            return;
-        }
-
-        netifapi_netif_set_up(netif);
+        netif_set_up(netif);
     }
 
     {
+        char str_tmp[4 * 4 + 4] = DHCPD_SERVER_IP;
+        char *p = str_tmp;
+        ip4_addr_t ip_start, ip_end;
+
         p = strchr(str_tmp, '.');
         if (p)
         {
@@ -862,21 +740,16 @@ void dhcpd_start(struct netif *netif, int start, int limit)
         }
         p = p + 1; /* move to xxx.xxx.xxx.^ */
 
-        sprintf(p, "%d", start_num);
+        sprintf(p, "%d", DHCPD_CLIENT_IP_MIN);
         ip4addr_aton(str_tmp, &ip_start);
         DEBUG_PRINTF("ip_start: [%s]\r\n", str_tmp);
-        sprintf(p, "%d", end_num);
+        sprintf(p, "%d", DHCPD_CLIENT_IP_MAX);
         ip4addr_aton(str_tmp, &ip_end);
-        DEBUG_PRINTF("ip_end: [%s]\r\n", str_tmp);
+        DEBUG_PRINTF("ip_start: [%s]\r\n", str_tmp);
 
-        arg = (struct dhcp_server_arg *)malloc(sizeof(struct dhcp_server_arg));
-        arg->netif = netif;
-        arg->start = ip_start;
-        arg->end = ip_end;
-        res = tcpip_callback((tcpip_callback_fn)dhcp_server_start, arg);
-        if (res != ERR_OK)
+        res = dhcp_server_start(netif, &ip_start, &ip_end);
+        if (res != 0)
         {
-            free(arg);
             DEBUG_PRINTF("dhcp_server_start res: %d.\r\n", res);
         }
     }
@@ -914,27 +787,9 @@ void dhcpd_stop(const char *netif_name)
         goto _exit;
     }
 
-    dhcp_server_clear_dns_server();
     dhcp_server_stop(netif);
 
 _exit:
     LWIP_NETIF_UNLOCK();
     return;
-}
-
-void dhcpd_stop_with_netif(const struct netif *netif)
-{
-    int res;
-    static char netif_name[3] = {0};
-
-    if (!netif) {
-        return;
-    }
-
-    netif_name[0] = netif->name[0];
-    netif_name[1] = netif->name[1];
-    res = tcpip_callback((tcpip_callback_fn)dhcpd_stop, netif_name);
-    if (res != ERR_OK) {
-        DEBUG_PRINTF("dhcp_server_stop res: %d.\r\n", res);
-    }
 }

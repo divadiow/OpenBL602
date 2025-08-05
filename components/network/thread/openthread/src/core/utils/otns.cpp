@@ -47,7 +47,10 @@ RegisterLogModule("Otns");
 
 const int kMaxStatusStringLength = 128;
 
-void Otns::EmitShortAddress(uint16_t aShortAddress) { EmitStatus("rloc16=%d", aShortAddress); }
+void Otns::EmitShortAddress(uint16_t aShortAddress)
+{
+    EmitStatus("rloc16=%d", aShortAddress);
+}
 
 void Otns::EmitExtendedAddress(const Mac::ExtAddress &aExtAddress)
 {

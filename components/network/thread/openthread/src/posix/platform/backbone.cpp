@@ -31,9 +31,6 @@
  *   This file implements the platform Backbone interface management on Linux.
  */
 
-#define _GNU_SOURCE
-#include <string.h>
-
 #include "openthread-posix-config.h"
 
 #if OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE
@@ -59,7 +56,7 @@ void platformBackboneInit(const char *aInterfaceName)
 
     VerifyOrDie(strnlen(aInterfaceName, sizeof(gBackboneNetifName)) < sizeof(gBackboneNetifName),
                 OT_EXIT_INVALID_ARGUMENTS);
-    strlcpy(gBackboneNetifName, aInterfaceName, IFNAMSIZ);
+    strcpy(gBackboneNetifName, aInterfaceName);
 
     gBackboneNetifIndex = if_nametoindex(gBackboneNetifName);
     VerifyOrDie(gBackboneNetifIndex > 0, OT_EXIT_FAILURE);

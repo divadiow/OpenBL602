@@ -54,7 +54,7 @@ extern "C" {
 #endif
 
 /**
- * Represents an OpenThread message buffer.
+ * This struct represents an OpenThread message buffer.
  *
  */
 typedef struct otMessageBuffer
@@ -65,7 +65,7 @@ typedef struct otMessageBuffer
 /**
  * Initialize the platform implemented message pool.
  *
- * Is used when `OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT` is enabled.
+ * This function is used when `OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT` is enabled.
  *
  * @param[in] aInstance            A pointer to the OpenThread instance.
  * @param[in] aMinNumFreeBuffers   An uint16 containing the minimum number of free buffers desired by OpenThread.
@@ -77,7 +77,7 @@ void otPlatMessagePoolInit(otInstance *aInstance, uint16_t aMinNumFreeBuffers, s
 /**
  * Allocate a buffer from the platform managed buffer pool.
  *
- * Is used when `OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT` is enabled.
+ * This function is used when `OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT` is enabled.
  *
  * The returned buffer instance MUST have at least `aBufferSize` bytes (as specified in `otPlatMessagePoolInit()`).
  *
@@ -89,9 +89,9 @@ void otPlatMessagePoolInit(otInstance *aInstance, uint16_t aMinNumFreeBuffers, s
 otMessageBuffer *otPlatMessagePoolNew(otInstance *aInstance);
 
 /**
- * Is used to free a buffer back to the platform managed buffer pool.
+ * This function is used to free a buffer back to the platform managed buffer pool.
  *
- * Is used when `OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT` is enabled.
+ * This function is used when `OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT` is enabled.
  *
  * @param[in]  aInstance  A pointer to the OpenThread instance.
  * @param[in]  aBuffer    The buffer to free.
@@ -102,7 +102,7 @@ void otPlatMessagePoolFree(otInstance *aInstance, otMessageBuffer *aBuffer);
 /**
  * Get the number of free buffers.
  *
- * Is used when `OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT` is enabled.
+ * This function is used when `OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT` is enabled.
  *
  * @param[in]  aInstance  A pointer to the OpenThread instance.
  *

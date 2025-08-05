@@ -43,7 +43,29 @@
 namespace ot {
 namespace Cli {
 
-template <> otError SrpServer::Process<Cmd("addrmode")>(Arg aArgs[])
+constexpr SrpServer::Command SrpServer::sCommands[];
+
+otError SrpServer::Process(Arg aArgs[])
+{
+    otError        error = OT_ERROR_INVALID_COMMAND;
+    const Command *command;
+
+    if (aArgs[0].IsEmpty())
+    {
+        IgnoreError(ProcessHelp(aArgs));
+        ExitNow();
+    }
+
+    command = BinarySearch::Find(aArgs[0].GetCString(), sCommands);
+    VerifyOrExit(command != nullptr);
+
+    error = (this->*command->mHandler)(aArgs + 1);
+
+exit:
+    return error;
+}
+
+otError SrpServer::ProcessAddrMode(Arg aArgs[])
 {
     otError error = OT_ERROR_INVALID_ARGS;
 
@@ -74,34 +96,7 @@ template <> otError SrpServer::Process<Cmd("addrmode")>(Arg aArgs[])
     return error;
 }
 
-#if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
-/**
- * @cli srp server auto
- * @code
- * srp server auto
- * Disabled
- * Done
- * @endcode
- * @par api_copy
- * #otSrpServerIsAutoEnableMode
- */
-template <> otError SrpServer::Process<Cmd("auto")>(Arg aArgs[])
-{
-    /**
-     * @cli srp server auto enable
-     * @code
-     * srp server auto enable
-     * Done
-     * @endcode
-     * @par api_copy
-     * #otSrpServerSetAutoEnableMode
-     */
-    return Interpreter::GetInterpreter().ProcessEnableDisable(aArgs, otSrpServerIsAutoEnableMode,
-                                                              otSrpServerSetAutoEnableMode);
-}
-#endif
-
-template <> otError SrpServer::Process<Cmd("domain")>(Arg aArgs[])
+otError SrpServer::ProcessDomain(Arg aArgs[])
 {
     otError error = OT_ERROR_NONE;
 
@@ -117,7 +112,7 @@ template <> otError SrpServer::Process<Cmd("domain")>(Arg aArgs[])
     return error;
 }
 
-template <> otError SrpServer::Process<Cmd("state")>(Arg aArgs[])
+otError SrpServer::ProcessState(Arg aArgs[])
 {
     static const char *const kStateStrings[] = {
         "disabled", // (0) OT_SRP_SERVER_STATE_DISABLED
@@ -136,7 +131,7 @@ template <> otError SrpServer::Process<Cmd("state")>(Arg aArgs[])
     return OT_ERROR_NONE;
 }
 
-template <> otError SrpServer::Process<Cmd("enable")>(Arg aArgs[])
+otError SrpServer::ProcessEnable(Arg aArgs[])
 {
     OT_UNUSED_VARIABLE(aArgs);
 
@@ -145,7 +140,7 @@ template <> otError SrpServer::Process<Cmd("enable")>(Arg aArgs[])
     return OT_ERROR_NONE;
 }
 
-template <> otError SrpServer::Process<Cmd("disable")>(Arg aArgs[])
+otError SrpServer::ProcessDisable(Arg aArgs[])
 {
     OT_UNUSED_VARIABLE(aArgs);
 
@@ -154,7 +149,7 @@ template <> otError SrpServer::Process<Cmd("disable")>(Arg aArgs[])
     return OT_ERROR_NONE;
 }
 
-template <> otError SrpServer::Process<Cmd("ttl")>(Arg aArgs[])
+otError SrpServer::ProcessTtl(Arg aArgs[])
 {
     otError              error = OT_ERROR_NONE;
     otSrpServerTtlConfig ttlConfig;
@@ -162,8 +157,8 @@ template <> otError SrpServer::Process<Cmd("ttl")>(Arg aArgs[])
     if (aArgs[0].IsEmpty())
     {
         otSrpServerGetTtlConfig(GetInstancePtr(), &ttlConfig);
-        OutputLine("min ttl: %lu", ToUlong(ttlConfig.mMinTtl));
-        OutputLine("max ttl: %lu", ToUlong(ttlConfig.mMaxTtl));
+        OutputLine("min ttl: %u", ttlConfig.mMinTtl);
+        OutputLine("max ttl: %u", ttlConfig.mMaxTtl);
     }
     else
     {
@@ -178,7 +173,7 @@ exit:
     return error;
 }
 
-template <> otError SrpServer::Process<Cmd("lease")>(Arg aArgs[])
+otError SrpServer::ProcessLease(Arg aArgs[])
 {
     otError                error = OT_ERROR_NONE;
     otSrpServerLeaseConfig leaseConfig;
@@ -186,10 +181,10 @@ template <> otError SrpServer::Process<Cmd("lease")>(Arg aArgs[])
     if (aArgs[0].IsEmpty())
     {
         otSrpServerGetLeaseConfig(GetInstancePtr(), &leaseConfig);
-        OutputLine("min lease: %lu", ToUlong(leaseConfig.mMinLease));
-        OutputLine("max lease: %lu", ToUlong(leaseConfig.mMaxLease));
-        OutputLine("min key-lease: %lu", ToUlong(leaseConfig.mMinKeyLease));
-        OutputLine("max key-lease: %lu", ToUlong(leaseConfig.mMaxKeyLease));
+        OutputLine("min lease: %u", leaseConfig.mMinLease);
+        OutputLine("max lease: %u", leaseConfig.mMaxLease);
+        OutputLine("min key-lease: %u", leaseConfig.mMinKeyLease);
+        OutputLine("max key-lease: %u", leaseConfig.mMaxKeyLease);
     }
     else
     {
@@ -206,7 +201,7 @@ exit:
     return error;
 }
 
-template <> otError SrpServer::Process<Cmd("host")>(Arg aArgs[])
+otError SrpServer::ProcessHost(Arg aArgs[])
 {
     otError                error = OT_ERROR_NONE;
     const otSrpServerHost *host;
@@ -268,8 +263,11 @@ void SrpServer::OutputHostAddresses(const otSrpServerHost *aHost)
     OutputFormat("]");
 }
 
-template <> otError SrpServer::Process<Cmd("service")>(Arg aArgs[])
+otError SrpServer::ProcessService(Arg aArgs[])
 {
+    static constexpr char *kAnyServiceName  = nullptr;
+    static constexpr char *kAnyInstanceName = nullptr;
+
     otError                error = OT_ERROR_NONE;
     const otSrpServerHost *host  = nullptr;
 
@@ -279,15 +277,17 @@ template <> otError SrpServer::Process<Cmd("service")>(Arg aArgs[])
     {
         const otSrpServerService *service = nullptr;
 
-        while ((service = otSrpServerHostGetNextService(host, service)) != nullptr)
+        while ((service = otSrpServerHostFindNextService(host, service, OT_SRP_SERVER_FLAGS_BASE_TYPE_SERVICE_ONLY,
+                                                         kAnyServiceName, kAnyInstanceName)) != nullptr)
         {
-            bool                 isDeleted = otSrpServerServiceIsDeleted(service);
-            const uint8_t       *txtData;
-            uint16_t             txtDataLength;
-            bool                 hasSubType = false;
-            otSrpServerLeaseInfo leaseInfo;
+            bool                      isDeleted    = otSrpServerServiceIsDeleted(service);
+            const char *              instanceName = otSrpServerServiceGetInstanceName(service);
+            const otSrpServerService *subService   = nullptr;
+            const uint8_t *           txtData;
+            uint16_t                  txtDataLength;
+            bool                      hasSubType = false;
 
-            OutputLine("%s", otSrpServerServiceGetInstanceName(service));
+            OutputLine("%s", instanceName);
             OutputLine(kIndentSize, "deleted: %s", isDeleted ? "true" : "false");
 
             if (isDeleted)
@@ -295,44 +295,36 @@ template <> otError SrpServer::Process<Cmd("service")>(Arg aArgs[])
                 continue;
             }
 
-            otSrpServerServiceGetLeaseInfo(service, &leaseInfo);
-
             OutputFormat(kIndentSize, "subtypes: ");
 
-            for (uint16_t index = 0;; index++)
+            while ((subService = otSrpServerHostFindNextService(
+                        host, subService, (OT_SRP_SERVER_SERVICE_FLAG_SUB_TYPE | OT_SRP_SERVER_SERVICE_FLAG_ACTIVE),
+                        kAnyServiceName, instanceName)) != nullptr)
             {
-                char        subLabel[OT_DNS_MAX_LABEL_SIZE];
-                const char *subTypeName = otSrpServerServiceGetSubTypeServiceNameAt(service, index);
+                char subLabel[OT_DNS_MAX_LABEL_SIZE];
 
-                if (subTypeName == nullptr)
-                {
-                    break;
-                }
-
-                IgnoreError(otSrpServerParseSubTypeServiceName(subTypeName, subLabel, sizeof(subLabel)));
+                IgnoreError(otSrpServerServiceGetServiceSubTypeLabel(subService, subLabel, sizeof(subLabel)));
                 OutputFormat("%s%s", hasSubType ? "," : "", subLabel);
                 hasSubType = true;
             }
 
             OutputLine(hasSubType ? "" : "(null)");
 
-            OutputLine(kIndentSize, "port: %u", otSrpServerServiceGetPort(service));
-            OutputLine(kIndentSize, "priority: %u", otSrpServerServiceGetPriority(service));
-            OutputLine(kIndentSize, "weight: %u", otSrpServerServiceGetWeight(service));
-            OutputLine(kIndentSize, "ttl: %lu", ToUlong(otSrpServerServiceGetTtl(service)));
-            OutputLine(kIndentSize, "lease: %lu", ToUlong(leaseInfo.mLease / 1000));
-            OutputLine(kIndentSize, "key-lease: %lu", ToUlong(leaseInfo.mKeyLease / 1000));
+            OutputLine(kIndentSize, "port: %hu", otSrpServerServiceGetPort(service));
+            OutputLine(kIndentSize, "priority: %hu", otSrpServerServiceGetPriority(service));
+            OutputLine(kIndentSize, "weight: %hu", otSrpServerServiceGetWeight(service));
+            OutputLine(kIndentSize, "ttl: %hu", otSrpServerServiceGetTtl(service));
 
             txtData = otSrpServerServiceGetTxtData(service, &txtDataLength);
             OutputFormat(kIndentSize, "TXT: ");
             OutputDnsTxtData(txtData, txtDataLength);
-            OutputNewLine();
+            OutputLine("");
 
             OutputLine(kIndentSize, "host: %s", otSrpServerHostGetFullName(host));
 
             OutputFormat(kIndentSize, "addresses: ");
             OutputHostAddresses(host);
-            OutputNewLine();
+            OutputLine("");
         }
     }
 
@@ -340,7 +332,7 @@ exit:
     return error;
 }
 
-template <> otError SrpServer::Process<Cmd("seqnum")>(Arg aArgs[])
+otError SrpServer::ProcessSeqNum(Arg aArgs[])
 {
     otError error = OT_ERROR_NONE;
 
@@ -360,47 +352,16 @@ exit:
     return error;
 }
 
-otError SrpServer::Process(Arg aArgs[])
+otError SrpServer::ProcessHelp(Arg aArgs[])
 {
-#define CmdEntry(aCommandString)                                 \
-    {                                                            \
-        aCommandString, &SrpServer::Process<Cmd(aCommandString)> \
-    }
+    OT_UNUSED_VARIABLE(aArgs);
 
-    static constexpr Command kCommands[] = {
-        CmdEntry("addrmode"),
-#if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
-        CmdEntry("auto"),
-#endif
-        CmdEntry("disable"),
-        CmdEntry("domain"),
-        CmdEntry("enable"),
-        CmdEntry("host"),
-        CmdEntry("lease"),
-        CmdEntry("seqnum"),
-        CmdEntry("service"),
-        CmdEntry("state"),
-        CmdEntry("ttl"),
-    };
-
-    static_assert(BinarySearch::IsSorted(kCommands), "kCommands is not sorted");
-
-    otError        error = OT_ERROR_INVALID_COMMAND;
-    const Command *command;
-
-    if (aArgs[0].IsEmpty() || (aArgs[0] == "help"))
+    for (const Command &command : sCommands)
     {
-        OutputCommandTable(kCommands);
-        ExitNow(error = aArgs[0].IsEmpty() ? error : OT_ERROR_NONE);
+        OutputLine(command.mName);
     }
 
-    command = BinarySearch::Find(aArgs[0].GetCString(), kCommands);
-    VerifyOrExit(command != nullptr);
-
-    error = (this->*command->mHandler)(aArgs + 1);
-
-exit:
-    return error;
+    return OT_ERROR_NONE;
 }
 
 } // namespace Cli

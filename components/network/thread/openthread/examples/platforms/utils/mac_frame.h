@@ -43,7 +43,7 @@ extern "C" {
 #endif
 
 /**
- * Specifies the IEEE 802.15.4 Address type.
+ * This enumeration specifies the IEEE 802.15.4 Address type.
  *
  */
 typedef enum
@@ -54,7 +54,7 @@ typedef enum
 } otMacAddressType;
 
 /**
- * Represents an IEEE 802.15.4 short or extended Address.
+ * This structure represents an IEEE 802.15.4 short or extended Address.
  *
  */
 typedef struct otMacAddress
@@ -176,7 +176,7 @@ otError otMacFrameGetDstAddr(const otRadioFrame *aFrame, otMacAddress *aMacAddre
 uint8_t otMacFrameGetSequence(const otRadioFrame *aFrame);
 
 /**
- * Performs AES CCM on the frame which is going to be sent.
+ * This function performs AES CCM on the frame which is going to be sent.
  *
  * @param[in]  aFrame       A pointer to the MAC frame buffer that is going to be sent.
  * @param[in]  aExtAddress  A pointer to the extended address, which will be used to generate nonce
@@ -221,9 +221,9 @@ void otMacFrameGenerateImmAck(const otRadioFrame *aFrame, bool aIsFramePending, 
  */
 otError otMacFrameGenerateEnhAck(const otRadioFrame *aFrame,
                                  bool                aIsFramePending,
-                                 const uint8_t      *aIeData,
+                                 const uint8_t *     aIeData,
                                  uint8_t             aIeLength,
-                                 otRadioFrame       *aAckFrame);
+                                 otRadioFrame *      aAckFrame);
 
 /**
  * Set CSL IE content into the frame.

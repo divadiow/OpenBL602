@@ -485,6 +485,7 @@ mld6_leavegroup_netif(struct netif *netif, const ip6_addr_t *groupaddr)
   return ERR_VAL;
 }
 
+
 /**
  * Periodic timer for mld processing. Must be called every
  * MLD6_TMR_INTERVAL milliseconds (100).

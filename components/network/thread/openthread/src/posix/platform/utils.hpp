@@ -35,7 +35,7 @@ namespace ot {
 namespace Posix {
 
 /**
- * Formats a system command to execute.
+ * This method formats a system command to execute.
  *
  * @param[in] aFormat  A pointer to the format string.
  * @param[in] ...      Arguments for the format specification.

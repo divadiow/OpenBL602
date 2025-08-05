@@ -57,7 +57,7 @@ PanId GenerateRandomPanId(void)
 #if !OPENTHREAD_RADIO
 void ExtAddress::GenerateRandom(void)
 {
-    IgnoreError(Random::Crypto::Fill(*this));
+    IgnoreError(Random::Crypto::FillBuffer(m8, sizeof(ExtAddress)));
     SetGroup(false);
     SetLocal(true);
 }
@@ -108,24 +108,6 @@ Address::InfoString Address::ToString(void) const
     }
 
     return string;
-}
-
-void PanIds::SetSource(PanId aPanId)
-{
-    mSource          = aPanId;
-    mIsSourcePresent = true;
-}
-
-void PanIds::SetDestination(PanId aPanId)
-{
-    mDestination          = aPanId;
-    mIsDestinationPresent = true;
-}
-
-void PanIds::SetBothSourceDestination(PanId aPanId)
-{
-    SetSource(aPanId);
-    SetDestination(aPanId);
 }
 
 #if OPENTHREAD_CONFIG_MULTI_RADIO
@@ -247,11 +229,17 @@ uint32_t LinkFrameCounters::GetMaximum(void) const
     uint32_t counter = 0;
 
 #if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
-    counter = Max(counter, m154Counter);
+    if (counter < m154Counter)
+    {
+        counter = m154Counter;
+    }
 #endif
 
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
-    counter = Max(counter, mTrelCounter);
+    if (counter < mTrelCounter)
+    {
+        counter = mTrelCounter;
+    }
 #endif
 
     return counter;
@@ -311,7 +299,7 @@ void KeyMaterial::SetFrom(const Key &aKey, bool aIsExportable)
 #endif
 }
 
-void KeyMaterial::ExtractKey(Key &aKey) const
+void KeyMaterial::ExtractKey(Key &aKey)
 {
 #if OPENTHREAD_CONFIG_PLATFORM_KEY_REFERENCES_ENABLE
     aKey.Clear();

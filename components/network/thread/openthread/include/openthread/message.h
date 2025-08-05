@@ -53,13 +53,13 @@ extern "C" {
  */
 
 /**
- * An opaque representation of an OpenThread message buffer.
+ * This type is an opaque representation of an OpenThread message buffer.
  *
  */
 typedef struct otMessage otMessage;
 
 /**
- * Defines the OpenThread message priority levels.
+ * This enumeration defines the OpenThread message priority levels.
  *
  */
 typedef enum otMessagePriority
@@ -70,7 +70,7 @@ typedef enum otMessagePriority
 } otMessagePriority;
 
 /**
- * Represents a message settings.
+ * This structure represents a message settings.
  *
  */
 typedef struct otMessageSettings
@@ -170,7 +170,7 @@ uint16_t otMessageGetOffset(const otMessage *aMessage);
 void otMessageSetOffset(otMessage *aMessage, uint16_t aOffset);
 
 /**
- * Indicates whether or not link security is enabled for the message.
+ * This function indicates whether or not link security is enabled for the message.
  *
  * @param[in]  aMessage  A pointer to a message buffer.
  *
@@ -181,7 +181,7 @@ void otMessageSetOffset(otMessage *aMessage, uint16_t aOffset);
 bool otMessageIsLinkSecurityEnabled(const otMessage *aMessage);
 
 /**
- * Sets/forces the message to be forwarded using direct transmission.
+ * This function sets/forces the message to be forwarded using direct transmission.
  * Default setting for a new message is `false`.
  *
  * @param[in]  aMessage  A pointer to a message buffer.
@@ -192,7 +192,7 @@ bool otMessageIsLinkSecurityEnabled(const otMessage *aMessage);
 void otMessageSetDirectTransmission(otMessage *aMessage, bool aEnabled);
 
 /**
- * Returns the average RSS (received signal strength) associated with the message.
+ * This function returns the average RSS (received signal strength) associated with the message.
  *
  * @returns The average RSS value (in dBm) or OT_RADIO_RSSI_INVALID if no average RSS is available.
  *
@@ -263,7 +263,7 @@ uint16_t otMessageRead(const otMessage *aMessage, uint16_t aOffset, void *aBuf, 
 int otMessageWrite(otMessage *aMessage, uint16_t aOffset, const void *aBuf, uint16_t aLength);
 
 /**
- * Represents an OpenThread message queue.
+ * This structure represents an OpenThread message queue.
  */
 typedef struct
 {
@@ -271,7 +271,7 @@ typedef struct
 } otMessageQueue;
 
 /**
- * Represents information about a message queue.
+ * This structure represents information about a message queue.
  *
  */
 typedef struct otMessageQueueInfo
@@ -282,21 +282,13 @@ typedef struct otMessageQueueInfo
 } otMessageQueueInfo;
 
 /**
- * Represents the message buffer information for different queues used by OpenThread stack.
+ * This structure represents the message buffer information for different queues used by OpenThread stack.
  *
  */
 typedef struct otBufferInfo
 {
-    uint16_t mTotalBuffers; ///< The total number of buffers in the messages pool (0xffff if unknown).
-    uint16_t mFreeBuffers;  ///< The number of free buffers (0xffff if unknown).
-
-    /**
-     * The maximum number of used buffers at the same time since OT stack initialization or last call to
-     * `otMessageResetBufferInfo()`.
-     *
-     */
-    uint16_t mMaxUsedBuffers;
-
+    uint16_t           mTotalBuffers;         ///< The total number of buffers in the messages pool.
+    uint16_t           mFreeBuffers;          ///< The number of free buffers.
     otMessageQueueInfo m6loSendQueue;         ///< Info about 6LoWPAN send queue.
     otMessageQueueInfo m6loReassemblyQueue;   ///< Info about 6LoWPAN reassembly queue.
     otMessageQueueInfo mIp6Queue;             ///< Info about IPv6 send queue.
@@ -310,7 +302,7 @@ typedef struct otBufferInfo
 /**
  * Initialize the message queue.
  *
- * MUST be called once and only once for a `otMessageQueue` instance before any other `otMessageQueue`
+ * This function MUST be called once and only once for a `otMessageQueue` instance before any other `otMessageQueue`
  * functions. The behavior is undefined if other queue APIs are used with an `otMessageQueue` before it being
  * initialized or if it is initialized more than once.
  *
@@ -320,7 +312,7 @@ typedef struct otBufferInfo
 void otMessageQueueInit(otMessageQueue *aQueue);
 
 /**
- * Adds a message to the end of the given message queue.
+ * This function adds a message to the end of the given message queue.
  *
  * @param[in]  aQueue    A pointer to the message queue.
  * @param[in]  aMessage  The message to add.
@@ -329,7 +321,7 @@ void otMessageQueueInit(otMessageQueue *aQueue);
 void otMessageQueueEnqueue(otMessageQueue *aQueue, otMessage *aMessage);
 
 /**
- * Adds a message at the head/front of the given message queue.
+ * This function adds a message at the head/front of the given message queue.
  *
  * @param[in]  aQueue    A pointer to the message queue.
  * @param[in]  aMessage  The message to add.
@@ -338,7 +330,7 @@ void otMessageQueueEnqueue(otMessageQueue *aQueue, otMessage *aMessage);
 void otMessageQueueEnqueueAtHead(otMessageQueue *aQueue, otMessage *aMessage);
 
 /**
- * Removes a message from the given message queue.
+ * This function removes a message from the given message queue.
  *
  * @param[in]  aQueue    A pointer to the message queue.
  * @param[in]  aMessage  The message to remove.
@@ -347,7 +339,7 @@ void otMessageQueueEnqueueAtHead(otMessageQueue *aQueue, otMessage *aMessage);
 void otMessageQueueDequeue(otMessageQueue *aQueue, otMessage *aMessage);
 
 /**
- * Returns a pointer to the message at the head of the queue.
+ * This function returns a pointer to the message at the head of the queue.
  *
  * @param[in]  aQueue    A pointer to a message queue.
  *
@@ -357,7 +349,7 @@ void otMessageQueueDequeue(otMessageQueue *aQueue, otMessage *aMessage);
 otMessage *otMessageQueueGetHead(otMessageQueue *aQueue);
 
 /**
- * Returns a pointer to the next message in the queue by iterating forward (from head to tail).
+ * This function returns a pointer to the next message in the queue by iterating forward (from head to tail).
  *
  * @param[in]  aQueue    A pointer to a message queue.
  * @param[in]  aMessage  A pointer to current message buffer.
@@ -376,16 +368,6 @@ otMessage *otMessageQueueGetNext(otMessageQueue *aQueue, const otMessage *aMessa
  *
  */
 void otMessageGetBufferInfo(otInstance *aInstance, otBufferInfo *aBufferInfo);
-
-/**
- * Reset the Message Buffer information counter tracking the maximum number buffers in use at the same time.
- *
- * This resets `mMaxUsedBuffers` in `otBufferInfo`.
- *
- * @param[in]   aInstance    A pointer to the OpenThread instance.
- *
- */
-void otMessageResetBufferInfo(otInstance *aInstance);
 
 /**
  * @}

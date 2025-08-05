@@ -49,7 +49,7 @@ namespace ot {
 namespace Utils {
 
 /**
- * Represents a memory block.
+ * This class represents a memory block.
  *
  * A block is of the structure as below.
  *
@@ -69,7 +69,7 @@ class Block
 
 public:
     /**
-     * Returns the size of this block.
+     * This method returns the size of this block.
      *
      * @returns Size of this block.
      *
@@ -77,7 +77,7 @@ public:
     uint16_t GetSize(void) const { return mSize; }
 
     /**
-     * Updates the size of this block.
+     * This method updates the size of this block.
      *
      * @param[in]   aSize   Size of this block in bytes.
      *
@@ -85,7 +85,7 @@ public:
     void SetSize(uint16_t aSize) { mSize = aSize; }
 
     /**
-     * Returns the offset of the free block after this block.
+     * This method returns the offset of the free block after this block.
      *
      * @note This offset is relative to the start of the heap.
      *
@@ -101,7 +101,7 @@ public:
     }
 
     /**
-     * Updates the offset of the free block after this block.
+     * This method updates the offset of the free block after this block.
      *
      * @note This offset @p aNext must be relative to the start of the heap.
      *
@@ -115,7 +115,7 @@ public:
     }
 
     /**
-     * Returns the pointer to the start of the memory for user.
+     * This method returns the pointer to the start of the memory for user.
      *
      * @retval  Pointer to the user memory. The pointer address is aligned to sizeof(long).
      *
@@ -123,7 +123,7 @@ public:
     void *GetPointer(void) { return &mMemory; }
 
     /**
-     * Returns the offset of the free block after the left neighbor block.
+     * This method returns the offset of the free block after the left neighbor block.
      *
      * @returns Offset in bytes.
      *
@@ -131,7 +131,7 @@ public:
     uint16_t GetLeftNext(void) const { return *(&mSize - 1); }
 
     /**
-     * Returns whether the left neighbor block is a free block.
+     * This method returns whether the left neighbor block is a free block.
      *
      * @retval  true    The left neighbor block is free.
      * @retval  false   The left neighbor block is not free.
@@ -140,7 +140,7 @@ public:
     bool IsLeftFree(void) const { return GetLeftNext() != 0; }
 
     /**
-     * Returns whether the current block is a free block.
+     * This method returns whether the current block is a free block.
      *
      * @retval  true    The block is free.
      * @retval  false   The block is not free.
@@ -160,7 +160,7 @@ private:
 };
 
 /**
- * Defines functionality to manipulate heap.
+ * This class defines functionality to manipulate heap.
  *
  * This implementation is currently for mbedTLS.
  *
@@ -177,13 +177,13 @@ class Heap : private NonCopyable
 {
 public:
     /**
-     * Initializes a memory heap.
+     * This constructor initializes a memory heap.
      *
      */
     Heap(void);
 
     /**
-     * Allocates at least @p aCount * @aSize bytes memory and initialize to zero.
+     * This method allocates at least @p aCount * @aSize bytes memory and initialize to zero.
      *
      * @param[in]   aCount  Number of allocate units.
      * @param[in]   aSize   Unit size in bytes.
@@ -196,7 +196,7 @@ public:
     void *CAlloc(size_t aCount, size_t aSize);
 
     /**
-     * Free memory pointed by @p aPointer.
+     * This method free memory pointed by @p aPointer.
      *
      * @param[in]   aPointer    A pointer to the memory to free.
      *
@@ -204,30 +204,30 @@ public:
     void Free(void *aPointer);
 
     /**
-     * Returns whether the heap is clean.
+     * This method returns whether the heap is clean.
      *
      */
     bool IsClean(void) const
     {
-        Heap        &self  = *AsNonConst(this);
+        Heap &       self  = *AsNonConst(this);
         const Block &super = self.BlockSuper();
         const Block &first = self.BlockRight(super);
         return super.GetNext() == self.BlockOffset(first) && first.GetSize() == kFirstBlockSize;
     }
 
     /**
-     * Returns the capacity of this heap.
+     * This method returns the capacity of this heap.
      *
      */
     size_t GetCapacity(void) const { return kFirstBlockSize; }
 
     /**
-     * Returns free space of this heap.
+     * This method returns free space of this heap.
      */
     size_t GetFreeSize(void) const { return mMemory.mFreeSize; }
 
 private:
-#if OPENTHREAD_CONFIG_TLS_ENABLE || OPENTHREAD_CONFIG_DTLS_ENABLE
+#if OPENTHREAD_CONFIG_DTLS_ENABLE
     static constexpr uint16_t kMemorySize = OPENTHREAD_CONFIG_HEAP_INTERNAL_SIZE;
 #else
     static constexpr uint16_t kMemorySize = OPENTHREAD_CONFIG_HEAP_INTERNAL_SIZE_NO_DTLS;
@@ -243,7 +243,7 @@ private:
     static_assert(kMemorySize % kAlignSize == 0, "The heap memory size is not aligned to kAlignSize!");
 
     /**
-     * Returns the block at offset @p aOffset.
+     * This method returns the block at offset @p aOffset.
      *
      * @param[in]   aOffset     Offset in bytes.
      *
@@ -253,7 +253,7 @@ private:
     Block &BlockAt(uint16_t aOffset) { return *reinterpret_cast<Block *>(&mMemory.m16[aOffset / 2]); }
 
     /**
-     * Returns the block of @p aPointer.
+     * This method returns the block of @p aPointer.
      *
      * @param[in]   aPointer     The pointer returned by CAlloc().
      *
@@ -268,7 +268,7 @@ private:
     }
 
     /**
-     * Returns the super block.
+     * This method returns the super block.
      *
      * @returns Reference to the super block.
      *
@@ -276,7 +276,7 @@ private:
     Block &BlockSuper(void) { return BlockAt(kSuperBlockOffset); }
 
     /**
-     * Returns the free block after @p aBlock in the free block list.
+     * This method returns the free block after @p aBlock in the free block list.
      *
      * @param[in]   aBlock  A reference to the block.
      *
@@ -286,7 +286,7 @@ private:
     Block &BlockNext(const Block &aBlock) { return BlockAt(aBlock.GetNext()); }
 
     /**
-     * Returns the block on the right side of @p aBlock.
+     * This method returns the block on the right side of @p aBlock.
      *
      * @param[in]   aBlock  A reference to the block.
      *
@@ -296,7 +296,7 @@ private:
     Block &BlockRight(const Block &aBlock) { return BlockAt(BlockOffset(aBlock) + sizeof(Block) + aBlock.GetSize()); }
 
     /**
-     * Returns the free block before @p aBlock in the free block list.
+     * This method returns the free block before @p aBlock in the free block list.
      *
      * @returns Reference to the free block before this block.
      *
@@ -304,7 +304,7 @@ private:
     Block &BlockPrev(const Block &aBlock);
 
     /**
-     * Returns whether the block on the left side of @p aBlock is free.
+     * This method returns whether the block on the left side of @p aBlock is free.
      *
      * @param[in]   aBlock  A reference to the block.
      *
@@ -312,7 +312,7 @@ private:
     bool IsLeftFree(const Block &aBlock) { return (BlockOffset(aBlock) != kFirstBlockOffset && aBlock.IsLeftFree()); }
 
     /**
-     * Returns the offset of @p aBlock.
+     * This method returns the offset of @p aBlock.
      *
      * @param[in]   aBlock  A reference to the block.
      *
@@ -325,7 +325,7 @@ private:
     }
 
     /**
-     * Inserts @p aBlock into the free block list.
+     * This method inserts @p aBlock into the free block list.
      *
      * The free block list is single linked and is sorted by size from minimal to maximum.
      *

@@ -85,8 +85,17 @@ struct buffer_info {
  * always leaves destination null-terminated (for len > 0).
  */
 size_t ppp_strlcpy(char *dest, const char *src, size_t len) {
-    
-    return strlcpy(dest, src, len);
+    size_t ret = strlen(src);
+
+    if (len != 0) {
+	if (ret < len)
+	    strcpy(dest, src);
+	else {
+	    strncpy(dest, src, len - 1);
+	    dest[len-1] = 0;
+	}
+    }
+    return ret;
 }
 
 /*
@@ -809,7 +818,8 @@ lock(dev)
 
     if ((p = strstr(dev, "dev/")) != NULL) {
 	dev = p + 4;
-	strlcpy(lockdev, dev, MAXPATHLEN);
+	strncpy(lockdev, dev, MAXPATHLEN-1);
+	lockdev[MAXPATHLEN-1] = 0;
 	while ((p = strrchr(lockdev, '/')) != NULL) {
 	    *p = '_';
 	}

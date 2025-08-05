@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
+ *
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #ifndef __WIFI_MGMR_EXT_H__
 #define __WIFI_MGMR_EXT_H__
 #include <lwip/netif.h>
@@ -7,22 +36,6 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-#define WIFI_EVENT_BEACON_IND_AUTH_OPEN            0
-#define WIFI_EVENT_BEACON_IND_AUTH_WEP             1
-#define WIFI_EVENT_BEACON_IND_AUTH_WPA_PSK         2
-#define WIFI_EVENT_BEACON_IND_AUTH_WPA2_PSK        3
-#define WIFI_EVENT_BEACON_IND_AUTH_WPA_WPA2_PSK    4
-#define WIFI_EVENT_BEACON_IND_AUTH_WPA_ENT         5
-#define WIFI_EVENT_BEACON_IND_AUTH_WPA3_SAE        6
-#define WIFI_EVENT_BEACON_IND_AUTH_WPA2_PSK_WPA3_SAE 7
-#define WIFI_EVENT_BEACON_IND_AUTH_UNKNOWN      0xff
-
-#define WIFI_EVENT_BEACON_IND_CIPHER_NONE           0
-#define WIFI_EVENT_BEACON_IND_CIPHER_WEP            1
-#define WIFI_EVENT_BEACON_IND_CIPHER_AES            2
-#define WIFI_EVENT_BEACON_IND_CIPHER_TKIP           3
-#define WIFI_EVENT_BEACON_IND_CIPHER_TKIP_AES       4
 
 enum ap_info_type {
     /* The current AP information is advisory. When the AP fails to connect
@@ -82,10 +95,30 @@ typedef struct ap_connect_adv ap_connect_adv_t;
 
 struct bl_rx_info {
     int8_t rssi;
-    uint8_t leg_rate;
-    uint8_t format_mod;
 };
 typedef struct bl_rx_info bl_rx_info_t;
+
+typedef enum {
+    WM_WIFI_CIPHER_NONE = 0,
+    WM_WIFI_CIPHER_WEP,
+    WM_WIFI_CIPHER_AES,
+    WM_WIFI_CIPHER_TKIP,
+    WM_WIFI_CIPHER_TKIP_AES,
+    WM_WIFI_CIPHER_MAX,
+} wifi_mgmr_ap_cipher_t;
+
+typedef enum {
+    WM_WIFI_AUTH_UNKNOWN = 0,
+    WM_WIFI_AUTH_OPEN,
+    WM_WIFI_AUTH_WEP,
+    WM_WIFI_AUTH_WPA_PSK,
+    WM_WIFI_AUTH_WPA2_PSK,
+    WM_WIFI_AUTH_WPA_WPA2_PSK,
+    WM_WIFI_AUTH_WPA_ENTERPRISE,
+    WM_WIFI_AUTH_WPA3_SAE,
+    WM_WIFI_AUTH_WPA2_PSK_WPA3_SAE,
+    WM_WIFI_AUTH_MAX,
+} wifi_mgmr_ap_auth_mode_t;
 
 typedef struct wifi_mgmr_ap_item {
     char ssid[32];
@@ -168,11 +201,6 @@ enum WIFI_SCAN_DONE_EVENT_TYPE {
     WIFI_SCAN_DONE_EVENT_BUSY                       = 0x01,
 };
 
-enum WIFI_PS_SET_DONE_EVENT_TYPE {
-    WIFI_PS_SET_DONE_EVENT_OK                       = 0x00,
-    WIFI_PS_SET_DONE_EVENT_FAIL                     = 0x01,
-};
-
 enum WIFI_COEX_PM_LEVEL {
     WIFI_COEX_PM_STA_NONE = PM_MODE_STA_NONE,
     WIFI_COEX_PM_STA_IDLE = PM_MODE_STA_IDLE,
@@ -208,13 +236,12 @@ int wifi_mgmr_sta_ip_set(uint32_t ip, uint32_t mask, uint32_t gw, uint32_t dns1,
 int wifi_mgmr_sta_dns_get(uint32_t *dns1, uint32_t *dns2);
 int wifi_mgmr_sta_ip_unset(void);
 int wifi_mgmr_sta_connect_ext(wifi_interface_t *wifi_interface, char *ssid, char *passphr, const ap_connect_adv_t *conn_adv_param);
-int wifi_mgmr_sta_connect_mid(wifi_interface_t *wifi_interface, char *ssid, char *passphrase, char *psk, uint8_t *mac, uint8_t band, uint8_t chan_id, uint8_t use_dhcp, uint32_t flags);
+int wifi_mgmr_sta_connect_mid(wifi_interface_t *wifi_interface, char *ssid, char *psk, char *pmk, uint8_t *mac, uint8_t band, uint8_t chan_id, uint8_t use_dhcp, uint32_t flags);
 int wifi_mgmr_sta_connect(wifi_interface_t *wifi_interface, char *ssid, char *psk, char *pmk, uint8_t *mac, uint8_t band, uint8_t chan_id);
 int wifi_mgmr_sta_disconnect(void);
 int wifi_sta_ip4_addr_get(uint32_t *addr, uint32_t *mask, uint32_t *gw, uint32_t *dns);
 int wifi_mgmr_sta_ps_enter(uint32_t ps_level);
-int wifi_mgmr_sta_ps_exit(void);
-int wifi_mgmr_sta_ps_get(void);
+int wifi_mgmr_sta_ps_exit();
 int wifi_mgmr_sta_autoconnect_enable(void);
 int wifi_mgmr_sta_autoconnect_disable(void);
 void wifi_mgmr_sta_ssid_set(char *ssid);
@@ -228,9 +255,9 @@ int wifi_mgmr_ap_mac_get(uint8_t mac[6]);
 int wifi_mgmr_ap_ip_get(uint32_t *ip, uint32_t *gw, uint32_t *mask);
 int wifi_mgmr_ap_stop(wifi_interface_t *interface);
 int wifi_mgmr_ap_start(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel);
-int wifi_mgmr_ap_chan_switch(wifi_interface_t *interface, int channel, uint8_t cs_count);
 int wifi_mgmr_ap_start_adv(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel, uint8_t use_dhcp);
 int wifi_mgmr_ap_start_atcmd(wifi_interface_t *interface, char *ssid, int hidden_ssid, char *passwd, int channel, int max_sta_supported);
+int wifi_mgmr_ap_chan_switch(wifi_interface_t *interface, int channel, uint8_t cs_count);
 int wifi_mgmr_ap_sta_cnt_get(uint8_t *sta_cnt);
 int wifi_mgmr_ap_sta_info_get(struct wifi_sta_basic_info *sta_info, uint8_t idx);
 int wifi_mgmr_ap_sta_delete(uint8_t sta_idx);
@@ -260,7 +287,6 @@ int wifi_mgmr_scan_complete_callback();
 int wifi_mgmr_cli_scanlist(void);
 int wifi_mgmr_cli_init(void);
 int wifi_mgmr_scan_ap(char *ssid, wifi_mgmr_ap_item_t *item);
-uint32_t wifi_mgmr_sta_scanlist_nums_get();
 int wifi_mgmr_scan_ap_all(wifi_mgmr_ap_item_t *env, uint32_t *param1, scan_item_cb_t cb);
 int wifi_mgmr_raw_80211_send(uint8_t *pkt, int len);
 int wifi_mgmr_set_country_code(char *country_code);

@@ -41,20 +41,20 @@ using namespace ot;
 
 #if OPENTHREAD_CONFIG_DNSSD_SERVER_ENABLE
 
-void otDnssdQuerySetCallbacks(otInstance                     *aInstance,
+void otDnssdQuerySetCallbacks(otInstance *                    aInstance,
                               otDnssdQuerySubscribeCallback   aSubscribe,
                               otDnssdQueryUnsubscribeCallback aUnsubscribe,
-                              void                           *aContext)
+                              void *                          aContext)
 {
     AsCoreType(aInstance).Get<Dns::ServiceDiscovery::Server>().SetQueryCallbacks(aSubscribe, aUnsubscribe, aContext);
 }
 
-void otDnssdQueryHandleDiscoveredServiceInstance(otInstance                 *aInstance,
-                                                 const char                 *aServiceFullName,
+void otDnssdQueryHandleDiscoveredServiceInstance(otInstance *                aInstance,
+                                                 const char *                aServiceFullName,
                                                  otDnssdServiceInstanceInfo *aInstanceInfo)
 {
-    AssertPointerIsNotNull(aServiceFullName);
-    AssertPointerIsNotNull(aInstanceInfo);
+    OT_ASSERT(aServiceFullName != nullptr);
+    OT_ASSERT(aInstanceInfo != nullptr);
 
     AsCoreType(aInstance).Get<Dns::ServiceDiscovery::Server>().HandleDiscoveredServiceInstance(aServiceFullName,
                                                                                                *aInstanceInfo);
@@ -62,8 +62,8 @@ void otDnssdQueryHandleDiscoveredServiceInstance(otInstance                 *aIn
 
 void otDnssdQueryHandleDiscoveredHost(otInstance *aInstance, const char *aHostFullName, otDnssdHostInfo *aHostInfo)
 {
-    AssertPointerIsNotNull(aHostFullName);
-    AssertPointerIsNotNull(aHostInfo);
+    OT_ASSERT(aHostFullName != nullptr);
+    OT_ASSERT(aHostInfo != nullptr);
 
     AsCoreType(aInstance).Get<Dns::ServiceDiscovery::Server>().HandleDiscoveredHost(aHostFullName, *aHostInfo);
 }
@@ -75,8 +75,8 @@ const otDnssdQuery *otDnssdGetNextQuery(otInstance *aInstance, const otDnssdQuer
 
 otDnssdQueryType otDnssdGetQueryTypeAndName(const otDnssdQuery *aQuery, char (*aNameOutput)[OT_DNS_MAX_NAME_SIZE])
 {
-    AssertPointerIsNotNull(aQuery);
-    AssertPointerIsNotNull(aNameOutput);
+    OT_ASSERT(aQuery != nullptr);
+    OT_ASSERT(aNameOutput != nullptr);
 
     return MapEnum(Dns::ServiceDiscovery::Server::GetQueryTypeAndName(aQuery, *aNameOutput));
 }
@@ -85,17 +85,5 @@ const otDnssdCounters *otDnssdGetCounters(otInstance *aInstance)
 {
     return &AsCoreType(aInstance).Get<Dns::ServiceDiscovery::Server>().GetCounters();
 }
-
-#if OPENTHREAD_CONFIG_DNS_UPSTREAM_QUERY_ENABLE
-bool otDnssdUpstreamQueryIsEnabled(otInstance *aInstance)
-{
-    return AsCoreType(aInstance).Get<Dns::ServiceDiscovery::Server>().IsUpstreamQueryEnabled();
-}
-
-void otDnssdUpstreamQuerySetEnabled(otInstance *aInstance, bool aEnabled)
-{
-    return AsCoreType(aInstance).Get<Dns::ServiceDiscovery::Server>().SetUpstreamQueryEnabled(aEnabled);
-}
-#endif
 
 #endif // OPENTHREAD_CONFIG_DNSSD_SERVER_ENABLE

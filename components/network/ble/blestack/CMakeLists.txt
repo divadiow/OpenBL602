@@ -112,7 +112,6 @@ endif()
 # 					src/host/hci_ecc.c \
 # 					src/host/l2cap.c \
 # 					src/host/uuid.c
-#ble_stack_srcs  += ../version_btble_component.c
 sdk_library_add_sources(
 	src/port/bl_port.c
 	src/common/atomic_c.c
@@ -146,10 +145,7 @@ sdk_library_add_sources(
 	src/host/hci_ecc.c
 	src/host/l2cap.c
 	src/host/uuid.c
-)
-
-sdk_library_add_sources(
-	../version_btble_component.c
+	src/host/version_bthost.c
 )
 # 
 # ifneq ($(CONFIG_BT_CONN), 0)

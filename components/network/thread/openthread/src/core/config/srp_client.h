@@ -35,8 +35,6 @@
 #ifndef CONFIG_SRP_CLIENT_H_
 #define CONFIG_SRP_CLIENT_H_
 
-#include "config/misc.h"
-
 /**
  * @def OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE
  *
@@ -216,11 +214,9 @@
 #endif
 
 /**
- * @def OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MIN_DELAY
+ * @def OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_DELAY
  *
- * Specifies the minimum value (in msec) for the short random delay wait time before sending an update message.
- *
- * The random delay is chosen uniformly from the min up to max value `OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MAX_DELAY`.
+ * Specifies the (short) delay (in msec) after an update is required before SRP client sends the update message.
  *
  * When there is a change (e.g., a new service is added/removed) that requires an update, the SRP client will wait for
  * a short delay before preparing and sending an SRP update message to server. This allows user to provide more change
@@ -229,22 +225,8 @@
  * delay timer.
  *
  */
-#ifndef OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MIN_DELAY
-#define OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MIN_DELAY 10
-#endif
-
-/**
- * @def OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MIN_DELAY
- *
- * Specifies the maximum value (in msec) for the short random delay wait time before sending an update message.
- *
- * The random delay is chosen uniformly from the min `OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MIN_DELAY` up to max value.
- *
- * See `OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MIN_DELAY` for more details.
- *
- */
-#ifndef OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MAX_DELAY
-#define OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_MAX_DELAY 700
+#ifndef OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_DELAY
+#define OPENTHREAD_CONFIG_SRP_CLIENT_UPDATE_TX_DELAY 10
 #endif
 
 /**
@@ -334,11 +316,7 @@
  *
  */
 #ifndef OPENTHREAD_CONFIG_SRP_CLIENT_BUFFERS_MAX_HOST_ADDRESSES
-#if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
-#define OPENTHREAD_CONFIG_SRP_CLIENT_BUFFERS_MAX_HOST_ADDRESSES 10
-#else
 #define OPENTHREAD_CONFIG_SRP_CLIENT_BUFFERS_MAX_HOST_ADDRESSES 2
-#endif
 #endif
 
 /**

@@ -62,9 +62,9 @@ int uart_open(struct device *dev, uint16_t oflag)
 
     uint32_t uart_clk = Clock_Peripheral_Clock_Get(BL_PERIPHERAL_CLOCK_UART0 + uart_device->id);
     uart_cfg.baudRate = uart_device->baudrate;
-    uart_cfg.dataBits = (UART_DataBits_Type)uart_device->databits;
-    uart_cfg.stopBits = (UART_StopBits_Type)uart_device->stopbits;
-    uart_cfg.parity = (UART_Parity_Type)uart_device->parity;
+    uart_cfg.dataBits = uart_device->databits;
+    uart_cfg.stopBits = uart_device->stopbits;
+    uart_cfg.parity = uart_device->parity;
     uart_cfg.uartClk = uart_clk;
     uart_cfg.ctsFlowControl = UART_CTS_FLOWCONTROL_ENABLE;
     uart_cfg.rtsSoftwareControl = UART_RTS_FLOWCONTROL_ENABLE;
@@ -111,10 +111,6 @@ int uart_open(struct device *dev, uint16_t oflag)
     }
 
     UART_FifoConfig(uart_device->id, &fifoCfg);
-
-    UART_TxFifoClear(uart_device->id);
-    UART_RxFifoClear(uart_device->id);
-
     /* enable uart */
     UART_Enable(uart_device->id, UART_TXRX);
     return 0;
@@ -129,7 +125,12 @@ int uart_close(struct device *dev)
 {
     uart_device_t *uart_device = (uart_device_t *)dev;
 
-    GLB_AHB_Slave1_Reset(BL_AHB_SLAVE1_UART0 + uart_device->id);
+    UART_Disable(uart_device->id, UART_TXRX);
+    if (uart_device->id == 0) {
+        GLB_AHB_Slave1_Reset(BL_AHB_SLAVE1_UART0);
+    } else if (uart_device->id == 1) {
+        GLB_AHB_Slave1_Reset(BL_AHB_SLAVE1_UART1);
+    }
     return 0;
 }
 /**
@@ -186,18 +187,15 @@ int uart_control(struct device *dev, int cmd, void *args)
             break;
         case DEVICE_CTRL_CONFIG /* constant-expression */: {
             uart_param_cfg_t *cfg = (uart_param_cfg_t *)args;
-            UART_CFG_Type uart_cfg = { 0 };
-
-            /* Disable uart before config */
-            UART_Disable(uart_device->id, UART_TXRX);
+            UART_CFG_Type uart_cfg;
 
             uint32_t uart_clk = Clock_Peripheral_Clock_Get(BL_PERIPHERAL_CLOCK_UART0 + uart_device->id);
 
             uart_cfg.uartClk = uart_clk;
             uart_cfg.baudRate = cfg->baudrate;
-            uart_cfg.dataBits = (UART_DataBits_Type)cfg->databits;
-            uart_cfg.stopBits = (UART_StopBits_Type)cfg->stopbits;
-            uart_cfg.parity = (UART_Parity_Type)cfg->parity;
+            uart_cfg.stopBits = cfg->stopbits;
+            uart_cfg.parity = cfg->parity;
+            uart_cfg.dataBits = cfg->databits;
             uart_cfg.ctsFlowControl = UART_CTS_FLOWCONTROL_ENABLE;
             uart_cfg.rtsSoftwareControl = UART_RTS_FLOWCONTROL_ENABLE;
             uart_cfg.byteBitInverse = UART_MSB_FIRST_ENABLE;
@@ -207,13 +205,8 @@ int uart_control(struct device *dev, int cmd, void *args)
             uart_cfg.txBreakBitCnt = UART_TX_BREAKBIT_CNT;
             uart_cfg.rxDeglitch = ENABLE;
             UART_Init(uart_device->id, &uart_cfg);
-
-            UART_TxFifoClear(uart_device->id);
-            UART_RxFifoClear(uart_device->id);
-
-            /* Enable uart */
-            UART_Enable(uart_device->id, UART_TXRX);
-
+            /*set de-glitch function cycle count value*/
+            UART_SetDeglitchCount(uart_device->id, 2);
             break;
         }
         case DEVICE_CTRL_GET_CONFIG /* constant-expression */:

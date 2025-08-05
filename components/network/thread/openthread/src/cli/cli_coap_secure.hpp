@@ -52,10 +52,10 @@ namespace ot {
 namespace Cli {
 
 /**
- * Implements the CLI CoAP Secure server and client.
+ * This class implements the CLI CoAP Secure server and client.
  *
  */
-class CoapSecure : private Output
+class CoapSecure : private OutputWrapper
 {
 public:
     typedef Utils::CmdLineParser::Arg Arg;
@@ -63,22 +63,15 @@ public:
     /**
      * Constructor
      *
-     * @param[in]  aInstance            The OpenThread Instance.
-     * @param[in]  aOutputImplementer   An `OutputImplementer`.
+     * @param[in]  aOutput The CLI console output context
      *
      */
-    CoapSecure(otInstance *aInstance, OutputImplementer &aOutputImplementer);
+    explicit CoapSecure(Output &aOutput);
 
     /**
-     * Processes a CLI sub-command.
+     * This method interprets a list of CLI arguments.
      *
-     * @param[in]  aArgs     An array of command line arguments.
-     *
-     * @retval OT_ERROR_NONE              Successfully executed the CLI command.
-     * @retval OT_ERROR_PENDING           The CLI command was successfully started but final result is pending.
-     * @retval OT_ERROR_INVALID_COMMAND   Invalid or unknown CLI command.
-     * @retval OT_ERROR_INVALID_ARGS      Invalid arguments.
-     * @retval ...                        Error during execution of the CLI command.
+     * @param[in]  aArgs        An array of command line arguments.
      *
      */
     otError Process(Arg aArgs[]);
@@ -103,7 +96,19 @@ private:
 
     void PrintPayload(otMessage *aMessage);
 
-    template <CommandId kCommandId> otError Process(Arg aArgs[]);
+    otError ProcessConnect(Arg aArgs[]);
+    otError ProcessDelete(Arg aArgs[]);
+    otError ProcessDisconnect(Arg aArgs[]);
+    otError ProcessGet(Arg aArgs[]);
+    otError ProcessHelp(Arg aArgs[]);
+    otError ProcessPost(Arg aArgs[]);
+    otError ProcessPsk(Arg aArgs[]);
+    otError ProcessPut(Arg aArgs[]);
+    otError ProcessResource(Arg aArgs[]);
+    otError ProcessSet(Arg aArgs[]);
+    otError ProcessStart(Arg aArgs[]);
+    otError ProcessStop(Arg aArgs[]);
+    otError ProcessX509(Arg aArgs[]);
 
     otError ProcessRequest(Arg aArgs[], otCoapCode aCoapCode);
 
@@ -117,7 +122,7 @@ private:
 
 #if OPENTHREAD_CONFIG_COAP_BLOCKWISE_TRANSFER_ENABLE
 
-    static otError BlockwiseReceiveHook(void          *aContext,
+    static otError BlockwiseReceiveHook(void *         aContext,
                                         const uint8_t *aBlock,
                                         uint32_t       aPosition,
                                         uint16_t       aBlockLength,
@@ -128,11 +133,11 @@ private:
                                         uint16_t       aBlockLength,
                                         bool           aMore,
                                         uint32_t       aTotalLength);
-    static otError BlockwiseTransmitHook(void     *aContext,
-                                         uint8_t  *aBlock,
+    static otError BlockwiseTransmitHook(void *    aContext,
+                                         uint8_t * aBlock,
                                          uint32_t  aPosition,
                                          uint16_t *aBlockLength,
-                                         bool     *aMore);
+                                         bool *    aMore);
     otError        BlockwiseTransmitHook(uint8_t *aBlock, uint32_t aPosition, uint16_t *aBlockLength, bool *aMore);
 #endif
 
@@ -143,6 +148,28 @@ private:
 
     static void HandleConnected(bool aConnected, void *aContext);
     void        HandleConnected(bool aConnected);
+
+    static constexpr Command sCommands[] = {
+        {"connect", &CoapSecure::ProcessConnect},
+        {"delete", &CoapSecure::ProcessDelete},
+        {"disconnect", &CoapSecure::ProcessDisconnect},
+        {"get", &CoapSecure::ProcessGet},
+        {"help", &CoapSecure::ProcessHelp},
+        {"post", &CoapSecure::ProcessPost},
+#ifdef MBEDTLS_KEY_EXCHANGE_PSK_ENABLED
+        {"psk", &CoapSecure::ProcessPsk},
+#endif
+        {"put", &CoapSecure::ProcessPut},
+        {"resource", &CoapSecure::ProcessResource},
+        {"set", &CoapSecure::ProcessSet},
+        {"start", &CoapSecure::ProcessStart},
+        {"stop", &CoapSecure::ProcessStop},
+#ifdef MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED
+        {"x509", &CoapSecure::ProcessX509},
+#endif
+    };
+
+    static_assert(BinarySearch::IsSorted(sCommands), "Command Table is not sorted");
 
 #if OPENTHREAD_CONFIG_COAP_BLOCKWISE_TRANSFER_ENABLE
     otCoapBlockwiseResource mResource;

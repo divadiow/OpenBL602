@@ -54,7 +54,7 @@ public:
     }
 
     /**
-     * Returns the string as a null-terminated C string.
+     * This method returns the string as a null-terminated C string.
      *
      * @returns The null-terminated C string.
      *

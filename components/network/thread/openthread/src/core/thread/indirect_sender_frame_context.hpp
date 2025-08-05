@@ -31,8 +31,8 @@
  *   This file includes definitions of frame context used for indirect transmission.
  */
 
-#ifndef INDIRECT_SENDER_FRAME_CONTEXT_HPP_
-#define INDIRECT_SENDER_FRAME_CONTEXT_HPP_
+#ifndef INDIRECT_SENDER_FRAME_CONTETX_HPP_
+#define INDIRECT_SENDER_FRAME_CONTETX_HPP_
 
 #include "openthread-core-config.h"
 
@@ -50,7 +50,7 @@ namespace ot {
  */
 
 /**
- * Defines the `FrameContext` type.
+ * This class defines the `FrameContext` type.
  *
  * This is the base class for `IndirectSender`.
  *
@@ -59,9 +59,9 @@ class IndirectSenderBase
 {
 public:
     /**
-     * Defines the frame context used by `IndirectSender`.
+     * This type defines the frame context used by `IndirectSender`.
      *
-     * Specifies all the info that `IndirectSender` requires to be saved along with a prepared frame for
+     * This type specifies all the info that `IndirectSender` requires to be saved along with a prepared frame for
      * indirect transmission.  `IndirectSender` is designed to contain the common code for handling of indirect
      * transmission to sleepy children and be able to interface to different lower-layer implementation of
      * `DataPollHandler`. While the `FrameContext` is defined by the `IndirectSender` itself, the lower-layer
@@ -87,4 +87,4 @@ public:
 
 } // namespace ot
 
-#endif // INDIRECT_SENDER_FRAME_CONTEXT_HPP_
+#endif // INDIRECT_SENDER_FRAME_CONTETX_HPP_

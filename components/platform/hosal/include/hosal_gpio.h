@@ -1,8 +1,31 @@
-/**
- * Copyright (c) 2016-2021 Bouffalolab Co., Ltd.
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
  *
- * Contact information:
- * web site:    https://www.bouffalolab.com/
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef __HOSAL_GPIO_H_
@@ -43,26 +66,6 @@ typedef enum {
     HOSAL_IRQ_TRIG_POS_PULSE,        /**< @brief GPIO posedge pulse trigger interrupt */
     HOSAL_IRQ_TRIG_NEG_LEVEL,        /**< @brief  GPIO negedge level trigger interrupt (32k 3T)*/
     HOSAL_IRQ_TRIG_POS_LEVEL,        /**< @brief  GPIO posedge level trigger interrupt (32k 3T)*/
-
-#if defined(BL702L)
-    HOSAL_IRQ_TRIG_SYNC_FALLING_EDGE = 0,        /*!< GPIO interrupt sync mode, GPIO falling edge trigger interrupt */
-    HOSAL_IRQ_TRIG_SYNC_RISING_EDGE = 1,         /*!< GPIO interrupt sync mode, GPIO rising edge trigger interrupt */
-    HOSAL_IRQ_TRIG_SYNC_LOW_LEVEL = 2,           /*!< GPIO interrupt sync mode, GPIO low level trigger interrupt (32k 3T) */
-    HOSAL_IRQ_TRIG_SYNC_HIGH_LEVEL = 3,          /*!< GPIO interrupt sync mode, GPIO high level trigger interrupt (32k 3T) */
-    HOSAL_IRQ_TRIG_SYNC_FALLING_RISING_EDGE = 4, /*!< GPIO interrupt sync mode, GPIO falling and rising edge trigger interrupt */
-    HOSAL_IRQ_TRIG_ASYNC_FALLING_EDGE = 8,       /*!< GPIO interrupt async mode, GPIO falling edge trigger interrupt */
-    HOSAL_IRQ_TRIG_ASYNC_RISING_EDGE = 9,        /*!< GPIO interrupt async mode, GPIO rising edge trigger interrupt */
-    HOSAL_IRQ_TRIG_ASYNC_LOW_LEVEL = 10,         /*!< GPIO interrupt async mode, GPIO low level trigger interrupt (32k 3T) */
-    HOSAL_IRQ_TRIG_ASYNC_HIGH_LEVEL = 11,        /*!< GPIO interrupt async mode, GPIO high level trigger interrupt (32k 3T) */
-#endif
-
-#if defined(BL616)
-    HOSAL_IRQ_TRIG_SYNC_FALLING_EDGE = 10,        /*!< GPIO interrupt sync mode, GPIO falling edge trigger interrupt */
-    HOSAL_IRQ_TRIG_SYNC_RISING_EDGE = 11,         /*!< GPIO interrupt sync mode, GPIO rising edge trigger interrupt */
-    HOSAL_IRQ_TRIG_SYNC_LOW_LEVEL = 12,           /*!< GPIO interrupt sync mode, GPIO low level trigger interrupt (32k 3T) */
-    HOSAL_IRQ_TRIG_SYNC_HIGH_LEVEL = 13,          /*!< GPIO interrupt sync mode, GPIO high level trigger interrupt (32k 3T) */
-    HOSAL_IRQ_TRIG_SYNC_FALLING_RISING_EDGE = 14, /*!< GPIO interrupt sync mode, GPIO falling and rising edge trigger interrupt */
-#endif
 } hosal_gpio_irq_trigger_t;
 
 /**
@@ -150,10 +153,11 @@ int hosal_gpio_input_get(hosal_gpio_dev_t *gpio, uint8_t *value);
 int hosal_gpio_irq_set(hosal_gpio_dev_t *gpio, hosal_gpio_irq_trigger_t trigger_type, hosal_gpio_irq_handler_t handler, void *arg);
 
 /**
- * @brief Mask or unmask an interrupt for an input GPIO pin.
+ * @brief Clear an interrupt status for an input GPIO pin.
+ * Using this function on a gpio pin which has generated a interrupt.
  *
  * @param[in]  gpio  the gpio pin which provided the interrupt trigger
- * @param[in]  mask  0 : unmask (enable interrupt) | 1 : mask (disable interrupt)
+ * @param[in]  mask  0 : mask | 1 : umask
  *
  * @return  
  *	- 0    on success

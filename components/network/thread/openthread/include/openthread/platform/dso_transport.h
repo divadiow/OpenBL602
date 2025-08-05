@@ -47,7 +47,7 @@ extern "C" {
 #endif
 
 /**
- * Represents a DSO connection.
+ * This structure represents a DSO connection.
  *
  * It is an opaque struct (the platform implementation only deals with pointers to this struct).
  *
@@ -55,7 +55,7 @@ extern "C" {
 typedef struct otPlatDsoConnection otPlatDsoConnection;
 
 /**
- * Can be used by DSO platform implementation to get the the OpenThread instance associated with a
+ * This function can be used by DSO platform implementation to get the the OpenThread instance associated with a
  * connection instance.
  *
  * @param[in] aConnection   A pointer to the DSO connection.
@@ -66,7 +66,7 @@ typedef struct otPlatDsoConnection otPlatDsoConnection;
 extern otInstance *otPlatDsoGetInstance(otPlatDsoConnection *aConnection);
 
 /**
- * Starts or stops listening for incoming connection requests on transport layer.
+ * This function starts or stops listening for incoming connection requests on transport layer.
  *
  * For DNS-over-TLS, the transport layer MUST listen on port 853 and follow RFC 7858.
  *
@@ -79,10 +79,10 @@ extern otInstance *otPlatDsoGetInstance(otPlatDsoConnection *aConnection);
 void otPlatDsoEnableListening(otInstance *aInstance, bool aEnable);
 
 /**
- * Is a callback from the DSO platform to indicate an incoming connection request when listening is
+ * This function is a callback from the DSO platform to indicate an incoming connection request when listening is
  * enabled.
  *
- * Determines whether or not to accept the connection request. It returns a non-null `otPlatDsoConnection`
+ * This function determines whether or not to accept the connection request. It returns a non-null `otPlatDsoConnection`
  * pointer if the request is to be accepted, or `NULL` if the request is to be rejected.
  *
  * If a non-null connection pointer is returned, the platform layer MUST continue establishing the connection with the
@@ -98,7 +98,7 @@ void otPlatDsoEnableListening(otInstance *aInstance, bool aEnable);
 extern otPlatDsoConnection *otPlatDsoAccept(otInstance *aInstance, const otSockAddr *aPeerSockAddr);
 
 /**
- * Requests the platform layer to initiate establishing a connection with a peer.
+ * This function requests the platform layer to initiate establishing a connection with a peer.
  *
  * The platform reports the outcome by invoking `otPlatDsoHandleConnected()` callback on success or
  * `otPlatDsoHandleDisconnected()` callback (on failure).
@@ -110,7 +110,7 @@ extern otPlatDsoConnection *otPlatDsoAccept(otInstance *aInstance, const otSockA
 void otPlatDsoConnect(otPlatDsoConnection *aConnection, const otSockAddr *aPeerSockAddr);
 
 /**
- * Is a callback from the platform layer to indicate that a connection is successfully established.
+ * This function is a callback from the platform layer to indicate that a connection is successfully established.
  *
  * It MUST be called either after accepting an incoming connection (`otPlatDsoAccept`) or after a `otPlatDsoConnect()`
  * call.
@@ -123,12 +123,12 @@ void otPlatDsoConnect(otPlatDsoConnection *aConnection, const otSockAddr *aPeerS
 extern void otPlatDsoHandleConnected(otPlatDsoConnection *aConnection);
 
 /**
- * Sends a DSO message to the peer on a connection.
+ * This function sends a DSO message to the peer on a connection.
  *
- * Is used only after the connection is successfully established (after `otPlatDsoHandleConnected()`
+ * This function is used only after the connection is successfully established (after `otPlatDsoHandleConnected()`
  * callback).
  *
- * Passes the ownership of the @p aMessage to the DSO platform layer, and the platform implementation is
+ * This function passes the ownership of the @p aMessage to the DSO platform layer, and the platform implementation is
  * expected to free the message once it is no longer needed.
  *
  * The @p aMessage contains the DNS message (starting with DNS header). Note that it does not contain the the length
@@ -142,12 +142,12 @@ extern void otPlatDsoHandleConnected(otPlatDsoConnection *aConnection);
 void otPlatDsoSend(otPlatDsoConnection *aConnection, otMessage *aMessage);
 
 /**
- * Is a callback from the platform layer to indicate that a DNS message was received over a connection.
+ * This function is a callback from the platform layer to indicate that a DNS message was received over a connection.
  *
  * The platform MUST call this function only after the connection is successfully established (after callback
  * `otPlatDsoHandleConnected()` is invoked).
  *
- * Passes the ownership of the @p aMessage from the DSO platform layer to OpenThread. OpenThread will
+ * This function passes the ownership of the @p aMessage from the DSO platform layer to OpenThread. OpenThread will
  * free the message when no longer needed.
  *
  * The @p aMessage MUST contain the DNS message (starting with DNS header) and not include the length field that may
@@ -160,7 +160,7 @@ void otPlatDsoSend(otPlatDsoConnection *aConnection, otMessage *aMessage);
 extern void otPlatDsoHandleReceive(otPlatDsoConnection *aConnection, otMessage *aMessage);
 
 /**
- * Defines disconnect modes.
+ * This enumeration defines disconnect modes.
  *
  */
 typedef enum
@@ -170,7 +170,7 @@ typedef enum
 } otPlatDsoDisconnectMode;
 
 /**
- * Requests a connection to be disconnected.
+ * This function requests a connection to be disconnected.
  *
  * After calling this function, the DSO platform implementation MUST NOT maintain `aConnection` pointer (platform
  * MUST NOT call any callbacks using this `Connection` pointer anymore). In particular, calling `otPlatDsoDisconnect()`
@@ -183,7 +183,7 @@ typedef enum
 void otPlatDsoDisconnect(otPlatDsoConnection *aConnection, otPlatDsoDisconnectMode aMode);
 
 /**
- * Is a callback from the platform layer to indicate that peer closed/aborted the connection or the
+ * This function is a callback from the platform layer to indicate that peer closed/aborted the connection or the
  * connection establishment failed (e.g., peer rejected a connection request).
  *
  * After calling this function, the DSO platform implementation MUST NOT maintain `aConnection` pointer (platform

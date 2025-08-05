@@ -67,7 +67,7 @@ class Server : public InstanceLocator, private NonCopyable
 {
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      * @param[in]  aInstance     A reference to the OpenThread instance.
      *
@@ -75,13 +75,13 @@ public:
     explicit Server(Instance &aInstance);
 
     /**
-     * Updates DHCP Agents and DHCP ALOCs.
+     * This method updates DHCP Agents and DHCP ALOCs.
      *
      */
     Error UpdateService(void);
 
     /**
-     * Applies the Mesh Local Prefix.
+     * This method applies the Mesh Local Prefix.
      *
      */
     void ApplyMeshLocalPrefix(void);
@@ -91,7 +91,7 @@ private:
     {
     public:
         /**
-         * Indicates whether or not @p aAddress has a matching prefix.
+         * This method indicates whether or not @p aAddress has a matching prefix.
          *
          * @param[in]  aAddress  The IPv6 address to compare.
          *
@@ -102,7 +102,7 @@ private:
         bool IsPrefixMatch(const Ip6::Address &aAddress) const { return aAddress.MatchesPrefix(GetPrefix()); }
 
         /**
-         * Indicates whether or not this entry is valid.
+         * This method indicates whether or not this entry is valid.
          *
          * @retval TRUE if this entry is valid.
          * @retval FALSE if this entry is not valid.
@@ -111,13 +111,13 @@ private:
         bool IsValid(void) const { return mAloc.mValid; }
 
         /**
-         * Sets the entry to invalid.
+         * This method sets the entry to invalid.
          *
          */
         void Clear(void) { mAloc.mValid = false; }
 
         /**
-         * Returns the 6LoWPAN context ID.
+         * This method returns the 6LoWPAN context ID.
          *
          * @returns The 6LoWPAN context ID.
          *
@@ -125,7 +125,7 @@ private:
         uint8_t GetContextId(void) const { return mAloc.mAddress.mFields.m8[15]; }
 
         /**
-         * Returns the ALOC.
+         * This method returns the ALOC.
          *
          * @returns the ALOC.
          *
@@ -133,7 +133,7 @@ private:
         Ip6::Netif::UnicastAddress &GetAloc(void) { return mAloc; }
 
         /**
-         * Returns the IPv6 prefix.
+         * This method returns the IPv6 prefix.
          *
          * @returns The IPv6 prefix.
          *
@@ -141,7 +141,7 @@ private:
         const Ip6::Prefix &GetPrefix(void) const { return mPrefix; }
 
         /**
-         * Returns the IPv6 prefix.
+         * This method returns the IPv6 prefix.
          *
          * @returns The IPv6 prefix.
          *
@@ -149,7 +149,7 @@ private:
         Ip6::Prefix &GetPrefix(void) { return mPrefix; }
 
         /**
-         * Returns the IPv6 prefix as an IPv6 address.
+         * This method returns the IPv6 prefix as an IPv6 address.
          *
          * @returns The IPv6 prefix as an IPv6 address.
          *
@@ -160,7 +160,7 @@ private:
         }
 
         /**
-         * Sets the ALOC.
+         * This method sets the ALOC.
          *
          * @param[in]  aPrefix           The IPv6 prefix.
          * @param[in]  aMeshLocalPrefix  The Mesh Local Prefix.
@@ -209,10 +209,10 @@ private:
     Error    ProcessIaAddress(Message &aMessage, uint16_t aOffset);
     Error    ProcessElapsedTime(Message &aMessage, uint16_t aOffset);
 
-    Error SendReply(const Ip6::Address  &aDst,
+    Error SendReply(const Ip6::Address & aDst,
                     const TransactionId &aTransactionId,
-                    ClientIdentifier    &aClientId,
-                    IaNa                &aIaNa);
+                    ClientIdentifier &   aClientId,
+                    IaNa &               aIaNa);
 
     Ip6::Udp::Socket mSocket;
 

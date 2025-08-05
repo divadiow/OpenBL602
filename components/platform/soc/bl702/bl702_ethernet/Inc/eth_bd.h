@@ -1,10 +1,5 @@
 #ifndef __ETH_BD_H__
 #define __ETH_BD_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <lwip/netif.h>
 #include <bl_emac.h>
 #include <utils_list.h>
@@ -12,7 +7,7 @@ extern "C" {
 
 #define ETH_RXNB  6
 #define ETH_TXNB  4
-
+struct netif eth_mac;
 #define EMAC_TX_COMMON_FLAGS   (EMAC_BD_FIELD_MSK(TX_RD)  | \
                                 EMAC_BD_FIELD_MSK(TX_IRQ) | \
                                 EMAC_BD_FIELD_MSK(TX_PAD) | \
@@ -52,14 +47,5 @@ typedef enum {
 
 typedef int (*eth_callback)(eth_link_state val);
 
-extern struct netif eth_mac;
-
 int ethernet_init(eth_callback cb);
-err_t eth_init(struct netif *netif);
-void eth_get_mac(uint8_t addr[6]);
-
-#ifdef __cplusplus
-}
-#endif
-
 #endif

@@ -57,7 +57,7 @@ extern "C" {
  */
 
 /**
- * Represents a TREL peer.
+ * This struct represents a TREL peer.
  *
  */
 typedef struct otTrelPeer
@@ -68,32 +68,39 @@ typedef struct otTrelPeer
 } otTrelPeer;
 
 /**
- * Represents an iterator for iterating over TREL peer table entries.
+ * This type represents an iterator for iterating over TREL peer table entries.
  *
  */
 typedef uint16_t otTrelPeerIterator;
 
 /**
- * Enables or disables TREL operation.
+ * This function enables TREL operation.
  *
- * When @p aEnable is true, this function initiates an ongoing DNS-SD browse on the service name "_trel._udp" within the
- * local browsing domain to discover other devices supporting TREL. Device also registers a new service to be advertised
- * using DNS-SD, with the service name is "_trel._udp" indicating its support for TREL. Device is then ready to receive
- * TREL messages from peers.
- *
- * When @p aEnable is false, this function stops the DNS-SD browse on the service name "_trel._udp", stops advertising
- * TREL DNS-SD service, and clears the TREL peer table.
+ * This function initiates an ongoing DNS-SD browse on the service name "_trel._udp" within the local browsing domain
+ * to discover other devices supporting TREL. Device also registers a new service to be advertised using DNS-SD,
+ * with the service name is "_trel._udp" indicating its support for TREL. Device is then ready to receive TREL messages
+ * from peers.
  *
  * @note By default the OpenThread stack enables the TREL operation on start.
  *
- * @param[in]  aInstance  A pointer to an OpenThread instance.
- * @param[in]  aEnable    A boolean to enable/disable the TREL operation.
+ * @param[in] aInstance   The OpenThread instance.
  *
  */
-void otTrelSetEnabled(otInstance *aInstance, bool aEnable);
+void otTrelEnable(otInstance *aInstance);
 
 /**
- * Indicates whether the TREL operation is enabled.
+ * This function disables TREL operation.
+ *
+ * This function stops the DNS-SD browse on the service name "_trel._udp", stops advertising TREL DNS-SD service, and
+ * clears the TREL peer table.
+ *
+ * @param[in] aInstance   The OpenThread instance.
+ *
+ */
+void otTrelDisable(otInstance *aInstance);
+
+/**
+ * This function indicates whether the TREL operation is enabled.
  *
  * @param[in] aInstance   The OpenThread instance.
  *
@@ -104,7 +111,7 @@ void otTrelSetEnabled(otInstance *aInstance, bool aEnable);
 bool otTrelIsEnabled(otInstance *aInstance);
 
 /**
- * Initializes a peer table iterator.
+ * This function initializes a peer table iterator.
  *
  * @param[in] aInstance   The OpenThread instance.
  * @param[in] aIterator   The iterator to initialize.
@@ -113,7 +120,7 @@ bool otTrelIsEnabled(otInstance *aInstance);
 void otTrelInitPeerIterator(otInstance *aInstance, otTrelPeerIterator *aIterator);
 
 /**
- * Iterates over the peer table entries and get the next entry from the table
+ * This function iterates over the peer table entries and get the next entry from the table
  *
  * @param[in] aInstance   The OpenThread instance.
  * @param[in] aIterator   The iterator. MUST be initialized.
@@ -124,7 +131,7 @@ void otTrelInitPeerIterator(otInstance *aInstance, otTrelPeerIterator *aIterator
 const otTrelPeer *otTrelGetNextPeer(otInstance *aInstance, otTrelPeerIterator *aIterator);
 
 /**
- * Sets the filter mode (enables/disables filtering).
+ * This function sets the filter mode (enables/disables filtering).
  *
  * When filter mode is enabled, any rx and tx traffic through TREL interface is silently dropped. This is mainly
  * intended for use during testing.
@@ -139,7 +146,7 @@ const otTrelPeer *otTrelGetNextPeer(otInstance *aInstance, otTrelPeerIterator *a
 void otTrelSetFilterEnabled(otInstance *aInstance, bool aEnable);
 
 /**
- * Indicates whether or not the filter mode is enabled.
+ * This function indicates whether or not the filter mode is enabled.
  *
  * @param[in] aInstance   The OpenThread instance.
  *

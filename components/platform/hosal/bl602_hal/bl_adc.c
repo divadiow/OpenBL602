@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
+ *
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -19,7 +48,7 @@
 
 //#define TEMP_OFFSET_X   22791
 #define TEMP_OFFSET_X     2318
-#define ADC_CLOCK_FREQ    96000000
+#define ADC_CLOCK_FREQ    96000000  
 
 ADC_CFG_Type adcCfg = {
     .v18Sel=ADC_V18_SEL_1P82V,                /*!< ADC 1.8V select */
@@ -99,7 +128,7 @@ static void ADC_tsen_case(void)
                 v0 = result.value;
             }else{
                 v1 = result.value;
-            }
+            }  
 		}while(ADC_Get_FIFO_Count() != 0);
 
         if(i%2 !=0){
@@ -307,7 +336,7 @@ int bl_adc_freq_init(int mode, uint32_t freq)
     blog_info("ADC freq: %ldHz. \r\n", (int)(source_freq / div));
 
     GLB_Set_ADC_CLK(ENABLE, GLB_ADC_CLK_96M, div - 1);
-
+    
     return 0;
 }
 
@@ -320,7 +349,7 @@ int bl_adc_init(int mode, int gpio_num)
     ADC_Chan_Type pos_chlist_single[ADC_CHANNEL_MAX];
     ADC_Chan_Type neg_chlist_single[ADC_CHANNEL_MAX];
     ADC_FIFO_Cfg_Type adc_fifo_cfg;
-
+    
     adccfg.v18Sel=ADC_V18_SEL_1P82V;
     adccfg.v11Sel=ADC_V11_SEL_1P1V;
     adccfg.clkDiv=ADC_CLK_DIV_20;
@@ -331,7 +360,7 @@ int bl_adc_init(int mode, int gpio_num)
     adccfg.vcm=ADC_PGA_VCM_1V;
     adccfg.vref=ADC_VREF_3P2V;
     adccfg.inputMode=ADC_INPUT_SINGLE_END;
-    adccfg.resWidth=ADC_DATA_WIDTH_14_WITH_64_AVERAGE;
+    adccfg.resWidth=ADC_DATA_WIDTH_16_WITH_64_AVERAGE;
     adccfg.offsetCalibEn=0;
     adccfg.offsetCalibVal=0;
 
@@ -340,7 +369,7 @@ int bl_adc_init(int mode, int gpio_num)
     ADC_Reset();
 
     ADC_Init(&adccfg);
-
+    
     if (mode == 0) {
         for (i = 0; i < ADC_CHANNEL_MAX; i++) {
             pos_chlist_single[i] = i;
@@ -364,7 +393,7 @@ int bl_adc_init(int mode, int gpio_num)
 }
 
 static void adc_dma_lli_init(DMA_LLI_Ctrl_Type *pstlli, uint32_t *buf, uint32_t data_num)
-{
+{ 
     struct DMA_Control_Reg dma_ctrl_reg;
 
     dma_ctrl_reg.TransferSize = data_num;
@@ -380,15 +409,15 @@ static void adc_dma_lli_init(DMA_LLI_Ctrl_Type *pstlli, uint32_t *buf, uint32_t 
 
     pstlli[0].srcDmaAddr = 0x40002000+0x4;
     pstlli[0].destDmaAddr = (uint32_t)&buf[0];
-    pstlli[0].nextLLI = (uint32_t)&pstlli[1];
+    pstlli[0].nextLLI = (uint32_t)&pstlli[1]; 
     pstlli[0].dmaCtrl= dma_ctrl_reg;
 
     pstlli[1].srcDmaAddr = 0x40002000+0x4;
     pstlli[1].destDmaAddr = (uint32_t)&buf[ADC_CHANNEL_MAX];
     pstlli[1].nextLLI = (uint32_t)&pstlli[0];
     pstlli[1].dmaCtrl= dma_ctrl_reg;
-
-    return;
+ 
+    return; 
 }
 
 int bl_adc_dma_init(int mode, uint32_t data_num)
@@ -410,7 +439,7 @@ int bl_adc_dma_init(int mode, uint32_t data_num)
 
         return -1;
     }
-
+ 
     pstlli = pvPortMalloc(sizeof(DMA_LLI_Ctrl_Type) * 2);
     if (pstlli == NULL) {
         blog_error("malloc lli failed. \r\n");
@@ -424,7 +453,7 @@ int bl_adc_dma_init(int mode, uint32_t data_num)
 
         return -1;
     }
-
+   
     llicfg.dir = DMA_TRNS_P2M;
     llicfg.srcPeriph = DMA_REQ_GPADC0;
     llicfg.dstPeriph = DMA_REQ_NONE;
@@ -455,14 +484,14 @@ int bl_adc_start(void)
     ADC_Start();
     DMA_Enable();
     DMA_Channel_Enable(ADC_DMA_CHANNEL);
-
+    
     return 0;
 }
 
 int bl_adc_gpio_init(int gpio_num)
 {
     GLB_GPIO_Type adc_pin = gpio_num;
-
+     
     GLB_GPIO_Func_Init(GPIO_FUN_ANALOG, &adc_pin, 1);
 
     return 0;
@@ -502,10 +531,10 @@ int32_t bl_adc_parse_data(uint32_t *parr, int data_size, int channel, int raw_fl
 int bl_adc_get_channel_by_gpio(int gpio_num)
 {
     int channel;
-
+    
     if (gpio_num == 4) {
         channel = 1;
-    } else if (gpio_num == 5) {
+    } else if (gpio_num == 5) {    
         channel = 4;
     } else if (gpio_num == 6) {
         channel = 5;
@@ -526,7 +555,7 @@ int bl_adc_get_channel_by_gpio(int gpio_num)
     } else {
         return -1;
     }
-
+    
     return channel;
 }
 

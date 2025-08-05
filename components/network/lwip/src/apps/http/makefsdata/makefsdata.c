@@ -117,7 +117,7 @@ int process_file(FILE *data_file, FILE *struct_file, const char *filename);
 int file_write_http_header(FILE *data_file, const char *filename, int file_size, u16_t *http_hdr_len,
                            u16_t *http_hdr_chksum, u8_t provide_content_len, int is_compressed);
 int file_put_ascii(FILE *file, const char *ascii_string, int len, int *i);
-int s_put_ascii(char *buf, int buf_len, const char *ascii_string, int len, int *i)
+int s_put_ascii(char *buf, const char *ascii_string, int len, int *i);
 void concat_files(const char *file1, const char *file2, const char *targetfile);
 int check_path(char *path, size_t size);
 static int checkSsiByFilelist(const char* filename_listfile);
@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
   int filesProcessed;
   int i;
   char targetfile[MAX_PATH_LEN];
-  strlcpy(targetfile, "fsdata.c", MAX_PATH_LEN);
+  strcpy(targetfile, "fsdata.c");
 
   memset(path, 0, sizeof(path));
   memset(appPath, 0, sizeof(appPath));
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 
   LWIP_ASSERT("sizeof(hdr_buf) must fit into an u16_t", sizeof(hdr_buf) <= 0xffff);
 
-  strlcpy(path, "fs", MAX_PATH_LEN);
+  strcpy(path, "fs");
   for (i = 1; i < argc; i++) {
     if (argv[i] == NULL) {
       continue;
@@ -224,7 +224,8 @@ int main(int argc, char *argv[])
       } else if (!strcmp(argv[i], "-c")) {
         precalcChksum = 1;
       } else if (strstr(argv[i], "-f:") == argv[i]) {
-        strlcpy(targetfile, &argv[i][3], sizeof(targetfile));
+        strncpy(targetfile, &argv[i][3], sizeof(targetfile) - 1);
+        targetfile[sizeof(targetfile) - 1] = 0;
         printf("Writing to file \"%s\"\n", targetfile);
       } else if (!strcmp(argv[i], "-m")) {
         includeLastModified = 1;
@@ -261,7 +262,8 @@ int main(int argc, char *argv[])
       print_usage();
       exit(0);
     } else {
-      strlcpy(path, argv[i], sizeof(path));
+      strncpy(path, argv[i], sizeof(path) - 1);
+      path[sizeof(path) - 1] = 0;
     }
   }
 
@@ -325,7 +327,7 @@ int main(int argc, char *argv[])
   fprintf(data_file, "#if FSDATA_FILE_ALIGNMENT==2" NEWLINE "#include \"fsdata_alignment.h\"" NEWLINE "#endif" NEWLINE);
 #endif
 
-  snprintf(lastFileVar, sizeof(lastFileVar), "NULL");
+  sprintf(lastFileVar, "NULL");
 
   filesProcessed = process_sub(data_file, struct_file);
 
@@ -468,8 +470,9 @@ int process_sub(FILE *data_file, FILE *struct_file)
           }
           if (freelen > 0) {
             CHDIR(currName);
-            strlcat(curSubdir, "/", sizeof(curSubdir));
-            strlcat(curSubdir, currName, sizeof(curSubdir));
+            strncat(curSubdir, "/", freelen);
+            strncat(curSubdir, currName, freelen - 1);
+            curSubdir[sizeof(curSubdir) - 1] = 0;
             printf("processing subdirectory %s/..." NEWLINE, curSubdir);
             filesProcessed += process_sub(data_file, struct_file);
             CHDIR("..");
@@ -631,7 +634,7 @@ static void process_file_data(FILE *data_file, u8_t *file_data, size_t file_size
   LWIP_UNUSED_ARG(written); /* for LWIP_NOASSERT */
   for (i = 0; i < file_size; i++) {
     LWIP_ASSERT("file_buffer_c overflow", off < sizeof(file_buffer_c) - 5);
-    snprintf(&file_buffer_c[off], sizeof(file_buffer_c) - off, "0x%02x,", file_data[i]);
+    sprintf(&file_buffer_c[off], "0x%02x,", file_data[i]);
     off += 5;
     if ((++src_off % HEX_BYTES_PER_LINE) == 0) {
       LWIP_ASSERT("file_buffer_c overflow", off < sizeof(file_buffer_c) - NEWLINE_LEN);
@@ -709,8 +712,7 @@ static void fix_filename_for_c(char *qualifiedName, size_t max_len)
     printf("File name too long: \"%s\"\n", qualifiedName);
     exit(-1);
   }
-  if (strlcpy(new_name, qualifiedName, len + 2) >= len + 2)
-    LWIP_ASSERT("strlcpy Failed", 0);
+  strcpy(new_name, qualifiedName);
   for (i = 0; i < len; i++) {
     if (!is_valid_char_for_c_var(new_name[i])) {
       new_name[i] = '_';
@@ -723,7 +725,7 @@ static void fix_filename_for_c(char *qualifiedName, size_t max_len)
         filename_ok = 0;
         cnt++;
         /* try next unique file name */
-        snprintf(&new_name[len], 2, "%d", cnt);
+        sprintf(&new_name[len], "%d", cnt);
         break;
       }
     }
@@ -732,8 +734,7 @@ static void fix_filename_for_c(char *qualifiedName, size_t max_len)
     printf("Failed to get unique file name: \"%s\"\n", qualifiedName);
     exit(-1);
   }
-  if (strlcpy(qualifiedName, new_name, max_len) >= max_len)
-    LWIP_ASSERT("strlcpy Failed", 0);
+  strcpy(qualifiedName, new_name);
   free(new_name);
 }
 
@@ -840,8 +841,9 @@ static int is_ssi_file(const char *filename)
       /* build up the relative path to this file */
       size_t sublen = strlen(curSubdir);
       size_t freelen = sizeof(curSubdir) - sublen - 1;
-      strlcat(curSubdir, "/", sizeof(curSubdir));
-      strlcat(curSubdir, filename, sizeof(curSubdir));
+      strncat(curSubdir, "/", freelen);
+      strncat(curSubdir, filename, freelen - 1);
+      curSubdir[sizeof(curSubdir) - 1] = 0;
       for (i = 0; i < ssi_file_num_lines; i++) {
         const char *listed_file = ssi_file_lines[i];
         /* compare without the leading '/' */
@@ -918,10 +920,9 @@ int process_file(FILE *data_file, FILE *struct_file, const char *filename)
   int flags_printed;
 
   /* create qualified name (@todo: prepend slash or not?) */
-  snprintf(qualifiedName, MAX_PATH_LEN, "%s/%s", curSubdir, filename);
+  sprintf(qualifiedName, "%s/%s", curSubdir, filename);
   /* create C variable name */
-  if (strlcpy(varname, qualifiedName, MAX_PATH_LEN) >= MAX_PATH_LEN)
-    LWIP_ASSERT("strlcpy failed", 0);
+  strcpy(varname, qualifiedName);
   /* convert slashes & dots to underscores */
   fix_filename_for_c(varname, MAX_PATH_LEN);
   register_filename(varname);
@@ -1008,8 +1009,7 @@ int process_file(FILE *data_file, FILE *struct_file, const char *filename)
     fprintf(struct_file, "#endif /* HTTPD_PRECALCULATED_CHECKSUM */" NEWLINE);
   }
   fprintf(struct_file, "}};" NEWLINE NEWLINE);
-  if (strlcpy(lastFileVar, varname, MAX_PATH_LEN) >= MAX_PATH_LEN)
-    LWIP_ASSERT("strlcpy failed", 0);
+  strcpy(lastFileVar, varname);
 
   /* write actual file contents */
   i = 0;
@@ -1119,8 +1119,7 @@ int file_write_http_header(FILE *data_file, const char *filename, int file_size,
     }
 
     lwip_itoa(intbuf, sizeof(intbuf), content_len);
-    if (strlcat(intbuf, "\r\n", sizeof(intbuf)) >= sizeof(intbuf))
-      LWIP_ASSERT("strlcat failed", 0);
+    strcat(intbuf, "\r\n");
     cur_len = strlen(intbuf);
     written += file_put_ascii(data_file, intbuf, cur_len, &i);
     i = 0;
@@ -1136,7 +1135,7 @@ int file_write_http_header(FILE *data_file, const char *filename, int file_size,
     memset(modbuf, 0, sizeof(modbuf));
     memset(&stat_data, 0, sizeof(stat_data));
     cur_string = modbuf;
-    strlcpy(modbuf, "Last-Modified: ", sizeof(modbuf));
+    strcpy(modbuf, "Last-Modified: ");
     if (stat(filename, &stat_data) != 0) {
       printf("stat(%s) failed with error %d\n", filename, errno);
       exit(-1);
@@ -1156,7 +1155,7 @@ int file_write_http_header(FILE *data_file, const char *filename, int file_size,
     }
 
     modbuf[0] = 0;
-    strlcat(modbuf, "\r\n", sizeof(modbuf));
+    strcat(modbuf, "\r\n");
     cur_len = strlen(modbuf);
     written += file_put_ascii(data_file, modbuf, cur_len, &i);
     i = 0;
@@ -1235,16 +1234,16 @@ int file_put_ascii(FILE *file, const char *ascii_string, int len, int *i)
   return len;
 }
 
-int s_put_ascii(char *buf, int buf_len, const char *ascii_string, int len, int *i)
+int s_put_ascii(char *buf, const char *ascii_string, int len, int *i)
 {
   int x;
   int idx = 0;
   for (x = 0; x < len; x++) {
     unsigned char cur = ascii_string[x];
-    snprintf(&buf[idx], buf_len - idx, "0x%02x,", cur);
+    sprintf(&buf[idx], "0x%02x,", cur);
     idx += 5;
     if ((++(*i) % HEX_BYTES_PER_LINE) == 0) {
-      snprintf(&buf[idx], buf_len - idx, NEWLINE);
+      sprintf(&buf[idx], NEWLINE);
       idx += NEWLINE_LEN;
     }
   }

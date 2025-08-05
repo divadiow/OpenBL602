@@ -46,9 +46,9 @@
 namespace ot {
 
 /**
- * Implements the base class for an `AnnounceSender` and `AnnounceBeginSever`.
+ * This class implements the base class for an `AnnounceSender` and `AnnounceBeginSever`.
  *
- * Provides APIs to schedule periodic transmission of MLE Announcement messages for a given number
+ * This class provides APIs to schedule periodic transmission of MLE Announcement messages for a given number
  * transmissions per channel.
  */
 class AnnounceSenderBase : public InstanceLocator, private NonCopyable
@@ -61,7 +61,7 @@ protected:
     static constexpr uint8_t kChannelIteratorFirst = Mac::ChannelMask::kChannelIteratorFirst;
 
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      * @param[in]  aInstance   A reference to the OpenThread instance.
      * @param[in]  aHandler    A timer handler provided by sub-class.
@@ -70,9 +70,9 @@ protected:
     AnnounceSenderBase(Instance &aInstance, Timer::Handler aHandler);
 
     /**
-     * Schedules the MLE Announce transmissions.
+     * This method schedules the MLE Announce transmissions.
      *
-     * Requests @p aCount additional MLE transmission cycles to be scheduled. Each cycle covers all the
+     * This method requests @p aCount additional MLE transmission cycles to be scheduled. Each cycle covers all the
      * channels in the specified channel mask from `GetChannelMask()`, with `GetPeriod()` as the time interval between
      * any two successive MLE Announcement transmissions (possibly) on different channels from the mask. The
      * `GetJitter()` value is used to add a random interval from `[-jitter, jitter]` to each period interval.
@@ -93,13 +93,13 @@ protected:
     void SendAnnounce(uint8_t aCount);
 
     /**
-     * Stops the ongoing MLE Announce transmissions.
+     * This method stops the ongoing MLE Announce transmissions.
      *
      */
     void Stop(void);
 
     /**
-     * Indicates whether a previously scheduled MLE Announce transmission is currently in progress or is
+     * This method indicates whether a previously scheduled MLE Announce transmission is currently in progress or is
      * finished.
      *
      * @returns TRUE if the MLE Announce transmission is in progress, FALSE otherwise.
@@ -108,7 +108,7 @@ protected:
     bool IsRunning(void) const { return mTimer.IsRunning(); }
 
     /**
-     * Gets the period interval.
+     * This method gets the period interval.
      *
      * @returns The period interval (in milliseconds).
      *
@@ -116,7 +116,7 @@ protected:
     uint32_t GetPeriod(void) const { return mPeriod; }
 
     /**
-     * Sets the period interval.
+     * This method sets the period interval.
      *
      * The period along with jitter value from (`Get/SetJitter()`) determines the interval between two successive MLE
      * Announcement transmissions (possibly) on different channels from the specified channel mask.
@@ -127,7 +127,7 @@ protected:
     void SetPeriod(uint32_t aPeriod) { mPeriod = aPeriod; }
 
     /**
-     * Gets the current jitter interval.
+     * This method gets the current jitter interval.
      *
      * @returns The jitter interval (in milliseconds).
      *
@@ -135,7 +135,7 @@ protected:
     uint16_t GetJitter(void) const { return mJitter; }
 
     /**
-     * Sets the jitter interval.
+     * This method sets the jitter interval.
      *
      * @param[in] aJitter  The jitter interval (in milliseconds).
      *
@@ -143,7 +143,7 @@ protected:
     void SetJitter(uint16_t aJitter) { mJitter = aJitter; }
 
     /**
-     * Gets the channel mask.
+     * This method gets the channel mask.
      *
      * @returns The channel mask.
      *
@@ -151,7 +151,7 @@ protected:
     const Mac::ChannelMask GetChannelMask(void) const { return mChannelMask; }
 
     /**
-     * Sets the channel mask.
+     * This method sets the channel mask.
      *
      * @param[in] aChannelMask   The channel mask.
      *
@@ -159,7 +159,7 @@ protected:
     void SetChannelMask(Mac::ChannelMask aChannelMask);
 
     /**
-     * Gets the starting channel, i.e., the first channel in a TX cycle to send MLE Announcement on.
+     * This method gets the starting channel, i.e., the first channel in a TX cycle to send MLE Announcement on.
      *
      * @returns The current starting channel.
      *
@@ -167,7 +167,7 @@ protected:
     uint8_t GetStartingChannel(void) const { return mStartingChannel; }
 
     /**
-     * Sets the starting channel, i.e., the first channel in a TX cycle to send MLE Announcement on.
+     * This method sets the starting channel, i.e., the first channel in a TX cycle to send MLE Announcement on.
      *
      * @p aStartingChannel MUST be present in the current channel mask (from `GetChannelMask()`), otherwise it is
      * ignored and an MLE transmission cycle starts with the first channel (with smallest channel number) in the channel
@@ -179,7 +179,7 @@ protected:
     void SetStartingChannel(uint8_t aStartingChannel);
 
     /**
-     * Is the timer handler and must be invoked by sub-class when the timer expires from the `aHandler`
+     * This method is the timer handler and must be invoked by sub-class when the timer expires from the `aHandler`
      * callback function provided in the constructor.
      *
      */
@@ -200,7 +200,7 @@ private:
 #if OPENTHREAD_CONFIG_ANNOUNCE_SENDER_ENABLE
 
 /**
- * Implements an AnnounceSender.
+ * This class implements an AnnounceSender.
  *
  */
 class AnnounceSender : public AnnounceSenderBase
@@ -209,7 +209,7 @@ class AnnounceSender : public AnnounceSenderBase
 
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      * @param[in]  aInstance   A reference to the OpenThread instance.
      *
@@ -217,7 +217,7 @@ public:
     explicit AnnounceSender(Instance &aInstance);
 
     /**
-     * Notifies the `AnnounceSender` that a MLE Announcement message was received with a current timestamp
+     * This method notifies the `AnnounceSender` that a MLE Announcement message was received with a current timestamp
      * to update its internal state (decide whether or not to skip transmission of MLE Announcement in this cycle).
      *
      */

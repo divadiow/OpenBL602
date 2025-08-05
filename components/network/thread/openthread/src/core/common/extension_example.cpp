@@ -44,7 +44,7 @@ namespace ot {
 namespace Extension {
 
 /**
- * Defines the vendor extension object.
+ * This class defines the vendor extension object.
  *
  */
 class Extension : public ExtensionBase

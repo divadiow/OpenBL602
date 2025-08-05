@@ -38,7 +38,6 @@
 #include "common/locator_getters.hpp"
 #include "common/log.hpp"
 #include "common/message.hpp"
-#include "common/num_utils.hpp"
 #include "net/ip6.hpp"
 #include "net/netif.hpp"
 #include "thread/mesh_forwarder.hpp"
@@ -55,7 +54,7 @@ DataPollSender::DataPollSender(Instance &aInstance)
     , mPollPeriod(0)
     , mExternalPollPeriod(0)
     , mFastPollsUsers(0)
-    , mTimer(aInstance)
+    , mTimer(aInstance, DataPollSender::HandlePollTimer)
     , mEnabled(false)
     , mAttachMode(false)
     , mRetxMode(false)
@@ -124,6 +123,11 @@ exit:
         StopPolling();
         break;
 
+    case kErrorAlready:
+        LogDebg("Data poll tx requested when a previous data request still in send queue.");
+        ScheduleNextPoll(kUsePreviousPollPeriod);
+        break;
+
     default:
         LogWarn("Unexpected error %s requesting data poll", ErrorToString(error));
         ScheduleNextPoll(kRecalculatePollPeriod);
@@ -171,7 +175,11 @@ Error DataPollSender::SetExternalPollPeriod(uint32_t aPeriod)
     {
         VerifyOrExit(aPeriod >= OPENTHREAD_CONFIG_MAC_MINIMUM_POLL_PERIOD, error = kErrorInvalidArgs);
 
-        aPeriod = Min(aPeriod, kMaxExternalPeriod);
+        // Clipped by the maximal value.
+        if (aPeriod > kMaxExternalPeriod)
+        {
+            aPeriod = kMaxExternalPeriod;
+        }
     }
 
     if (mExternalPollPeriod != aPeriod)
@@ -194,7 +202,7 @@ uint32_t DataPollSender::GetKeepAlivePollPeriod(void) const
 
     if (mExternalPollPeriod != 0)
     {
-        period = Min(period, mExternalPollPeriod);
+        period = OT_MIN(period, mExternalPollPeriod);
     }
 
     return period;
@@ -410,8 +418,15 @@ void DataPollSender::SendFastPolls(uint8_t aNumFastPolls)
         aNumFastPolls = kDefaultFastPolls;
     }
 
-    aNumFastPolls       = Min(aNumFastPolls, kMaxFastPolls);
-    mRemainingFastPolls = Max(mRemainingFastPolls, aNumFastPolls);
+    if (aNumFastPolls > kMaxFastPolls)
+    {
+        aNumFastPolls = kMaxFastPolls;
+    }
+
+    if (mRemainingFastPolls < aNumFastPolls)
+    {
+        mRemainingFastPolls = aNumFastPolls;
+    }
 
     if (mEnabled && shouldRecalculatePollPeriod)
     {
@@ -496,29 +511,22 @@ uint32_t DataPollSender::CalculatePollPeriod(void) const
 
     if (mAttachMode)
     {
-        period = Min(period, kAttachDataPollPeriod);
+        period = OT_MIN(period, kAttachDataPollPeriod);
     }
 
     if (mRetxMode)
     {
-        period = Min(period, kRetxPollPeriod);
-
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-        if (Get<Mac::Mac>().GetCslPeriodInMsec() > 0)
-        {
-            period = Min(period, Get<Mac::Mac>().GetCslPeriodInMsec());
-        }
-#endif
+        period = OT_MIN(period, kRetxPollPeriod);
     }
 
     if (mRemainingFastPolls != 0)
     {
-        period = Min(period, kFastPollPeriod);
+        period = OT_MIN(period, kFastPollPeriod);
     }
 
     if (mExternalPollPeriod != 0)
     {
-        period = Min(period, mExternalPollPeriod);
+        period = OT_MIN(period, mExternalPollPeriod);
     }
 
     if (period == 0)
@@ -529,17 +537,20 @@ uint32_t DataPollSender::CalculatePollPeriod(void) const
     return period;
 }
 
+void DataPollSender::HandlePollTimer(Timer &aTimer)
+{
+    IgnoreError(aTimer.Get<DataPollSender>().SendDataPoll());
+}
+
 uint32_t DataPollSender::GetDefaultPollPeriod(void) const
 {
+    uint32_t period    = Time::SecToMsec(Get<Mle::MleRouter>().GetTimeout());
     uint32_t pollAhead = static_cast<uint32_t>(kRetxPollPeriod) * kMaxPollRetxAttempts;
-    uint32_t period;
-
-    period = Time::SecToMsec(Min(Get<Mle::MleRouter>().GetTimeout(), Time::MsecToSec(TimerMilli::kMaxDelay)));
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE && OPENTHREAD_CONFIG_MAC_CSL_AUTO_SYNC_ENABLE
     if (Get<Mac::Mac>().IsCslEnabled())
     {
-        period    = Min(period, Time::SecToMsec(Get<Mle::MleRouter>().GetCslTimeout()));
+        period    = OT_MIN(period, Time::SecToMsec(Get<Mle::MleRouter>().GetCslTimeout()));
         pollAhead = static_cast<uint32_t>(kRetxPollPeriod);
     }
 #endif
@@ -554,40 +565,66 @@ uint32_t DataPollSender::GetDefaultPollPeriod(void) const
 
 Mac::TxFrame *DataPollSender::PrepareDataRequest(Mac::TxFrames &aTxFrames)
 {
-    Mac::TxFrame  *frame = nullptr;
-    Mac::Addresses addresses;
-    Mac::PanIds    panIds;
+    Mac::TxFrame *frame = nullptr;
+    Mac::Address  src, dst;
+    uint16_t      fcf;
+    bool          iePresent;
 
 #if OPENTHREAD_CONFIG_MULTI_RADIO
     Mac::RadioType radio;
 
-    SuccessOrExit(GetPollDestinationAddress(addresses.mDestination, radio));
+    SuccessOrExit(GetPollDestinationAddress(dst, radio));
     frame = &aTxFrames.GetTxFrame(radio);
 #else
-    SuccessOrExit(GetPollDestinationAddress(addresses.mDestination));
+    SuccessOrExit(GetPollDestinationAddress(dst));
     frame = &aTxFrames.GetTxFrame();
 #endif
 
-    if (addresses.mDestination.IsExtended())
+    fcf = Mac::Frame::kFcfFrameMacCmd | Mac::Frame::kFcfPanidCompression | Mac::Frame::kFcfAckRequest |
+          Mac::Frame::kFcfSecurityEnabled;
+
+    iePresent = Get<MeshForwarder>().CalcIePresent(nullptr);
+
+    if (iePresent)
     {
-        addresses.mSource.SetExtended(Get<Mac::Mac>().GetExtAddress());
+        fcf |= Mac::Frame::kFcfIePresent;
+    }
+
+    fcf |= Get<MeshForwarder>().CalcFrameVersion(Get<NeighborTable>().FindNeighbor(dst), iePresent);
+
+    if (dst.IsExtended())
+    {
+        fcf |= Mac::Frame::kFcfDstAddrExt | Mac::Frame::kFcfSrcAddrExt;
+        src.SetExtended(Get<Mac::Mac>().GetExtAddress());
     }
     else
     {
-        addresses.mSource.SetShort(Get<Mac::Mac>().GetShortAddress());
+        fcf |= Mac::Frame::kFcfDstAddrShort | Mac::Frame::kFcfSrcAddrShort;
+        src.SetShort(Get<Mac::Mac>().GetShortAddress());
     }
 
-    panIds.SetBothSourceDestination(Get<Mac::Mac>().GetPanId());
+    frame->InitMacHeader(fcf, Mac::Frame::kKeyIdMode1 | Mac::Frame::kSecEncMic32);
 
-    Get<MeshForwarder>().PrepareMacHeaders(*frame, Mac::Frame::kTypeMacCmd, addresses, panIds,
-                                           Mac::Frame::kSecurityEncMic32, Mac::Frame::kKeyIdMode1, nullptr);
+    if (frame->IsDstPanIdPresent())
+    {
+        frame->SetDstPanId(Get<Mac::Mac>().GetPanId());
+    }
 
-#if OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT && OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    frame->SetSrcAddr(src);
+    frame->SetDstAddr(dst);
+#if OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT
+    if (iePresent)
+    {
+        Get<MeshForwarder>().AppendHeaderIe(nullptr, *frame);
+    }
+
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     if (frame->GetHeaderIe(Mac::CslIe::kHeaderIeId) != nullptr)
     {
         // Disable frame retransmission when the data poll has CSL IE included
         aTxFrames.SetMaxFrameRetries(0);
     }
+#endif
 #endif
 
     IgnoreError(frame->SetCommandId(Mac::Frame::kMacCmdDataRequest));
@@ -595,5 +632,79 @@ Mac::TxFrame *DataPollSender::PrepareDataRequest(Mac::TxFrames &aTxFrames)
 exit:
     return frame;
 }
+
+void DataPollSender::GetPollingInfo(bool *pRetx, uint32_t* pPollPeriodCurrent, uint32_t *pPollPeriodDefault, uint8_t *pPollQuick, 
+                                    uint8_t *pPollFastRemaining, uint8_t *pPollFailure)
+{
+    *pRetx = mRetxMode;
+
+    *pPollPeriodCurrent = mPollPeriod;
+    if (mExternalPollPeriod) {
+        *pPollPeriodDefault = OT_MIN(mExternalPollPeriod, GetDefaultPollPeriod());
+    }
+    else {
+        *pPollPeriodDefault = GetDefaultPollPeriod();
+    }
+
+    *pPollFastRemaining = mRemainingFastPolls;
+
+    *pPollQuick = mPollTimeoutCounter;
+    *pPollFastRemaining = mRemainingFastPolls;
+    *pPollFailure = mPollTxFailureCounter;
+}
+
+
+void DataPollSender::SetPollingInfo(bool retxMode, uint32_t pollPeriodCurrent, uint8_t pollQuick, uint8_t pollFastRemaining, uint8_t pollFailure)
+{
+    mRetxMode = retxMode;
+    mPollPeriod = pollPeriodCurrent;
+
+    mPollTimeoutCounter = pollQuick;
+    mRemainingFastPolls = pollFastRemaining;
+    if (mRemainingFastPolls == 0) {
+        mFastPollsUsers = 0;
+    }
+    mPollTxFailureCounter = pollFailure;
+}
+
+extern "C" void *otGetDataPollingTimerFunctPtr(void) 
+{
+    return (void*)(DataPollSender::HandlePollTimer);
+}
+
+extern "C" bool otGetDataPollingInfo(otInstance *aInstance, bool *pRetx, uint32_t* pPollPeriodCurrent, uint32_t *pPollPeriodDefault, uint8_t *pPollQuick, 
+                                    uint8_t *pPollFastRemaining, uint8_t *pPollFailure) 
+{
+    VerifyOrExit(otInstanceIsInitialized(aInstance));
+
+    AsCoreType(aInstance).Get<DataPollSender>().GetPollingInfo(pRetx, pPollPeriodCurrent, pPollPeriodDefault, pPollQuick, pPollFastRemaining, pPollFailure);
+
+    return true;
+exit:
+    return false;
+}
+
+extern "C" bool otSetDataPollingInfo(otInstance *aInstance, bool retxMode, uint32_t pollPeriodCurrent, uint8_t pollQuick, uint8_t pollFastRemaining, uint8_t pollFailure) 
+{
+    VerifyOrExit(otInstanceIsInitialized(aInstance));
+
+    AsCoreType(aInstance).Get<DataPollSender>().SetPollingInfo(retxMode, pollPeriodCurrent, pollQuick, pollFastRemaining, pollFailure);
+
+    return true;
+exit:
+    return false;
+}
+
+extern "C" bool otStartFastPolling(otInstance *aInstance, uint32_t number) 
+{
+    VerifyOrExit(otInstanceIsInitialized(aInstance));
+
+    AsCoreType(aInstance).Get<DataPollSender>().SendFastPolls(number);
+
+    return true;
+exit:
+    return false;
+}
+
 
 } // namespace ot

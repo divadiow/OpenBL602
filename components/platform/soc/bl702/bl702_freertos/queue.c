@@ -2929,7 +2929,13 @@ Queue_t * const pxQueue = xQueue;
 #endif /* configUSE_QUEUE_SETS */
 
 
-#ifdef CFG_COMPONENT_BUGKILLER_ENABLE
-#define FREERTOS_SEM_DUMP
-#include <bugkiller_freertos.inc>
-#endif
+
+
+
+
+
+
+
+
+
+

@@ -46,29 +46,23 @@ namespace ot {
 namespace Cli {
 
 /**
- * Implements the Dataset CLI interpreter.
+ * This class implements the Dataset CLI interpreter.
  *
  */
-class Dataset : private Output
+class Dataset : private OutputWrapper
 {
 public:
     typedef Utils::CmdLineParser::Arg Arg;
 
-    Dataset(otInstance *aInstance, OutputImplementer &aOutputImplementer)
-        : Output(aInstance, aOutputImplementer)
+    explicit Dataset(Output &aOutput)
+        : OutputWrapper(aOutput)
     {
     }
 
     /**
-     * Processes a CLI sub-command.
+     * This method interprets a list of CLI arguments.
      *
-     * @param[in]  aArgs     An array of command line arguments.
-     *
-     * @retval OT_ERROR_NONE              Successfully executed the CLI command.
-     * @retval OT_ERROR_PENDING           The CLI command was successfully started but final result is pending.
-     * @retval OT_ERROR_INVALID_COMMAND   Invalid or unknown CLI command.
-     * @retval OT_ERROR_INVALID_ARGS      Invalid arguments.
-     * @retval ...                        Error during execution of the CLI command.
+     * @param[in]  aArgs        An array of command line arguments.
      *
      */
     otError Process(Arg aArgs[]);
@@ -78,7 +72,7 @@ private:
 
     template <CommandId kCommandId> otError Process(Arg aArgs[]);
 
-    otError Print(otOperationalDatasetTlvs &aDatasetTlvs);
+    otError Print(otOperationalDataset &aDataset);
 
 #if OPENTHREAD_CONFIG_DATASET_UPDATER_ENABLE && OPENTHREAD_FTD
     otError     ProcessUpdater(Arg aArgs[]);
@@ -89,7 +83,7 @@ private:
     void    OutputSecurityPolicy(const otSecurityPolicy &aSecurityPolicy);
     otError ParseSecurityPolicy(otSecurityPolicy &aSecurityPolicy, Arg *&aArgs);
 
-    static otOperationalDatasetTlvs sDatasetTlvs;
+    static otOperationalDataset sDataset;
 };
 
 } // namespace Cli

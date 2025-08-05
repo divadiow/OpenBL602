@@ -43,7 +43,7 @@
 namespace ot {
 
 /**
- * Represents error codes used by OpenThread core modules.
+ * This type represents error codes used by OpenThread core modules.
  *
  */
 typedef otError Error;
@@ -94,7 +94,7 @@ constexpr Error kErrorGeneric                    = OT_ERROR_GENERIC;
 constexpr uint8_t kNumErrors = OT_NUM_ERRORS;
 
 /**
- * Converts an `Error` into a string.
+ * This function converts an `Error` into a string.
  *
  * @param[in]  aError     An error.
  *

@@ -40,7 +40,7 @@ namespace ot {
 namespace Hdlc {
 
 /**
- * Updates an FCS.
+ * This method updates an FCS.
  *
  * @param[in]  aFcs   The FCS to update.
  * @param[in]  aByte  The input byte value.
@@ -117,7 +117,7 @@ static bool HdlcByteNeedsEscape(uint8_t aByte)
     return rval;
 }
 
-Encoder::Encoder(Spinel::FrameWritePointer &aWritePointer)
+Encoder::Encoder(FrameWritePointer &aWritePointer)
     : mWritePointer(aWritePointer)
     , mFcs(0)
 {
@@ -154,9 +154,9 @@ exit:
 
 otError Encoder::Encode(const uint8_t *aData, uint16_t aLength)
 {
-    otError                   error      = OT_ERROR_NONE;
-    uint16_t                  oldFcs     = mFcs;
-    Spinel::FrameWritePointer oldPointer = mWritePointer;
+    otError           error      = OT_ERROR_NONE;
+    uint16_t          oldFcs     = mFcs;
+    FrameWritePointer oldPointer = mWritePointer;
 
     while (aLength--)
     {
@@ -176,10 +176,10 @@ exit:
 
 otError Encoder::EndFrame(void)
 {
-    otError                   error      = OT_ERROR_NONE;
-    Spinel::FrameWritePointer oldPointer = mWritePointer;
-    uint16_t                  oldFcs     = mFcs;
-    uint16_t                  fcs        = mFcs;
+    otError           error      = OT_ERROR_NONE;
+    FrameWritePointer oldPointer = mWritePointer;
+    uint16_t          oldFcs     = mFcs;
+    uint16_t          fcs        = mFcs;
 
     fcs ^= 0xffff;
 
@@ -199,7 +199,7 @@ exit:
     return error;
 }
 
-Decoder::Decoder(Spinel::FrameWritePointer &aFrameWritePointer, FrameHandler aFrameHandler, void *aContext)
+Decoder::Decoder(FrameWritePointer &aFrameWritePointer, FrameHandler aFrameHandler, void *aContext)
     : mState(kStateNoSync)
     , mWritePointer(aFrameWritePointer)
     , mFrameHandler(aFrameHandler)

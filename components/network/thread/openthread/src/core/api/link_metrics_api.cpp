@@ -33,7 +33,8 @@
 
 #include "openthread-core-config.h"
 
-#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
+#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
+
 #include <openthread/link_metrics.h>
 
 #include "common/as_core_type.hpp"
@@ -41,63 +42,70 @@
 
 using namespace ot;
 
-otError otLinkMetricsQuery(otInstance                 *aInstance,
-                           const otIp6Address         *aDestination,
+otError otLinkMetricsQuery(otInstance *                aInstance,
+                           const otIp6Address *        aDestination,
                            uint8_t                     aSeriesId,
-                           const otLinkMetrics        *aLinkMetricsFlags,
+                           const otLinkMetrics *       aLinkMetricsFlags,
                            otLinkMetricsReportCallback aCallback,
-                           void                       *aCallbackContext)
+                           void *                      aCallbackContext)
 {
-    AsCoreType(aInstance).Get<LinkMetrics::Initiator>().SetReportCallback(aCallback, aCallbackContext);
+    OT_ASSERT(aDestination != nullptr);
 
-    return AsCoreType(aInstance).Get<LinkMetrics::Initiator>().Query(AsCoreType(aDestination), aSeriesId,
-                                                                     AsCoreTypePtr(aLinkMetricsFlags));
+    AsCoreType(aInstance).Get<LinkMetrics::LinkMetrics>().SetReportCallback(aCallback, aCallbackContext);
+
+    return AsCoreType(aInstance).Get<LinkMetrics::LinkMetrics>().Query(AsCoreType(aDestination), aSeriesId,
+                                                                       AsCoreTypePtr(aLinkMetricsFlags));
+}
+
+otError otLinkMetricsConfigForwardTrackingSeries(otInstance *                      aInstance,
+                                                 const otIp6Address *              aDestination,
+                                                 uint8_t                           aSeriesId,
+                                                 const otLinkMetricsSeriesFlags    aSeriesFlags,
+                                                 const otLinkMetrics *             aLinkMetricsFlags,
+                                                 otLinkMetricsMgmtResponseCallback aCallback,
+                                                 void *                            aCallbackContext)
+{
+    OT_ASSERT(aDestination != nullptr);
+
+    LinkMetrics::LinkMetrics &linkMetrics = AsCoreType(aInstance).Get<LinkMetrics::LinkMetrics>();
+
+    linkMetrics.SetMgmtResponseCallback(aCallback, aCallbackContext);
+
+    return linkMetrics.SendMgmtRequestForwardTrackingSeries(AsCoreType(aDestination), aSeriesId, aSeriesFlags,
+                                                            AsCoreTypePtr(aLinkMetricsFlags));
 }
 
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
-otError otLinkMetricsConfigForwardTrackingSeries(otInstance                       *aInstance,
-                                                 const otIp6Address               *aDestination,
-                                                 uint8_t                           aSeriesId,
-                                                 const otLinkMetricsSeriesFlags    aSeriesFlags,
-                                                 const otLinkMetrics              *aLinkMetricsFlags,
-                                                 otLinkMetricsMgmtResponseCallback aCallback,
-                                                 void                             *aCallbackContext)
-{
-    LinkMetrics::Initiator &initiator = AsCoreType(aInstance).Get<LinkMetrics::Initiator>();
-
-    initiator.SetMgmtResponseCallback(aCallback, aCallbackContext);
-
-    return initiator.SendMgmtRequestForwardTrackingSeries(AsCoreType(aDestination), aSeriesId,
-                                                          AsCoreType(&aSeriesFlags), AsCoreTypePtr(aLinkMetricsFlags));
-}
-
-otError otLinkMetricsConfigEnhAckProbing(otInstance                                *aInstance,
-                                         const otIp6Address                        *aDestination,
+otError otLinkMetricsConfigEnhAckProbing(otInstance *                               aInstance,
+                                         const otIp6Address *                       aDestination,
                                          otLinkMetricsEnhAckFlags                   aEnhAckFlags,
-                                         const otLinkMetrics                       *aLinkMetricsFlags,
+                                         const otLinkMetrics *                      aLinkMetricsFlags,
                                          otLinkMetricsMgmtResponseCallback          aCallback,
-                                         void                                      *aCallbackContext,
+                                         void *                                     aCallbackContext,
                                          otLinkMetricsEnhAckProbingIeReportCallback aEnhAckCallback,
-                                         void                                      *aEnhAckCallbackContext)
+                                         void *                                     aEnhAckCallbackContext)
 {
-    LinkMetrics::Initiator &initiator = AsCoreType(aInstance).Get<LinkMetrics::Initiator>();
+    OT_ASSERT(aDestination != nullptr);
 
-    initiator.SetMgmtResponseCallback(aCallback, aCallbackContext);
-    initiator.SetEnhAckProbingCallback(aEnhAckCallback, aEnhAckCallbackContext);
+    LinkMetrics::LinkMetrics &linkMetrics = AsCoreType(aInstance).Get<LinkMetrics::LinkMetrics>();
 
-    return initiator.SendMgmtRequestEnhAckProbing(AsCoreType(aDestination), MapEnum(aEnhAckFlags),
-                                                  AsCoreTypePtr(aLinkMetricsFlags));
+    linkMetrics.SetMgmtResponseCallback(aCallback, aCallbackContext);
+    linkMetrics.SetEnhAckProbingCallback(aEnhAckCallback, aEnhAckCallbackContext);
+
+    return linkMetrics.SendMgmtRequestEnhAckProbing(AsCoreType(aDestination), MapEnum(aEnhAckFlags),
+                                                    AsCoreTypePtr(aLinkMetricsFlags));
 }
 
-otError otLinkMetricsSendLinkProbe(otInstance         *aInstance,
+otError otLinkMetricsSendLinkProbe(otInstance *        aInstance,
                                    const otIp6Address *aDestination,
                                    uint8_t             aSeriesId,
                                    uint8_t             aLength)
 {
-    LinkMetrics::Initiator &initiator = AsCoreType(aInstance).Get<LinkMetrics::Initiator>();
+    OT_ASSERT(aDestination != nullptr);
+    LinkMetrics::LinkMetrics &linkMetrics = AsCoreType(aInstance).Get<LinkMetrics::LinkMetrics>();
 
-    return initiator.SendLinkProbe(AsCoreType(aDestination), aSeriesId, aLength);
+    return linkMetrics.SendLinkProbe(AsCoreType(aDestination), aSeriesId, aLength);
 }
 #endif
 
-#endif // OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
+#endif // OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE

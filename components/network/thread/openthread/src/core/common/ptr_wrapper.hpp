@@ -42,7 +42,7 @@
 namespace ot {
 
 /**
- * Represents a wrapper over a pointer.
+ * This template class represents a wrapper over a pointer.
  *
  * This is intended as base class of `OwnedPtr` or `RetainPtr` providing common simple methods.
  *
@@ -62,7 +62,7 @@ public:
     }
 
     /**
-     * Initializes the `Ptr` with a given pointer.
+     * This constructor initializes the `Ptr` with a given pointer.
      *
      * @param[in] aPointer  A pointer to initialize with.
      *
@@ -73,7 +73,7 @@ public:
     }
 
     /**
-     * Indicates whether the `Ptr` is null or not.
+     * This method indicates whether the `Ptr` is null or not.
      *
      * @retval TRUE   The `Ptr` is null.
      * @retval FALSE  The `Ptr` is not null.
@@ -82,7 +82,7 @@ public:
     bool IsNull(void) const { return (mPointer == nullptr); }
 
     /**
-     * Gets the wrapped pointer.
+     * This method gets the wrapped pointer.
      *
      * @returns The wrapped pointer.
      *
@@ -90,7 +90,7 @@ public:
     Type *Get(void) { return mPointer; }
 
     /**
-     * Gets the wrapped pointer.
+     * This method gets the wrapped pointer.
      *
      * @returns The wrapped pointer.
      *
@@ -98,7 +98,7 @@ public:
     const Type *Get(void) const { return mPointer; }
 
     /**
-     * Overloads the `->` dereference operator and returns the pointer.
+     * This method overloads the `->` dereference operator and returns the pointer.
      *
      * @returns The wrapped pointer.
      *
@@ -106,15 +106,15 @@ public:
     Type *operator->(void) { return mPointer; }
 
     /**
-     * Overloads the `->` dereference operator and returns the pointer.
+     * This method overloads the `->` dereference operator and returns the pointer.
      *
      * @returns The wrapped pointer.
      *
      */
-    const Type *operator->(void) const { return mPointer; }
+    const Type *operator->(void)const { return mPointer; }
 
     /**
-     * Overloads the `*` dereference operator and returns a reference to the pointed object.
+     * This method overloads the `*` dereference operator and returns a reference to the pointed object.
      *
      * The behavior is undefined if `IsNull() == true`.
      *
@@ -124,17 +124,17 @@ public:
     Type &operator*(void) { return *mPointer; }
 
     /**
-     * Overloads the `*` dereference operator and returns a reference to the pointed object.
+     * This method overloads the `*` dereference operator and returns a reference to the pointed object.
      *
      * The behavior is undefined if `IsNull() == true`.
      *
      * @returns A reference to the pointed object.
      *
      */
-    const Type &operator*(void) const { return *mPointer; }
+    const Type &operator*(void)const { return *mPointer; }
 
     /**
-     * Overloads the operator `==` to compare the `Ptr` with a given pointer.
+     * This method overloads the operator `==` to compare the `Ptr` with a given pointer.
      *
      * @param[in] aPointer   The pointer to compare with.
      *
@@ -145,7 +145,7 @@ public:
     bool operator==(const Type *aPointer) const { return (mPointer == aPointer); }
 
     /**
-     * Overloads the operator `!=` to compare the `Ptr` with a given pointer.
+     * This method overloads the operator `!=` to compare the `Ptr` with a given pointer.
      *
      * @param[in] aPointer   The pointer to compare with.
      *
@@ -156,7 +156,7 @@ public:
     bool operator!=(const Type *aPointer) const { return (mPointer != aPointer); }
 
     /**
-     * Overloads the operator `==` to compare the `Ptr` with another `Ptr`.
+     * This method overloads the operator `==` to compare the `Ptr` with another `Ptr`.
      *
      * @param[in] aOther   The other `Ptr` to compare with.
      *
@@ -167,7 +167,7 @@ public:
     bool operator==(const Ptr &aOther) const { return (mPointer == aOther.mPointer); }
 
     /**
-     * Overloads the operator `!=` to compare the `Ptr` with another `Ptr`.
+     * This method overloads the operator `!=` to compare the `Ptr` with another `Ptr`.
      *
      * @param[in] aOther   The other `Ptr` to compare with.
      *

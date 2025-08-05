@@ -35,7 +35,15 @@
 #ifndef CONFIG_BORDER_ROUTER_H_
 #define CONFIG_BORDER_ROUTER_H_
 
-#include <config/border_routing.h>
+/**
+ * @def OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE
+ *
+ * Define to 1 to enable Border Agent support.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE
+#define OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE 0
+#endif
 
 /**
  * @def OPENTHREAD_CONFIG_BORDER_ROUTER_ENABLE
@@ -74,13 +82,53 @@
 #endif
 
 /**
- * @def OPENTHREAD_CONFIG_BORDER_ROUTER_SIGNAL_NETWORK_DATA_FULL
+ * @def OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
  *
- * Define as 1 to enable mechanism to detect and signal when local or leader Network Data gets full.
+ * Define to 1 to enable Border Routing support.
  *
  */
-#ifndef OPENTHREAD_CONFIG_BORDER_ROUTER_SIGNAL_NETWORK_DATA_FULL
-#define OPENTHREAD_CONFIG_BORDER_ROUTER_SIGNAL_NETWORK_DATA_FULL OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
+#ifndef OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
+#define OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE 0
+#endif
+
+/**
+ * @def OPENTHREAD_CONFIG_BORDER_ROUTING_MAX_DISCOVERED_ROUTERS
+ *
+ * Specifies maximum number of routers (on infra link) to track by routing manager.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_BORDER_ROUTING_MAX_DISCOVERED_ROUTERS
+#define OPENTHREAD_CONFIG_BORDER_ROUTING_MAX_DISCOVERED_ROUTERS 16
+#endif
+
+/**
+ * @def OPENTHREAD_CONFIG_BORDER_ROUTING_MAX_DISCOVERED_PREFIXES
+ *
+ * Specifies maximum number of discovered prefixes (on-link prefixes on the infra link) maintained by routing manager.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_BORDER_ROUTING_MAX_DISCOVERED_PREFIXES
+#define OPENTHREAD_CONFIG_BORDER_ROUTING_MAX_DISCOVERED_PREFIXES 64
+#endif
+
+/**
+ * @def OPENTHREAD_CONFIG_BORDER_ROUTING_NAT64_ENABLE
+ *
+ * Define to 1 to enable Border Routing NAT64 support.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_BORDER_ROUTING_NAT64_ENABLE
+#define OPENTHREAD_CONFIG_BORDER_ROUTING_NAT64_ENABLE 0
+#endif
+
+/**
+ * @def OPENTHREAD_CONFIG_BORDER_AGENT_UDP_PORT
+ *
+ * Specifies the Border Agent UDP port, and use 0 for ephemeral port.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_BORDER_AGENT_UDP_PORT
+#define OPENTHREAD_CONFIG_BORDER_AGENT_UDP_PORT 0
 #endif
 
 #endif // CONFIG_BORDER_ROUTER_H_

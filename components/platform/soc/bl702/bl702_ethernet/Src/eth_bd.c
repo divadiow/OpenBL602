@@ -1,36 +1,31 @@
-
-#include <string.h>
-
-#include <utils_log.h>
-#include <utils_list.h>
-
-#include <emac_reg.h>
-#include <bl_irq.h>
-#include <bl702_common.h>
-#include <bl702_glb.h>
-#include <bl_emac.h>
-
+//#include "bflb_platform.h"
+#include "emac_reg.h"
+#include "bl_irq.h"
+#include "bl702_common.h"
+#include "bl702_glb.h"
+#include "bl_emac.h"
+//#include "bflb_platform.h"
+#include <lwip/netifapi.h>
+#include "lwip/mem.h"
+#include "netif/etharp.h"
+#include "ethernetif.h"
+#include "eth_bd.h"
 #include <bl_timer.h>
 #include <bl_gpio.h>
+#include <string.h>
+#include <utils_log.h>
+#include <utils_list.h>
+#include <FreeRTOS.h>
+#include <task.h>
+#include <aos/kernel.h>
+#include <aos/yloop.h>
 
-#include <lwip/netifapi.h>
-#include <lwip/mem.h>
-#include <netif/etharp.h>
-#include <ethernetif.h>
 #if LWIP_IPV6
 #include <lwip/ethip6.h>
 #include <lwip/dhcp6.h>
 #endif /* LWIP_IPV6 */
 
-#include <FreeRTOS.h>
-#include <task.h>
 
-#include "eth_bd.h"
-
-#if defined(log_info)
-#undef log_info
-#define log_info(...) do {}while(0)
-#endif
 #define printf(...)  do {}while(0)
 #define MSG(...)     do {}while(0)
 
@@ -39,19 +34,18 @@
 EMAC_Handle_Type ethHandle = {0};
 static EMAC_Handle_Type *thiz = NULL;
 eth_context *ctx = NULL;
-TaskHandle_t DequeueTaskHandle = NULL;
-struct netif eth_mac = {0};
+TaskHandle_t DequeueTaskHandle;
+TaskHandle_t OutputTaskHandle;
 #define ETH_MAX_BUFFER_SIZE        (1536)
 #if 0
 uint32_t tx_buf[ETH_TXNB][(ETH_MAX_BUFFER_SIZE + 3)/4];/* Ethernet Transmit Buffers */
 uint32_t rx_buf[ETH_RXNB][(64 + ETH_MAX_BUFFER_SIZE + 3)/4] = {0};/* Ethernet Transmit Buffers */
 #else 
-uint8_t tx_buf[ETH_TXNB][ETH_MAX_BUFFER_SIZE] __ALIGNED__(4); /* Ethernet Transmit Buffers */
-uint8_t rx_buf[ETH_RXNB][ETH_MAX_BUFFER_SIZE + 64] __ALIGNED__(4)={0}; /* Ethernet Receive Buffers */
+uint8_t tx_buf[ETH_TXNB][ETH_MAX_BUFFER_SIZE] __attribute__ ((align(4))); /* Ethernet Transmit Buffers */
+uint8_t rx_buf[ETH_RXNB][ETH_MAX_BUFFER_SIZE + 64] __attribute__ ((align(4)))={0}; /* Ethernet Receive Buffers */
 #endif
 
 static eth_callback p_eth_callback = NULL;
-static bool is_link_up = false;
 
 int EMAC_DMABDListInit(EMAC_Handle_Type *handle,uint8_t *txBuff, uint32_t txBuffCount,uint8_t *rxBuff, uint32_t rxBuffCount)
 {
@@ -98,12 +92,12 @@ static void EMAC_GPIO_Init(void)
 
     GLB_SWAP_EMAC_CAM_Pin(GLB_EMAC_CAM_PIN_EMAC);
 
-    GLB_GPIO_Func_Init(GPIO_FUN_ETHER_MAC,(GLB_GPIO_Type *)emacPins,sizeof(emacPins) / sizeof(GLB_GPIO_Type));
+    GLB_GPIO_Func_Init(GPIO_FUN_ETHER_MAC,(GLB_GPIO_Type *)emacPins,sizeof(emacPins));
 }
 
 int EMAC_BD_Init(void)
 {
-    int err = SUCCESS;
+	int err = SUCCESS;
     thiz = &ethHandle;
     ctx = pvPortMalloc(sizeof(eth_context));
     memset(ctx, 0, sizeof(eth_context));
@@ -116,72 +110,19 @@ int EMAC_BD_Init(void)
     return err;
 }
 
-static inline uint8_t emac_bd_get_cur_rx_buffer_active(void)
-{
-    uint32_t bd = 0;
-
-    bd = BL_RD_REG(EMAC_BASE, EMAC_TX_BD_NUM);
-
-    bd &= EMAC_RXBDPTR_MSK;
-    bd >>= EMAC_RXBDPTR_POS;
-
-    return (uint8_t)(bd & 0xff);
-}
-
-static inline uint8_t emac_bd_get_cur_tx_buffer_active(void)
-{
-    uint32_t bd = 0;
-
-    bd = BL_RD_REG(EMAC_BASE, EMAC_TX_BD_NUM);
-    bd &= EMAC_TXBDPTR_MSK;
-    bd >>= EMAC_TXBDPTR_POS;
-
-    return (uint8_t)(bd & 0xff);
-}
-
 void EMAC_TX_Done_Callback(void)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-    if (NULL == DequeueTaskHandle) {
-        return;
-    }
 
     xTaskNotifyFromISR(DequeueTaskHandle, 0x01, eSetBits, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void EMAC_TX_Error_Callback(int index)
+void EMAC_TX_Error_Callback(void)
 {
-    /* handle error */
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(TX_UR)) {
-        printf("TX error EMAC_BD_TX_UR_MASK @%d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(TX_RTRY)) {
-        printf("TX error EMAC_BD_TX_RTRY_MASK @%d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(TX_RL)) {
-        printf("TX error EMAC_BD_TX_RL_MASK @%d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(TX_LC)) {
-        printf("TX error EMAC_BD_TX_LC_MASK @%d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(TX_DF)) {
-        printf("TX error EMAC_BD_TX_DF_MASK @%d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(TX_CS)) {
-        printf("TX error EMAC_BD_TX_CS_MASK @%d\r\n", index);
-    }
-
-    thiz->bd[index].C_S_L &= ~0xff;
+    puts("Tx error\r\n");
 }
 
-#if 0
 static void rx_free_custom(struct pbuf *p)
 {
 #if 0
@@ -197,7 +138,7 @@ static void rx_free_custom(struct pbuf *p)
 
     /*put back BD buffer to the front of the ring*/
     bd = &thiz->bd[thiz->rxIndexEMAC];
-    bd->Buffer = ((uint32_t)my_pbuf) + 64;//XXX magic number
+    bd->Buffer = ((uint8_t*)my_pbuf) + 64;//XXX magic number
     thiz->rxIndexEMAC++;
     if (thiz->rxIndexEMAC > thiz->rxBuffLimit) {
         /* wrap back */
@@ -209,27 +150,27 @@ static void rx_free_custom(struct pbuf *p)
     }
 #endif
 }
-#endif
 
 static struct pbuf *low_level_input(struct netif *netif)
 {
     uint16_t pkt_len;
-    uint16_t max_len;
+    uint16_t max_len, min_len;
+    uint16_t offset = 0;
     uint32_t temval;
     struct pbuf *h = NULL;
-    //uint8_t *payload;
+    uint8_t *payload;
     EMAC_BD_Desc_Type *bd;
-    bd = &thiz->bd[thiz->rxIndexCPU];
-
-    if(bd->C_S_L & EMAC_BD_FIELD_MSK(RX_E)){
+	bd = &thiz->bd[thiz->rxIndexCPU];
+    printf("low level input idx %d\r\n", thiz->rxIndexCPU);
+	if(bd->C_S_L & EMAC_BD_FIELD_MSK(RX_E)){
         printf("RX BD is empty\r\n");
         h = NULL;
-    } else {
+	} else {
         temval = BL_RD_REG(EMAC_BASE, EMAC_PACKETLEN);
         max_len = BL_GET_REG_BITS_VAL(temval, EMAC_MAXFL);
+        min_len = BL_GET_REG_BITS_VAL(temval, EMAC_MINFL);
         pkt_len = (bd->C_S_L & EMAC_BD_FIELD_MSK(RX_LEN)) >> BD_RX_LEN_POS;
-        printf("max_len %u, min_len %lu, pkt_len %u\r\n", max_len,
-                BL_GET_REG_BITS_VAL(temval, EMAC_MINFL), pkt_len);
+        printf("max_len %u, min_len %u, pkt_len %u\r\n", max_len, min_len, pkt_len);
         //check length
         if (pkt_len > max_len) {
             MSG("pkt is too huge %d\r\n", pkt_len);
@@ -239,7 +180,7 @@ static struct pbuf *low_level_input(struct netif *netif)
             MSG("RX bd %x\r\n", bd->C_S_L & 0xFF);
         }
         if ((bd->C_S_L >>16) == ETH_MAX_BUFFER_SIZE) {
-            MSG("Bug now...\r\n");
+            puts("Bug now...\r\n");
         }
 #if 0
         //TODO more check
@@ -256,16 +197,10 @@ static struct pbuf *low_level_input(struct netif *netif)
             thiz->rxIndexCPU = thiz->txBuffLimit + 1;
         }
 #else
-
-#if PBUF_POOL_SIZE
         h = pbuf_alloc(PBUF_RAW, pkt_len, PBUF_POOL);
-#else
-        h = pbuf_alloc(PBUF_RAW, pkt_len, PBUF_RAM);
-#endif
         if (h) {
-            pbuf_take(h, (const void*)bd->Buffer, pkt_len);
+            pbuf_take(h, bd->Buffer, pkt_len);
         }
-
         if ((++thiz->rxIndexCPU) > thiz->rxBuffLimit) {
             /* wrap back */
             thiz->rxIndexCPU = thiz->txBuffLimit + 1;
@@ -288,24 +223,8 @@ static inline err_t bl702ethernetif_input(struct netif *netif)
 
     /* move received packet into a new pbuf */
     do {
-
-        bd = &thiz->bd[thiz->rxIndexCPU];
-        if(bd->C_S_L & EMAC_BD_FIELD_MSK(RX_E)) {
-
-            printf("low level input idx %d, empty\r\n", thiz->rxIndexCPU);
-
-            if (thiz->rxIndexCPU == thiz->rxBuffLimit) {
-                thiz->rxIndexCPU = thiz->txBuffLimit + 1;
-                bd->C_S_L = (EMAC_BD_FIELD_MSK(RX_IRQ) | EMAC_BD_FIELD_MSK(RX_E) | (ETH_MAX_BUFFER_SIZE << 16) | EMAC_BD_FIELD_MSK(RX_WR));
-            } else {
-                bd->C_S_L = (EMAC_BD_FIELD_MSK(RX_IRQ) | EMAC_BD_FIELD_MSK(RX_E) | (ETH_MAX_BUFFER_SIZE << 16));
-                thiz->rxIndexCPU ++;
-            }
-            continue;
-        }
-
-        printf("low level input idx %d\r\n", thiz->rxIndexCPU);
         p = low_level_input(netif);
+        bd = &thiz->bd[thiz->rxIndexCPU];
 
         rx_counter++;
         /* no packet could be read, silently ignore this */
@@ -316,11 +235,11 @@ static inline err_t bl702ethernetif_input(struct netif *netif)
 
         if (err != ERR_OK)
         {
+            LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
             printf("ethernetif_input: IP input error\n");
             pbuf_free(p);
         }
-    } while (emac_bd_get_cur_rx_buffer_active() != thiz->rxIndexCPU);
-
+    } while (!(bd->C_S_L & EMAC_BD_FIELD_MSK(RX_E)));
     return err;
 }
 
@@ -328,107 +247,62 @@ static inline err_t bl702ethernetif_input(struct netif *netif)
 void EMAC_RX_Done_Callback(void)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    
-    if (NULL == DequeueTaskHandle) {
-        return;
-    }
 
     xTaskNotifyFromISR(DequeueTaskHandle, 0x02, eSetBits, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void EMAC_RX_Error_Callback(int index)
+void EMAC_RX_Error_Callback(void)
 {
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(RX_OR)) {
-        printf("EMAC RX OR Error @ %d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(RX_RE)) {
-        printf("EMAC RX_RE Error @ %d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(RX_DN)) {
-        printf("EMAC RX_DN Error @ %d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(RX_TL)) {
-        printf("EMAC RX_TL Error @ %d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(RX_CRC)) {
-        printf("EMAC RX_CRC Error @ %d\r\n", index);
-    }
-
-    if (thiz->bd[index].C_S_L & EMAC_BD_FIELD_MSK(RX_LC)) {
-        printf("EMAC RX_LC Error @ %d\r\n", index);
-    }
-
-    if (index == thiz->rxBuffLimit) {
-        thiz->bd[index].C_S_L = (EMAC_BD_FIELD_MSK(RX_IRQ) | EMAC_BD_FIELD_MSK(RX_E) | (ETH_MAX_BUFFER_SIZE << 16) | EMAC_BD_FIELD_MSK(RX_WR));
-    } else {
-        thiz->bd[index].C_S_L = (EMAC_BD_FIELD_MSK(RX_IRQ) | EMAC_BD_FIELD_MSK(RX_E) | (ETH_MAX_BUFFER_SIZE << 16));
-    }
+    puts("Rx error\r\n");
 }
-
 void EMAC_RX_Busy_Callback(void)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    
-    if (NULL == DequeueTaskHandle) {
-        return;
-    }
-
-    xTaskNotifyFromISR(DequeueTaskHandle, 0x02, eSetBits, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-
-    printf("RX busy %u @ %d\r\n", rx_counter, emac_bd_get_cur_rx_buffer_active());
+    MSG("RX busy %u\r\n", rx_counter);
 }
 
 void emac_irq_process(void)
 {
     uint32_t tmpVal;
-
+    
+    printf("emac_irq_process a\r\n");
     tmpVal = BL_RD_REG(EMAC_BASE,EMAC_INT_MASK);
-
+    
     if (SET == emac_getintstatus(EMAC_INT_TX_DONE) && !BL_IS_REG_BIT_SET(tmpVal,EMAC_TXB_M)) {
-        //printf("EMAC_INT_TX_DONE\r\n");
-        EMAC_TX_Done_Callback();
         emac_clrintstatus(EMAC_INT_TX_DONE);
+        emac_intmask(EMAC_INT_TX_DONE, MASK);
+        EMAC_TX_Done_Callback();
     }
 
     if (SET == emac_getintstatus(EMAC_INT_TX_ERROR) && !BL_IS_REG_BIT_SET(tmpVal,EMAC_TXE_M)) {
-        //printf("EMAC_INT_TX_ERROR\r\n");
-        EMAC_TX_Error_Callback(thiz->txIndexCPU);
         emac_clrintstatus(EMAC_INT_TX_ERROR);
+        EMAC_TX_Error_Callback();
     }
 
     if (SET == emac_getintstatus(EMAC_INT_RX_DONE) && !BL_IS_REG_BIT_SET(tmpVal,EMAC_RXB_M)) {
-        //printf("EMAC_INT_RX_DONE\r\n");
-        EMAC_RX_Done_Callback();
         emac_clrintstatus(EMAC_INT_RX_DONE);
+        emac_intmask(EMAC_INT_RX_DONE, MASK);
+        EMAC_RX_Done_Callback();
     }
 
     if (SET == emac_getintstatus(EMAC_INT_RX_ERROR) && !BL_IS_REG_BIT_SET(tmpVal,EMAC_RXE_M)) {
-        //printf("EMAC_INT_RX_ERROR\r\n");
-        EMAC_RX_Error_Callback(thiz->rxIndexCPU);
         emac_clrintstatus(EMAC_INT_RX_ERROR);
+        EMAC_RX_Error_Callback();
     }
 
     if (SET == emac_getintstatus(EMAC_INT_RX_BUSY) && !BL_IS_REG_BIT_SET(tmpVal,EMAC_BUSY_M)) {
-        //printf("EMAC_INT_RX_BUSY\r\n");
-        EMAC_RX_Busy_Callback();
         emac_clrintstatus(EMAC_INT_RX_BUSY);
+        EMAC_RX_Busy_Callback();
     }
 
     if (SET == emac_getintstatus(EMAC_INT_TX_CTRL) && !BL_IS_REG_BIT_SET(tmpVal,EMAC_TXC_M)) {
-        //printf("EMAC_INT_TX_CTRL\r\n");
         emac_clrintstatus(EMAC_INT_TX_CTRL);
     }
 
     if (SET == emac_getintstatus(EMAC_INT_RX_CTRL) && !BL_IS_REG_BIT_SET(tmpVal,EMAC_RXC_M)) {
-        //printf("EMAC_INT_RX_CTRL\r\n");
         emac_clrintstatus(EMAC_INT_RX_CTRL);
     }
+    printf("emac_irq_process b\r\n");
 }
 
 void EMAC_Interrupt_Init(void)
@@ -447,11 +321,11 @@ int emac_phy_reset(void);
 int emac_phy_linkup(ETHPHY_CFG_Type *cfg);
 int emac_phy_autonegotiate(ETHPHY_CFG_Type *cfg);
 
-#if 0
 static int _emac_phy_reset(ETHPHY_CFG_Type *cfg)
 {
     uint32_t tmpVal;
-
+    uint16_t phyReg;
+    
     /* Set Phy Address */
     tmpVal=BL_RD_REG(EMAC_BASE, EMAC_MIIADDRESS);
     tmpVal=BL_SET_REG_BITS_VAL(tmpVal,EMAC_FIAD,cfg->phyAddress);
@@ -462,10 +336,10 @@ static int _emac_phy_reset(ETHPHY_CFG_Type *cfg)
     }
     return SUCCESS;
 }
-#endif
 
 static int _emac_phy_autonegotiation(ETHPHY_CFG_Type *cfg)
 {
+    uint32_t tmpVal;
     uint16_t phyReg;
 
     if(cfg->autoNegotiation){
@@ -473,10 +347,6 @@ static int _emac_phy_autonegotiation(ETHPHY_CFG_Type *cfg)
         uint16_t advertise = 0;
         uint16_t lpa = 0;
         uint32_t timeout = 0x3F0;
-
-        if (SUCCESS != emac_phy_read(PHY_BSR, &regval) || !(PHY_LINKED_STATUS & regval)) {
-            return ERROR;
-        }
 
         if (SUCCESS != emac_phy_read(PHY_PHYID1, &regval)) {
             return ERROR;
@@ -615,26 +485,12 @@ static int _emac_phy_linkup(ETHPHY_CFG_Type *cfg)
     return SUCCESS;
 }
 
-static void _emac_phy_is_link_up(void) 
-{
-    uint16_t phy_bsr = 0;
-
-    if(NULL == p_eth_callback || is_link_up){
-        return;
-    }
-
-    if (SUCCESS != emac_phy_read(PHY_BSR, &phy_bsr) || !(PHY_LINKED_STATUS & phy_bsr)) {
-        return;
-    }
-    p_eth_callback(ETH_INIT_STEP_LINKUP);
-    is_link_up = true;
-}
-
 static int _emac_phy_linkstatus(void)
 {
     uint16_t phy_bsr = 0;
+    uint16_t phy_sr = 0;
 
-    //MSG("Read link\r\n");
+    //puts("Read link\r\n");
     if (SUCCESS != emac_phy_read(PHY_BSR, &phy_bsr)) {
         printf("%s:%d\r\n", __func__, __LINE__);
         return ERROR;
@@ -642,19 +498,9 @@ static int _emac_phy_linkstatus(void)
 
     if (!(PHY_LINKED_STATUS & phy_bsr)) {
         printf("%s:%d\r\n", __func__, __LINE__);
-
-        if(p_eth_callback && is_link_up){
-            p_eth_callback(ETH_INIT_STEP_LINKDOWN);
-            is_link_up = false;
-        }
-
         return ERROR;
     }
 
-    if(p_eth_callback && false == is_link_up){
-        p_eth_callback(ETH_INIT_STEP_LINKUP);
-    }
-    is_link_up = true;
 
     return SUCCESS;
 }
@@ -670,12 +516,12 @@ static void _emac_phy_if_init(void)
     static int internal_status = 0;
 
     int err = SUCCESS;
-    static ETHPHY_CFG_Type phyCfg={
-        .autoNegotiation=ENABLE,                    /*!< Speed and mode auto negotiation */
-        .duplex=EMAC_MODE_FULLDUPLEX,             /*!< Duplex mode */
-        .speed=EMAC_SPEED_100M,                   /*!< Speed mode */
-        .phyAddress=0x1,                            /*!< PHY address */
-    };
+	static ETHPHY_CFG_Type phyCfg={
+		.autoNegotiation=ENABLE,                    /*!< Speed and mode auto negotiation */
+		.duplex=EMAC_MODE_FULLDUPLEX,             /*!< Duplex mode */
+		.speed=EMAC_SPEED_100M,                   /*!< Speed mode */
+		.phyAddress=0x1,                            /*!< PHY address */
+	};
 
     //log_info("_emac_phy_if_init.\r\n");
     switch (internal_status) {
@@ -692,17 +538,11 @@ static void _emac_phy_if_init(void)
                 aos_msleep(10);
 #endif
             }
-
-            bool isAutoNegotiation = phyCfg.autoNegotiation;
-            
-            /** set phyCfg.autoNegotiation to false to skip negotiation in emac_phyinit */
-            phyCfg.autoNegotiation = false;
             err = emac_phyinit(&phyCfg);
             if(err != SUCCESS)
             {
                 log_info("emac_phyinit init err[%d].\r\n", err);
             }
-            phyCfg.autoNegotiation = isAutoNegotiation;
             internal_status++;
         }
         break;
@@ -780,7 +620,7 @@ static void _emac_phy_if_init(void)
     }
 }
 
-void borad_eth_init(uint8_t*addr)
+void borad_eth_init(void)
 {
     EMAC_CFG_Type emacCfg={
         .recvSmallFrame=ENABLE,                     /*!< Receive small frmae or not */
@@ -797,9 +637,14 @@ void borad_eth_init(uint8_t*addr)
         .minFrameLen=64,                            /*!< Minimum frame length */
         .maxFrameLen=ETH_MAX_BUFFER_SIZE,           /*!< Maximum frame length */
         .collisionValid=16,                         /*!< Collision valid value */
+        .macAddr[0]=0x18,                           /*!< MAC Address */
+        .macAddr[1]=0xB0,                          
+        .macAddr[2]=0x09,
+        .macAddr[3]=0x00,
+        .macAddr[4]=0x12,
+        .macAddr[5]=0x34,
     };
-
-    memcpy(emacCfg.macAddr, addr, sizeof(emacCfg.macAddr));
+    int err = SUCCESS;
     EMAC_GPIO_Init();
 
 #if USER_EMAC_OUTSIDE_CLK  // use outside clk
@@ -812,27 +657,13 @@ void borad_eth_init(uint8_t*addr)
 #endif
 
     GLB_AHB_Slave1_Clock_Gate(0,BL_AHB_SLAVE1_EMAC);
-    EMAC_Interrupt_Init();
+	EMAC_Interrupt_Init();
     emac_init(&emacCfg);
     MSG("emac_init sucess\r\n");
     EMAC_BD_Init();
     emac_enable();
     //bflb_platform_init_time();
     //bflb_platform_start_time();
-}
-
-void __attribute__((weak)) eth_user_init(struct netif *netif) 
-{
-    uint8_t *mac = netif->hwaddr, addr[8];
-
-    extern int bl_wireless_mac_addr_get(uint8_t mac[8]);
-    bl_wireless_mac_addr_get(addr);
-    mac[0] = 0x18;
-    mac[1] = 0xB0;
-    mac[2] = 0x09;
-    mac[3] = addr[5];
-    mac[4] = addr[6];
-    mac[5] = addr[7];
 }
 
 /**
@@ -842,20 +673,25 @@ void __attribute__((weak)) eth_user_init(struct netif *netif)
  * @param netif the already initialized lwip network interface structure
  *        for this ethernetif
  */
-
 static void low_level_init(struct netif *netif)
 {
     netif->hwaddr_len = ETHARP_HWADDR_LEN;
     netif->mtu = 1500;
     netif->flags = NETIF_FLAG_BROADCAST|NETIF_FLAG_ETHARP|NETIF_FLAG_LINK_UP|NETIF_FLAG_IGMP;
-    eth_user_init(netif);
-
+    netif->hwaddr[0] = 0x18;
+    netif->hwaddr[1] = 0xB0;
+    netif->hwaddr[2] = 0x09;
+    netif->hwaddr[3] = 0x00;
+    netif->hwaddr[4] = 0x12;
+    netif->hwaddr[5] = 0x34;
     printf("low level init\r\n");
 
 #if LWIP_IPV6
-    netif->flags |= (NETIF_FLAG_ETHERNET | NETIF_FLAG_IGMP | NETIF_FLAG_MLD6);
-    netif->output_ip6 = ethip6_output;
+      netif->flags |= (NETIF_FLAG_ETHERNET | NETIF_FLAG_IGMP | NETIF_FLAG_MLD6);
+      netif->output_ip6 = ethip6_output;
 #endif
+
+    borad_eth_init();
 }
 
 static inline void bl702ethernetif_output(struct netif *netif)
@@ -893,10 +729,6 @@ static inline void bl702ethernetif_output(struct netif *netif)
         }
         pbuf_free(p);
 
-        if (offset >= ETH_MAX_BUFFER_SIZE) {
-            printf ("bl702ethernetif_output %d >= %d\r\n", offset, ETH_MAX_BUFFER_SIZE);
-        }
-
         bd->C_S_L = (wrap_found ? EMAC_BD_FIELD_MSK(TX_WR) : 0) | EMAC_TX_COMMON_FLAGS | p->tot_len << BD_TX_LEN_POS;
         bd = &thiz->bd[thiz->txIndexCPU];
     }
@@ -906,22 +738,20 @@ void unsent_recv_task(void *pvParameters)
 {
     uint32_t NotifyValue;
     BaseType_t recv;
-    struct netif *netif = (struct netif *)pvParameters;
-
-    borad_eth_init(netif->hwaddr);
-
+    uint16_t offset = 0;
+    uint8_t *buf;
     log_info("unsent_recv_task.\r\n");
     while(1) {
         NotifyValue = 0;
         recv = xTaskNotifyWait(0, ULONG_MAX, &NotifyValue, 200);
         if (recv == pdTRUE) {
-
-            _emac_phy_is_link_up();
             if (NotifyValue & (1 << 0)) {
-                bl702ethernetif_output(netif);
+                bl702ethernetif_output(&eth_mac);
+                emac_intmask(EMAC_INT_TX_DONE, UNMASK);
             }
             if (NotifyValue & (1 << 1)) {
-                bl702ethernetif_input(netif);
+                bl702ethernetif_input(&eth_mac);
+                emac_intmask(EMAC_INT_RX_DONE, UNMASK);
             }
         } else {
             /*XXX only work when we has no EVENT. Maybe buggy here??*/
@@ -933,6 +763,11 @@ void unsent_recv_task(void *pvParameters)
 static err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
     struct unsent_item *item;
+    struct pbuf *q;
+    uint16_t pkt_len;
+    uint16_t offset = 0;
+    pkt_len = p->tot_len;
+
 
     if (pbuf_header(p, PBUF_LINK_ENCAPSULATION_HLEN)) {
         printf("[TX] Reserve room failed for header\r\n");
@@ -941,12 +776,8 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     item = (struct unsent_item *)(((uintptr_t)(p->payload + 3))&(~3));
     item->p = p;
 
-    if (NULL == DequeueTaskHandle) {
-        return ERR_IF;
-    }
-    
-    pbuf_ref(p);
 
+    pbuf_ref(p);
     __disable_irq();
     utils_list_push_back(&ctx->unsent, (struct utils_list_hdr *)&(item->hdr));
     ctx->unsent_num++;
@@ -957,20 +788,19 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 }
 
 err_t eth_init(struct netif *netif)
-
 {
-    LWIP_ASSERT("netif != NULL", (netif != NULL));
+  LWIP_ASSERT("netif != NULL", (netif != NULL));
 
-    netif->name[0] = 'e';
-    netif->name[1] = 't';
-    netif->hostname = "702";
-    netif->output = etharp_output;
-    netif->linkoutput = low_level_output;
-    log_info("eth_init.\r\n");
-    low_level_init(netif);
-    xTaskCreate(unsent_recv_task, (const char *)"Ontput_Unsent_queue", 1024, netif, 29, &DequeueTaskHandle);
+  //netif->name[0] = IFNAME0;
+  //netif->name[1] = IFNAME1;
+  netif->hostname = "702";
+  netif->output = etharp_output;
+  netif->linkoutput = low_level_output;
+  log_info("eth_init.\r\n");
+  low_level_init(netif);
+  xTaskCreate(unsent_recv_task, (const char *)"Ontput_Unsent_queue", 1024, NULL, 29, &DequeueTaskHandle);
 
-    return ERR_OK;
+  return ERR_OK;
 }
 
 int ethernet_init(eth_callback cb)

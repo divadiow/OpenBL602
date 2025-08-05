@@ -48,7 +48,7 @@ extern "C" {
 #endif
 
 /**
- * Initializes the Link Metrics util module.
+ * This method initializes the Link Metrics util module.
  *
  * @param[in]  aNoiseFloor    The noise floor used by Link Metrics. It should be set to the platform's
  *                            noise floor (measured noise floor, receiver sensitivity or a constant).
@@ -57,16 +57,16 @@ extern "C" {
 void otLinkMetricsInit(int8_t aNoiseFloor);
 
 /**
- * Sets/clears Enhanced-ACK Based Probing for a specific Initiator.
+ * This method sets/clears Enhanced-ACK Based Probing for a specific Initiator.
  *
- * Can start/stop Enhanced-ACK Based Probing for a neighbor that has the address @p aShortAddress and
+ * This method can start/stop Enhanced-ACK Based Probing for a neighbor that has the address @p aShortAddress and
  * @p aExtAddress. Once the Probing is started, the device would record the Link Metrics data of link layer frames
  * sent from that neighbor and include the data into header IE in Enhanced-ACK sent to that neighbor.
  *
  * @param[in]  aShortAddress    The short address of the Initiator.
  * @param[in]  aExtAddress      A pointer to the extended address of the Initiator.
  * @param[in]  aLinkMetrics     Flags specifying what metrics to query (Pdu Count would be omitted). When
- *                              @p aLinkMetrics is equal to `0`, this method clears the Initiator.
+ *                              @p aLinkMetrics is eqaul to `0`, this method clears the Initiator.
  *
  * @retval  OT_ERROR_NONE            Successfully configured the Enhanced-ACK Based Probing.
  * @retval  OT_ERROR_INVALID_ARGS    @p aExtAddress is `nullptr`.
@@ -79,10 +79,10 @@ otError otLinkMetricsConfigureEnhAckProbing(otShortAddress      aShortAddress,
                                             otLinkMetrics       aLinkMetrics);
 
 /**
- * Generates the Link Metrics data (assessed for the acknowledged frame) bytes that would be included in
+ * This method generates the Link Metrics data (assessed for the acknowledged frame) bytes that would be included in
  * Vendor-Specific IE.
  *
- * First checks what Link Metrics are specified by the Initiator indicated by @p aMacAddress. And then
+ * This method first checks what Link Metrics are specified by the Initiator indicated by @p aMacAddress. And then
  * write the values to @p aData.
  *
  * @param[in]  aMacAddress    The Mac address of the Initiator.
@@ -98,7 +98,7 @@ otError otLinkMetricsConfigureEnhAckProbing(otShortAddress      aShortAddress,
 uint8_t otLinkMetricsEnhAckGenData(const otMacAddress *aMacAddress, uint8_t aLqi, int8_t aRssi, uint8_t *aData);
 
 /**
- * Returns the data length of Enhanced-ACK Based Probing for a specific Initiator.
+ * This method returns the data length of Enhanced-ACK Based Probing for a specific Initiator.
  *
  * @param[in]  aMacAddress    The Mac address of the Initiator.
  *

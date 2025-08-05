@@ -60,50 +60,32 @@ namespace NetworkData {
  */
 
 /**
- * Implements the Thread Network Data maintained by the Leader.
+ * This class implements the Thread Network Data maintained by the Leader.
  *
  */
 class LeaderBase : public MutableNetworkData
 {
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      * @param[in]  aInstance     A reference to the OpenThread instance.
      *
      */
     explicit LeaderBase(Instance &aInstance)
         : MutableNetworkData(aInstance, mTlvBuffer, 0, sizeof(mTlvBuffer))
-        , mMaxLength(0)
     {
         Reset();
     }
 
     /**
-     * Reset the Thread Network Data.
+     * This method reset the Thread Network Data.
      *
      */
     void Reset(void);
 
     /**
-     * Returns the maximum observed Network Data length since OT stack initialization or since the last
-     * call to `ResetMaxLength()`.
-     *
-     * @returns The maximum observed Network Data length (high water mark for Network Data length).
-     *
-     */
-    uint8_t GetMaxLength(void) const { return mMaxLength; }
-
-    /**
-     * Resets the tracked maximum Network Data Length.
-     *
-     * @sa GetMaxLength
-     *
-     */
-    void ResetMaxLength(void) { mMaxLength = GetLength(); }
-
-    /**
-     * Returns the Data Version value for a type (full set or stable subset).
+     * This method returns the Data Version value for a type (full set or stable subset).
      *
      * @param[in] aType   The Network Data type (full set or stable subset).
      *
@@ -113,7 +95,7 @@ public:
     uint8_t GetVersion(Type aType) const { return (aType == kFullSet) ? mVersion : mStableVersion; }
 
     /**
-     * Retrieves the 6LoWPAN Context information based on a given IPv6 address.
+     * This method retrieves the 6LoWPAN Context information based on a given IPv6 address.
      *
      * @param[in]   aAddress  A reference to an IPv6 address.
      * @param[out]  aContext  A reference to 6LoWPAN Context information.
@@ -125,7 +107,7 @@ public:
     Error GetContext(const Ip6::Address &aAddress, Lowpan::Context &aContext) const;
 
     /**
-     * Retrieves the 6LoWPAN Context information based on a given Context ID.
+     * This method retrieves the 6LoWPAN Context information based on a given Context ID.
      *
      * @param[in]   aContextId  The Context ID value.
      * @param[out]  aContext    A reference to the 6LoWPAN Context information.
@@ -137,7 +119,7 @@ public:
     Error GetContext(uint8_t aContextId, Lowpan::Context &aContext) const;
 
     /**
-     * Indicates whether or not the given IPv6 address is on-mesh.
+     * This method indicates whether or not the given IPv6 address is on-mesh.
      *
      * @param[in]  aAddress  A reference to an IPv6 address.
      *
@@ -148,41 +130,43 @@ public:
     bool IsOnMesh(const Ip6::Address &aAddress) const;
 
     /**
-     * Performs a route lookup using the Network Data.
+     * This method performs a route lookup using the Network Data.
      *
      * @param[in]   aSource             A reference to the IPv6 source address.
      * @param[in]   aDestination        A reference to the IPv6 destination address.
-     * @param[out]  aRloc16             A reference to return the RLOC16 for the selected route.
+     * @param[out]  aPrefixMatchLength  A pointer to output the longest prefix match length in bits.
+     * @param[out]  aRloc16             A pointer to the RLOC16 for the selected route.
      *
-     * @retval kErrorNone      Successfully found a route. @p aRloc16 is updated.
+     * @retval kErrorNone      Successfully found a route.
      * @retval kErrorNoRoute   No valid route was found.
      *
      */
-    Error RouteLookup(const Ip6::Address &aSource, const Ip6::Address &aDestination, uint16_t &aRloc16) const;
+    Error RouteLookup(const Ip6::Address &aSource,
+                      const Ip6::Address &aDestination,
+                      uint8_t *           aPrefixMatchLength,
+                      uint16_t *          aRloc16) const;
 
     /**
-     * Is used by non-Leader devices to set Network Data by reading it from a message from Leader.
+     * This method is used by non-Leader devices to set newly received Network Data from the Leader.
      *
      * @param[in]  aVersion        The Version value.
      * @param[in]  aStableVersion  The Stable Version value.
      * @param[in]  aType           The Network Data type to set, the full set or stable subset.
-     * @param[in]  aMessage        A reference to the message.
-     * @param[in]  aOffset         The offset in @p aMessage pointing to start of Network Data.
-     * @param[in]  aLength         The length of Network Data.
+     * @param[in]  aMessage        A reference to the MLE message.
+     * @param[in]  aMessageOffset  The offset in @p aMessage for the Network Data TLV.
      *
      * @retval kErrorNone   Successfully set the network data.
-     * @retval kErrorParse  Network Data in @p aMessage is not valid.
+     * @retval kErrorParse  Network Data TLV in @p aMessage is not valid.
      *
      */
     Error SetNetworkData(uint8_t        aVersion,
                          uint8_t        aStableVersion,
                          Type           aType,
                          const Message &aMessage,
-                         uint16_t       aOffset,
-                         uint16_t       aLength);
+                         uint16_t       aMessageOffset);
 
     /**
-     * Returns a pointer to the Commissioning Data.
+     * This method returns a pointer to the Commissioning Data.
      *
      * @returns A pointer to the Commissioning Data or `nullptr` if no Commissioning Data exists.
      *
@@ -190,7 +174,7 @@ public:
     CommissioningDataTlv *GetCommissioningData(void) { return AsNonConst(AsConst(this)->GetCommissioningData()); }
 
     /**
-     * Returns a pointer to the Commissioning Data.
+     * This method returns a pointer to the Commissioning Data.
      *
      * @returns A pointer to the Commissioning Data or `nullptr` if no Commissioning Data exists.
      *
@@ -198,7 +182,7 @@ public:
     const CommissioningDataTlv *GetCommissioningData(void) const;
 
     /**
-     * Returns a pointer to the Commissioning Data Sub-TLV.
+     * This method returns a pointer to the Commissioning Data Sub-TLV.
      *
      * @param[in]  aType  The TLV type value.
      *
@@ -211,7 +195,7 @@ public:
     }
 
     /**
-     * Returns a pointer to the Commissioning Data Sub-TLV.
+     * This method returns a pointer to the Commissioning Data Sub-TLV.
      *
      * @param[in]  aType  The TLV type value.
      *
@@ -221,7 +205,7 @@ public:
     const MeshCoP::Tlv *GetCommissioningDataSubTlv(MeshCoP::Tlv::Type aType) const;
 
     /**
-     * Indicates whether or not the Commissioning Data TLV indicates Joining is enabled.
+     * This method indicates whether or not the Commissioning Data TLV indicates Joining is enabled.
      *
      * Joining is enabled if a Border Agent Locator TLV exist and the Steering Data TLV is non-zero.
      *
@@ -231,7 +215,7 @@ public:
     bool IsJoiningEnabled(void) const;
 
     /**
-     * Adds Commissioning Data to the Thread Network Data.
+     * This method adds Commissioning Data to the Thread Network Data.
      *
      * @param[in]  aValue        A pointer to the Commissioning Data value.
      * @param[in]  aValueLength  The length of @p aValue.
@@ -243,7 +227,7 @@ public:
     Error SetCommissioningData(const uint8_t *aValue, uint8_t aValueLength);
 
     /**
-     * Checks if the steering data includes a Joiner.
+     * This method checks if the steering data includes a Joiner.
      *
      * @param[in]  aEui64             A reference to the Joiner's IEEE EUI-64.
      *
@@ -255,7 +239,7 @@ public:
     Error SteeringDataCheckJoiner(const Mac::ExtAddress &aEui64) const;
 
     /**
-     * Checks if the steering data includes a Joiner with a given discerner value.
+     * This method checks if the steering data includes a Joiner with a given discerner value.
      *
      * @param[in]  aDiscerner         A reference to the Joiner Discerner.
      *
@@ -267,7 +251,7 @@ public:
     Error SteeringDataCheckJoiner(const MeshCoP::JoinerDiscerner &aDiscerner) const;
 
     /**
-     * Gets the Service ID for the specified service.
+     * This method gets the Service ID for the specified service.
      *
      * @param[in]  aEnterpriseNumber  Enterprise Number (IANA-assigned) for Service TLV
      * @param[in]  aServiceData       The Service Data.
@@ -281,10 +265,10 @@ public:
     Error GetServiceId(uint32_t           aEnterpriseNumber,
                        const ServiceData &aServiceData,
                        bool               aServerStable,
-                       uint8_t           &aServiceId) const;
+                       uint8_t &          aServiceId) const;
 
     /**
-     * Gets the preferred NAT64 prefix from network data.
+     * This methods gets the preferred NAT64 prefix from network data.
      *
      * The returned prefix is the highest preference external route entry in Network Data with NAT64 flag set. If there
      * are multiple such entries the first one is returned.
@@ -298,31 +282,24 @@ public:
     Error GetPreferredNat64Prefix(ExternalRouteConfig &aConfig) const;
 
 protected:
-    void SignalNetDataChanged(void);
-
     uint8_t mStableVersion;
     uint8_t mVersion;
 
 private:
     using FilterIndexes = MeshCoP::SteeringData::HashBitIndexes;
 
-    const PrefixTlv *FindNextMatchingPrefixTlv(const Ip6::Address &aAddress, const PrefixTlv *aPrevTlv) const;
+    const PrefixTlv *FindNextMatchingPrefix(const Ip6::Address &aAddress, const PrefixTlv *aPrevTlv) const;
 
     void RemoveCommissioningData(void);
 
-    template <typename EntryType> int CompareRouteEntries(const EntryType &aFirst, const EntryType &aSecond) const;
-    int                               CompareRouteEntries(int8_t   aFirstPreference,
-                                                          uint16_t aFirstRloc,
-                                                          int8_t   aSecondPreference,
-                                                          uint16_t aSecondRloc) const;
-
-    Error ExternalRouteLookup(uint8_t aDomainId, const Ip6::Address &aDestination, uint16_t &aRloc16) const;
-    Error DefaultRouteLookup(const PrefixTlv &aPrefix, uint16_t &aRloc16) const;
+    Error ExternalRouteLookup(uint8_t             aDomainId,
+                              const Ip6::Address &aDestination,
+                              uint8_t *           aPrefixMatchLength,
+                              uint16_t *          aRloc16) const;
+    Error DefaultRouteLookup(const PrefixTlv &aPrefix, uint16_t *aRloc16) const;
     Error SteeringDataCheck(const FilterIndexes &aFilterIndexes) const;
-    void  GetContextForMeshLocalPrefix(Lowpan::Context &aContext) const;
 
     uint8_t mTlvBuffer[kMaxSize];
-    uint8_t mMaxLength;
 };
 
 /**

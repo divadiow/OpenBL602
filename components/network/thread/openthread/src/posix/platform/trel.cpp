@@ -85,8 +85,8 @@ static const char *BufferToString(const uint8_t *aBuffer, uint16_t aLength)
     static char    string[1600];
 
     uint16_t num = 0;
-    char    *cur = &string[0];
-    char    *end = &string[sizeof(string) - 1];
+    char *   cur = &string[0];
+    char *   end = &string[sizeof(string) - 1];
 
     cur += snprintf(cur, (uint16_t)(end - cur), "[(len:%d) ", aLength);
     VerifyOrExit(cur < end);
@@ -388,20 +388,24 @@ OT_TOOL_WEAK void trelDnssdRemoveService(void)
     // advertising TREL service after this call.
 }
 
-OT_TOOL_WEAK void trelDnssdUpdateFdSet(otSysMainloopContext *aContext)
+OT_TOOL_WEAK void trelDnssdUpdateFdSet(fd_set *aReadFdSet, fd_set *aWriteFdSet, int *aMaxFd, struct timeval *aTimeout)
 {
     // This function can be used to update the file descriptor sets
     // by DNS-SD layer (if needed).
 
-    OT_UNUSED_VARIABLE(aContext);
+    OT_UNUSED_VARIABLE(aReadFdSet);
+    OT_UNUSED_VARIABLE(aWriteFdSet);
+    OT_UNUSED_VARIABLE(aMaxFd);
+    OT_UNUSED_VARIABLE(aTimeout);
 }
 
-OT_TOOL_WEAK void trelDnssdProcess(otInstance *aInstance, const otSysMainloopContext *aContext)
+OT_TOOL_WEAK void trelDnssdProcess(otInstance *aInstance, const fd_set *aReadFdSet, const fd_set *aWriteFdSet)
 {
     // This function performs processing by DNS-SD (if needed).
 
     OT_UNUSED_VARIABLE(aInstance);
-    OT_UNUSED_VARIABLE(aContext);
+    OT_UNUSED_VARIABLE(aReadFdSet);
+    OT_UNUSED_VARIABLE(aWriteFdSet);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -445,8 +449,8 @@ exit:
     return;
 }
 
-void otPlatTrelSend(otInstance       *aInstance,
-                    const uint8_t    *aUdpPayload,
+void otPlatTrelSend(otInstance *      aInstance,
+                    const uint8_t *   aUdpPayload,
                     uint16_t          aUdpPayloadLen,
                     const otSockAddr *aDestSockAddr)
 {
@@ -498,7 +502,7 @@ void platformTrelInit(const char *aTrelUrl)
     if (aTrelUrl != nullptr)
     {
         ot::Posix::RadioUrl url(aTrelUrl);
-        memcpy(sInterfaceName, url.GetPath(), sizeof(sInterfaceName) - 1);
+        strncpy(sInterfaceName, url.GetPath(), sizeof(sInterfaceName) - 1);
         sInterfaceName[sizeof(sInterfaceName) - 1] = '\0';
     }
 
@@ -521,45 +525,45 @@ exit:
     return;
 }
 
-void platformTrelUpdateFdSet(otSysMainloopContext *aContext)
+void platformTrelUpdateFdSet(fd_set *aReadFdSet, fd_set *aWriteFdSet, int *aMaxFd, struct timeval *aTimeout)
 {
-    assert(aContext != nullptr);
+    assert((aReadFdSet != NULL) && (aWriteFdSet != NULL) && (aMaxFd != NULL) && (aTimeout != NULL));
 
     VerifyOrExit(sEnabled);
 
-    FD_SET(sSocket, &aContext->mReadFdSet);
+    FD_SET(sSocket, aReadFdSet);
 
-    if (sTxPacketQueueTail != nullptr)
+    if (sTxPacketQueueTail != NULL)
     {
-        FD_SET(sSocket, &aContext->mWriteFdSet);
+        FD_SET(sSocket, aWriteFdSet);
     }
 
-    if (aContext->mMaxFd < sSocket)
+    if (*aMaxFd < sSocket)
     {
-        aContext->mMaxFd = sSocket;
+        *aMaxFd = sSocket;
     }
 
-    trelDnssdUpdateFdSet(aContext);
+    trelDnssdUpdateFdSet(aReadFdSet, aWriteFdSet, aMaxFd, aTimeout);
 
 exit:
     return;
 }
 
-void platformTrelProcess(otInstance *aInstance, const otSysMainloopContext *aContext)
+void platformTrelProcess(otInstance *aInstance, const fd_set *aReadFdSet, const fd_set *aWriteFdSet)
 {
     VerifyOrExit(sEnabled);
 
-    if (FD_ISSET(sSocket, &aContext->mWriteFdSet))
+    if (FD_ISSET(sSocket, aWriteFdSet))
     {
         SendQueuedPackets();
     }
 
-    if (FD_ISSET(sSocket, &aContext->mReadFdSet))
+    if (FD_ISSET(sSocket, aReadFdSet))
     {
         ReceivePacket(sSocket, aInstance);
     }
 
-    trelDnssdProcess(aInstance, aContext);
+    trelDnssdProcess(aInstance, aReadFdSet, aWriteFdSet);
 
 exit:
     return;

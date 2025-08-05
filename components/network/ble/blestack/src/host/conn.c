@@ -611,8 +611,6 @@ struct bt_conn *bt_conn_create_br(const bt_addr_t *peer,
 		switch (conn->state) {
 		case BT_CONN_CONNECT:
 		case BT_CONN_CONNECTED:
-			//fix by bouffalo:not ref if conn of this peer has existed.
-			bt_conn_unref(conn);
 			return conn;
 		default:
 			bt_conn_unref(conn);
@@ -665,8 +663,6 @@ struct bt_conn *bt_conn_create_sco(const bt_addr_t *peer,const struct esco_para 
 		switch (sco_conn->state) {
 		case BT_CONN_CONNECT:
 		case BT_CONN_CONNECTED:
-			//fix by bouffalo:not ref if conn of this peer has existed.
-			bt_conn_unref(sco_conn);
 			return sco_conn;
 		default:
 			bt_conn_unref(sco_conn);

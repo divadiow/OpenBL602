@@ -39,7 +39,6 @@
 #include "common/encoding.hpp"
 #include "common/message.hpp"
 #include "common/tlvs.hpp"
-#include "meshcop/network_name.hpp"
 #include "net/ip6_address.hpp"
 #include "thread/mle.hpp"
 #include "thread/mle_types.hpp"
@@ -50,7 +49,7 @@ using ot::Encoding::BigEndian::HostSwap16;
 using ot::Encoding::BigEndian::HostSwap32;
 
 /**
- * Implements Network Layer TLV generation and parsing.
+ * This class implements Network Layer TLV generation and parsing.
  *
  */
 OT_TOOL_PACKED_BEGIN
@@ -80,7 +79,7 @@ public:
     };
 
     /**
-     * Returns the Type value.
+     * This method returns the Type value.
      *
      * @returns The Type value.
      *
@@ -88,7 +87,7 @@ public:
     Type GetType(void) const { return static_cast<Type>(ot::Tlv::GetType()); }
 
     /**
-     * Sets the Type value.
+     * This method sets the Type value.
      *
      * @param[in]  aType  The Type value.
      *
@@ -98,55 +97,55 @@ public:
 } OT_TOOL_PACKED_END;
 
 /**
- * Defines Target TLV constants and types.
+ * This class defines Target TLV constants and types.
  *
  */
 typedef SimpleTlvInfo<ThreadTlv::kTarget, Ip6::Address> ThreadTargetTlv;
 
 /**
- * Defines Extended MAC Address TLV constants and types.
+ * This class defines Extended MAC Address TLV constants and types.
  *
  */
 typedef SimpleTlvInfo<ThreadTlv::kExtMacAddress, Mac::ExtAddress> ThreadExtMacAddressTlv;
 
 /**
- * Defines RLOC16 TLV constants and types.
+ * This class defines RLOC16 TLV constants and types.
  *
  */
 typedef UintTlvInfo<ThreadTlv::kRloc16, uint16_t> ThreadRloc16Tlv;
 
 /**
- * Defines ML-EID TLV constants and types.
+ * This class defines ML-EID TLV constants and types.
  *
  */
 typedef SimpleTlvInfo<ThreadTlv::kMeshLocalEid, Ip6::InterfaceIdentifier> ThreadMeshLocalEidTlv;
 
 /**
- * Defines Time Since Last Transaction TLV constants and types.
+ * This class defines Time Since Last Transaction TLV constants and types.
  *
  */
 typedef UintTlvInfo<ThreadTlv::kLastTransactionTime, uint32_t> ThreadLastTransactionTimeTlv;
 
 /**
- * Defines Timeout TLV constants and types.
+ * This class defines Timeout TLV constants and types.
  *
  */
 typedef UintTlvInfo<ThreadTlv::kTimeout, uint32_t> ThreadTimeoutTlv;
 
 /**
- * Defines Network Name TLV constants and types.
+ * This class defines Network Name TLV constants and types.
  *
  */
-typedef StringTlvInfo<ThreadTlv::kNetworkName, MeshCoP::NetworkName::kMaxSize> ThreadNetworkNameTlv;
+typedef TlvInfo<ThreadTlv::kNetworkName> ThreadNetworkNameTlv;
 
 /**
- * Defines Commissioner Session ID TLV constants and types.
+ * This class defines Commissioner Session ID TLV constants and types.
  *
  */
 typedef UintTlvInfo<ThreadTlv::kCommissionerSessionId, uint16_t> ThreadCommissionerSessionIdTlv;
 
 /**
- * Defines Status TLV constants and types.
+ * This class defines Status TLV constants and types.
  *
  */
 class ThreadStatusTlv : public UintTlvInfo<ThreadTlv::kStatus, uint8_t>
@@ -199,14 +198,14 @@ public:
 };
 
 /**
- * Implements Router Mask TLV generation and parsing.
+ * This class implements Router Mask TLV generation and parsing.
  *
  */
 class ThreadRouterMaskTlv : public ThreadTlv, public TlvInfo<ThreadTlv::kRouterMask>
 {
 public:
     /**
-     * Initializes the TLV.
+     * This method initializes the TLV.
      *
      */
     void Init(void)
@@ -217,7 +216,7 @@ public:
     }
 
     /**
-     * Indicates whether or not the TLV appears to be well-formed.
+     * This method indicates whether or not the TLV appears to be well-formed.
      *
      * @retval TRUE   If the TLV appears to be well-formed.
      * @retval FALSE  If the TLV does not appear to be well-formed.
@@ -226,7 +225,7 @@ public:
     bool IsValid(void) const { return GetLength() >= sizeof(*this) - sizeof(ThreadTlv); }
 
     /**
-     * Returns the ID Sequence value.
+     * This method returns the ID Sequence value.
      *
      * @returns The ID Sequence value.
      *
@@ -234,7 +233,7 @@ public:
     uint8_t GetIdSequence(void) const { return mIdSequence; }
 
     /**
-     * Sets the ID Sequence value.
+     * This method sets the ID Sequence value.
      *
      * @param[in]  aSequence  The ID Sequence value.
      *
@@ -242,7 +241,7 @@ public:
     void SetIdSequence(uint8_t aSequence) { mIdSequence = aSequence; }
 
     /**
-     * Gets the Assigned Router ID Mask.
+     * This method gets the Assigned Router ID Mask.
      *
      * @returns The Assigned Router ID Mask.
      *
@@ -250,15 +249,7 @@ public:
     const Mle::RouterIdSet &GetAssignedRouterIdMask(void) const { return mAssignedRouterIdMask; }
 
     /**
-     * Gets the Assigned Router ID Mask.
-     *
-     * @returns The Assigned Router ID Mask.
-     *
-     */
-    Mle::RouterIdSet &GetAssignedRouterIdMask(void) { return mAssignedRouterIdMask; }
-
-    /**
-     * Sets the Assigned Router ID Mask.
+     * This method sets the Assigned Router ID Mask.
      *
      * @param[in]  aRouterIdSet A reference to the Assigned Router ID Mask.
      *
@@ -271,7 +262,7 @@ private:
 };
 
 /**
- * Implements Thread Network Data TLV generation and parsing.
+ * This class implements Thread Network Data TLV generation and parsing.
  *
  */
 OT_TOOL_PACKED_BEGIN
@@ -279,7 +270,7 @@ class ThreadNetworkDataTlv : public ThreadTlv, public TlvInfo<ThreadTlv::kThread
 {
 public:
     /**
-     * Initializes the TLV.
+     * This method initializes the TLV.
      *
      */
     void Init(void)
@@ -289,7 +280,7 @@ public:
     }
 
     /**
-     * Overrides same method of the base class
+     * This method overrides same method of the base class
      *
      * @retval TRUE  the TLV appears to be well-formed.
      *
@@ -297,7 +288,7 @@ public:
     bool IsValid(void) const { return true; }
 
     /**
-     * Returns a pointer to the Network Data TLVs.
+     * This method returns a pointer to the Network Data TLVs.
      *
      * @returns A pointer to the Network Data TLVs.
      *
@@ -313,7 +304,7 @@ private:
 #if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
 
 /**
- * Implements IPv6 Addresses TLV generation and parsing.
+ * This class implements IPv6 Addresses TLV generation and parsing.
  *
  */
 OT_TOOL_PACKED_BEGIN
@@ -325,13 +316,13 @@ public:
     static constexpr uint8_t kMaxAddresses = OT_IP6_MAX_MLR_ADDRESSES;
 
     /**
-     * Initializes the TLV.
+     * This method initializes the TLV.
      *
      */
     void Init(void) { SetType(kIp6Addresses); }
 
     /**
-     * Indicates whether or not the TLV appears to be well-formed.
+     * This method indicates whether or not the TLV appears to be well-formed.
      *
      * @retval TRUE   If the TLV appears to be well-formed.
      * @retval FALSE  If the TLV does not appear to be well-formed.
@@ -345,7 +336,7 @@ public:
     }
 
     /**
-     * Returns a pointer to the IPv6 address entry.
+     * This method returns a pointer to the IPv6 address entry.
      *
      * @param[in]  aIndex  The index into the IPv6 address list.
      *

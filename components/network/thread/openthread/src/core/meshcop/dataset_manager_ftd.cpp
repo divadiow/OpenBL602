@@ -263,7 +263,7 @@ exit:
     return (state == StateTlv::kAccept) ? kErrorNone : kErrorDrop;
 }
 
-void DatasetManager::SendSetResponse(const Coap::Message    &aRequest,
+void DatasetManager::SendSetResponse(const Coap::Message &   aRequest,
                                      const Ip6::MessageInfo &aMessageInfo,
                                      StateTlv::State         aState)
 {
@@ -296,7 +296,6 @@ exit:
     return error;
 }
 
-#if OPENTHREAD_CONFIG_OPERATIONAL_DATASET_AUTO_INIT
 Error ActiveDatasetManager::GenerateLocal(void)
 {
     Error   error = kErrorNone;
@@ -395,15 +394,24 @@ exit:
     return error;
 }
 
-void ActiveDatasetManager::StartLeader(void) { IgnoreError(GenerateLocal()); }
-#else  // OPENTHREAD_CONFIG_OPERATIONAL_DATASET_AUTO_INIT
-void ActiveDatasetManager::StartLeader(void) {}
-#endif // OPENTHREAD_CONFIG_OPERATIONAL_DATASET_AUTO_INIT
-
-template <>
-void ActiveDatasetManager::HandleTmf<kUriActiveSet>(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
+void ActiveDatasetManager::StartLeader(void)
 {
-    VerifyOrExit(Get<Mle::Mle>().IsLeader());
+    IgnoreError(GenerateLocal());
+    Get<Tmf::Agent>().AddResource(mResourceSet);
+}
+
+void ActiveDatasetManager::StopLeader(void)
+{
+    Get<Tmf::Agent>().RemoveResource(mResourceSet);
+}
+
+void ActiveDatasetManager::HandleSet(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
+{
+    static_cast<ActiveDatasetManager *>(aContext)->HandleSet(AsCoapMessage(aMessage), AsCoreType(aMessageInfo));
+}
+
+void ActiveDatasetManager::HandleSet(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
+{
     SuccessOrExit(DatasetManager::HandleSet(aMessage, aMessageInfo));
     IgnoreError(ApplyConfiguration());
 
@@ -411,12 +419,24 @@ exit:
     return;
 }
 
-void PendingDatasetManager::StartLeader(void) { StartDelayTimer(); }
-
-template <>
-void PendingDatasetManager::HandleTmf<kUriPendingSet>(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
+void PendingDatasetManager::StartLeader(void)
 {
-    VerifyOrExit(Get<Mle::Mle>().IsLeader());
+    StartDelayTimer();
+    Get<Tmf::Agent>().AddResource(mResourceSet);
+}
+
+void PendingDatasetManager::StopLeader(void)
+{
+    Get<Tmf::Agent>().RemoveResource(mResourceSet);
+}
+
+void PendingDatasetManager::HandleSet(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
+{
+    static_cast<PendingDatasetManager *>(aContext)->HandleSet(AsCoapMessage(aMessage), AsCoreType(aMessageInfo));
+}
+
+void PendingDatasetManager::HandleSet(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
+{
     SuccessOrExit(DatasetManager::HandleSet(aMessage, aMessageInfo));
     StartDelayTimer();
 

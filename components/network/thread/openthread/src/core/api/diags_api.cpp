@@ -42,11 +42,9 @@
 
 using namespace ot;
 
-otError otDiagProcessCmdLine(otInstance *aInstance, const char *aString, char *aOutput, size_t aOutputMaxLen)
+void otDiagProcessCmdLine(otInstance *aInstance, const char *aString, char *aOutput, size_t aOutputMaxLen)
 {
-    AssertPointerIsNotNull(aString);
-
-    return AsCoreType(aInstance).Get<FactoryDiags::Diags>().ProcessLine(aString, aOutput, aOutputMaxLen);
+    AsCoreType(aInstance).Get<FactoryDiags::Diags>().ProcessLine(aString, aOutput, aOutputMaxLen);
 }
 
 otError otDiagProcessCmd(otInstance *aInstance, uint8_t aArgsLength, char *aArgs[], char *aOutput, size_t aOutputMaxLen)
@@ -54,6 +52,9 @@ otError otDiagProcessCmd(otInstance *aInstance, uint8_t aArgsLength, char *aArgs
     return AsCoreType(aInstance).Get<FactoryDiags::Diags>().ProcessCmd(aArgsLength, aArgs, aOutput, aOutputMaxLen);
 }
 
-bool otDiagIsEnabled(otInstance *aInstance) { return AsCoreType(aInstance).Get<FactoryDiags::Diags>().IsEnabled(); }
+bool otDiagIsEnabled(otInstance *aInstance)
+{
+    return AsCoreType(aInstance).Get<FactoryDiags::Diags>().IsEnabled();
+}
 
 #endif // OPENTHREAD_CONFIG_DIAG_ENABLE

@@ -109,22 +109,22 @@ static inline void backtrace_stack_app(int (*print_func)(const char *fmt, ...), 
       return;
     }
 
-    pc = (uintptr_t *)fp[-1];
+    pc = fp[-1];
 
     if ((((uintptr_t)pc & 0xff000000ul) != VALID_PC_START_XIP) && (((uintptr_t)pc & 0xff000000ul) != VALID_FP_START_XIP)) {
       print_func("!!");
       return;
     }
 
-    if ((uintptr_t)pc > VALID_FP_START_XIP) {
+    if (pc > VALID_FP_START_XIP) {
       /* there is a function that does not saved ra,
       * skip!
       * this value is the next fp
       */
-      fp = (unsigned long *)pc;
+      fp = (uintptr_t *)pc;
     } else if ((uintptr_t)pc > VALID_PC_START_XIP) {
       print_func(" %p", pc);
-      fp = (unsigned long *)fp[-2];
+      fp = (uintptr_t *)fp[-2];
 
       if (pc == (uintptr_t *)0) {
         break;

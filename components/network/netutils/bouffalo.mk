@@ -19,6 +19,5 @@ COMPONENT_OBJS := $(patsubst %.c,%.o, $(COMPONENT_SRCS))
 COMPONENT_SRCDIRS := tcpclient iperf netstat ping tcpserver
 
 
-ifeq ($(CONFIG_IPV6),1)
-CPPFLAGS += -DCFG_IPV6
-endif
+##
+#CPPFLAGS += 

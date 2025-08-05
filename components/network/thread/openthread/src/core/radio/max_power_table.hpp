@@ -42,7 +42,7 @@ public:
     MaxPowerTable(void) { memset(mPowerTable, kPowerDefault, sizeof(mPowerTable)); }
 
     /**
-     * Gets the max allowed transmit power of channel @p aChannel.
+     * This method gets the max allowed transmit power of channel @p aChannel.
      *
      * @param[in]  aChannel    The radio channel number.
      *
@@ -52,7 +52,7 @@ public:
     int8_t GetTransmitPower(uint8_t aChannel) const { return mPowerTable[aChannel - Radio::kChannelMin]; }
 
     /**
-     * Sets the max allowed transmit power of channel @p aChannel.
+     * This method sets the max allowed transmit power of channel @p aChannel.
      *
      * @param[in]  aChannel    The radio channel number.
      * @param[in]  aPower      The max supported transmit power in dBm.
@@ -61,7 +61,7 @@ public:
     void SetTransmitPower(uint8_t aChannel, int8_t aPower) { mPowerTable[aChannel - Radio::kChannelMin] = aPower; }
 
     /**
-     * Gets the supported channel masks.
+     * This method gets the supported channel masks.
      *
      */
     uint32_t GetSupportedChannelMask(void) const

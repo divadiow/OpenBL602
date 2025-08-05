@@ -804,11 +804,4 @@ then it does disconnected flow once more. This will cause hardfault issue becaus
 
 /*Support customized scan interval and scan window in scanning procedure of ble general connection establishment.*/
 #define BFLB_BLE_SUPPORT_CUSTOMIZED_SCAN_PARAMERS_IN_GENERAL_CONN_ESTABLISH
-
-/* Fix the issue : it excutes bt_conn_create_le, bt_le_scan_start, bt_le_scan_stop sequently. After stop scan ,it takes a long time to establish le connection.
- * Reason: When it stops scan in this case, it restarts scan if there is a connection's state is BT_CONN_CONNECT_SCAN, but it uses background scan parameters
- * to do slowly scan even if it is not auto connection without whitelist.
- * Notice:If Auto conn initiated by bt_le_set_auto_conn,it doesn't create le connection from whitelist.It needs scan first.
-*/
-#define BFLB_BLE_NOT_USE_BACKGROUD_SCAN_PARAMETERS_IF_NOT_ATUO_CONN_WITHOUT_WHITELIST
 #endif /* BLE_CONFIG_H */

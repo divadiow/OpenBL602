@@ -1,8 +1,31 @@
-/**
- * Copyright (c) 2016-2021 Bouffalolab Co., Ltd.
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
  *
- * Contact information:
- * web site:    https://www.bouffalolab.com/
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <stdio.h>
@@ -37,7 +60,6 @@ hosal_flash_dev_t *hosal_flash_open(const char *name, unsigned int flags)
 	p_dev = calloc(sizeof(hosal_flash_dev_t), 1);
 	if (p_dev == NULL) {
 		blog_error("no memory !!!\r\n");
-		return NULL;
 	}
 	p_dev->flash_dev = mtd;
 	return p_dev;
@@ -57,8 +79,7 @@ int hosal_flash_info_get(hosal_flash_dev_t *p_dev, hosal_logic_partition_t *part
 
 	bl_mtd_info(p_dev->flash_dev, &info);
 
-	//partition->partition_description = info.name;
-	strcpy(partition->partition_description, info.name);
+	partition->partition_description = info.name;
 	partition->partition_start_addr = (uint32_t)info.xip_addr + info.offset;
 	partition->partition_length = info.size;
 
@@ -104,17 +125,14 @@ int hosal_flash_erase(hosal_flash_dev_t *p_dev, uint32_t off_set, uint32_t size)
 int hosal_flash_write(hosal_flash_dev_t *p_dev, uint32_t *off_set,
                     const void *in_buf, uint32_t in_buf_size)
 {
-    if (off_set == NULL) {
-        return -1;
-    }
+    uint32_t addr = *off_set;
+
+    char *wbuf = (char *)in_buf;
+    uint32_t wlen = in_buf_size;
 
     if (in_buf == NULL) {
         return -1;
     }
-
-    uint32_t addr = *off_set;
-    char *wbuf = (char *)in_buf;
-    uint32_t wlen = in_buf_size;
 
     bl_mtd_write(p_dev->flash_dev, addr, wlen, (const uint8_t *)wbuf);
 

@@ -2085,12 +2085,12 @@ mdns_resp_add_netif(struct netif *netif, const char *hostname, u32_t dns_ttl)
   }
 #endif
 #if LWIP_IPV6
-
   res = mld6_joingroup_netif(netif, ip_2_ip6(&v6group));
   if (res != ERR_OK) {
     goto cleanup;
   }
 #endif
+
   mdns_resp_restart(netif);
 
   return ERR_OK;

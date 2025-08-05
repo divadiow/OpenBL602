@@ -58,7 +58,7 @@ namespace Utils {
  */
 
 /**
- * Implements the Channel Manager.
+ * This class implements the Channel Manager.
  *
  */
 class ChannelManager : public InstanceLocator, private NonCopyable
@@ -71,7 +71,7 @@ public:
     static constexpr uint16_t kMinimumDelay = OPENTHREAD_CONFIG_CHANNEL_MANAGER_MINIMUM_DELAY;
 
     /**
-     * Initializes a `ChanelManager` object.
+     * This constructor initializes a `ChanelManager` object.
      *
      * @param[in]   aInstance  A reference to the OpenThread instance.
      *
@@ -79,7 +79,7 @@ public:
     explicit ChannelManager(Instance &aInstance);
 
     /**
-     * Requests a Thread network channel change.
+     * This method requests a Thread network channel change.
      *
      * The Thread network switches to the given channel after a specified delay (@sa GetDelay()). The channel change is
      * performed by updating the Pending Operational Dataset.
@@ -94,7 +94,7 @@ public:
     void RequestChannelChange(uint8_t aChannel);
 
     /**
-     * Gets the channel from the last successful call to `RequestChannelChange()`.
+     * This method gets the channel from the last successful call to `RequestChannelChange()`.
      *
      * @returns The last requested channel, or zero if there has been no channel change request yet.
      *
@@ -102,7 +102,7 @@ public:
     uint8_t GetRequestedChannel(void) const { return mChannel; }
 
     /**
-     * Gets the delay (in seconds) used for a channel change.
+     * This method gets the delay (in seconds) used for a channel change.
      *
      * @returns The delay (in seconds)
      *
@@ -110,7 +110,7 @@ public:
     uint16_t GetDelay(void) const { return mDelay; }
 
     /**
-     * Sets the delay (in seconds) used for a channel change.
+     * This method sets the delay (in seconds) used for a channel change.
      *
      * The delay should preferably be longer than maximum data poll interval used by all sleepy-end-devices within the
      * Thread network.
@@ -124,7 +124,7 @@ public:
     Error SetDelay(uint16_t aDelay);
 
     /**
-     * Requests that `ChannelManager` checks and selects a new channel and starts a channel change.
+     * This method requests that `ChannelManager` checks and selects a new channel and starts a channel change.
      *
      * Unlike the `RequestChannelChange()`  where the channel must be given as a parameter, this method asks the
      * `ChannelManager` to select a channel by itself (based on the collected channel quality info).
@@ -155,7 +155,7 @@ public:
     Error RequestChannelSelect(bool aSkipQualityCheck);
 
     /**
-     * Enables/disables the auto-channel-selection functionality.
+     * This method enables/disables the auto-channel-selection functionality.
      *
      * When enabled, `ChannelManager` will periodically invoke a `RequestChannelSelect(false)`. The period interval
      * can be set by `SetAutoChannelSelectionInterval()`.
@@ -166,7 +166,7 @@ public:
     void SetAutoChannelSelectionEnabled(bool aEnabled);
 
     /**
-     * Indicates whether the auto-channel-selection functionality is enabled or not.
+     * This method indicates whether the auto-channel-selection functionality is enabled or not.
      *
      * @returns TRUE if enabled, FALSE if disabled.
      *
@@ -174,7 +174,7 @@ public:
     bool GetAutoChannelSelectionEnabled(void) const { return mAutoSelectEnabled; }
 
     /**
-     * Sets the period interval (in seconds) used by auto-channel-selection functionality.
+     * This method sets the period interval (in seconds) used by auto-channel-selection functionality.
      *
      * @param[in] aInterval            The interval (in seconds).
      *
@@ -185,7 +185,7 @@ public:
     Error SetAutoChannelSelectionInterval(uint32_t aInterval);
 
     /**
-     * Gets the period interval (in seconds) used by auto-channel-selection functionality.
+     * This method gets the period interval (in seconds) used by auto-channel-selection functionality.
      *
      * @returns The interval (in seconds).
      *
@@ -193,7 +193,7 @@ public:
     uint32_t GetAutoChannelSelectionInterval(void) const { return mAutoSelectInterval; }
 
     /**
-     * Gets the supported channel mask.
+     * This method gets the supported channel mask.
      *
      * @returns  The supported channels mask.
      *
@@ -201,7 +201,7 @@ public:
     uint32_t GetSupportedChannels(void) const { return mSupportedChannelMask.GetMask(); }
 
     /**
-     * Sets the supported channel mask.
+     * This method sets the supported channel mask.
      *
      * @param[in]  aChannelMask  A channel mask.
      *
@@ -209,7 +209,7 @@ public:
     void SetSupportedChannels(uint32_t aChannelMask);
 
     /**
-     * Gets the favored channel mask.
+     * This method gets the favored channel mask.
      *
      * @returns  The favored channels mask.
      *
@@ -217,7 +217,7 @@ public:
     uint32_t GetFavoredChannels(void) const { return mFavoredChannelMask.GetMask(); }
 
     /**
-     * Sets the favored channel mask.
+     * This method sets the favored channel mask.
      *
      * @param[in]  aChannelMask  A channel mask.
      *
@@ -225,7 +225,7 @@ public:
     void SetFavoredChannels(uint32_t aChannelMask);
 
     /**
-     * Gets the CCA failure rate threshold
+     * This method gets the CCA failure rate threshold
      *
      * @returns  The CCA failure rate threshold
      *
@@ -233,7 +233,7 @@ public:
     uint16_t GetCcaFailureRateThreshold(void) const { return mCcaFailureRateThreshold; }
 
     /**
-     * Sets the CCA failure rate threshold
+     * This method sets the CCA failure rate threshold
      *
      * @param[in]  aThreshold  A CCA failure rate threshold.
      *
@@ -276,6 +276,7 @@ private:
     void        StartDatasetUpdate(void);
     static void HandleDatasetUpdateDone(Error aError, void *aContext);
     void        HandleDatasetUpdateDone(Error aError);
+    static void HandleTimer(Timer &aTimer);
     void        HandleTimer(void);
     void        StartAutoSelectTimer(void);
 
@@ -284,14 +285,12 @@ private:
     bool  ShouldAttemptChannelChange(void);
 #endif
 
-    using ManagerTimer = TimerMilliIn<ChannelManager, &ChannelManager::HandleTimer>;
-
     Mac::ChannelMask mSupportedChannelMask;
     Mac::ChannelMask mFavoredChannelMask;
     uint16_t         mDelay;
     uint8_t          mChannel;
     State            mState;
-    ManagerTimer     mTimer;
+    TimerMilli       mTimer;
     uint32_t         mAutoSelectInterval;
     bool             mAutoSelectEnabled;
     uint16_t         mCcaFailureRateThreshold;

@@ -1,10 +1,31 @@
-/**
- ****************************************************************************************
+/*
+ * Copyright (c) 2016-2024 Bouffalolab.
  *
- * @file wifi_mgmr.c
- * Copyright (C) Bouffalo Lab 2016-2018
+ * This file is part of
+ *     *** Bouffalolab Software Dev Kit ***
+ *      (see www.bouffalolab.com).
  *
- ****************************************************************************************
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of Bouffalo Lab nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <stdint.h>
@@ -17,11 +38,9 @@
 #include <lwip/dhcp6.h>
 #endif
 
-#include <utils_tlv_bl.h>
 #include <aos/yloop.h>
 #include <bl60x_fw_api.h>
 #include <dns_server.h>
-#include <dhcp_server.h>
 #include "bl_main.h"
 #include "wifi_mgmr.h"
 #include "wifi_mgmr_profile.h"
@@ -175,11 +194,24 @@ int wifi_mgmr_scan_beacon_save( wifi_mgmr_scan_item_t *scan )
 {
 #define SCAN_UPDATE_LIMIT_TIME_MS (3000)
 
-    int i, j, pos_empty = -1, ret = 0, flag = 0;
+    int i, empty = -1, oldest = -1, ret = 0;
+    uint32_t lastseen = 0xFFFFFFFF;
     uint32_t counter = 0;
-    int8_t lowest_rssi = 0, pos_rssi = -1;
-    int8_t pos_same_ssid = -1;
-    wifi_mgmr_scan_item_t tmp_item;
+    uint32_t lastseen_found = 0;
+
+#ifdef DEBUG_SCAN_BEACON
+    bl_os_printf(DEBUG_HEADER "channel %02u, bssid %02X:%02X:%02X:%02X:%02X:%02X, rssi %3d, ppm %d:%d, auth %s, cipher:%s, group_cipher:%s \t, SSID %s\r\n",
+            scan->channel,
+            MAC_ADDR_LIST(scan->bssid),
+            scan->rssi,
+            scan->ppm_abs,
+            scan->ppm_rel,
+            wifi_mgmr_auth_to_str(scan->auth),
+            wifi_mgmr_cipher_to_str(scan->cipher),
+            wifi_mgmr_cipher_to_str(scan->group_cipher),
+            scan->ssid
+    );
+#endif
 
     bl_os_mutex_lock(wifiMgmr.scan_items_lock);
     if (scan->channel > wifiMgmr.channel_nums || !scan->channel){
@@ -190,107 +222,74 @@ int wifi_mgmr_scan_beacon_save( wifi_mgmr_scan_item_t *scan )
         ret = -1;
         goto __exit;
     }
+
     /*update scan_items, we just store the newly found item, or update exsiting one*/
     counter = bl_os_get_time_ms();
     for (i = 0; i < sizeof(wifiMgmr.scan_items)/sizeof(wifiMgmr.scan_items[0]); i++) {
         if(wifiMgmr.scan_items[i].channel > wifiMgmr.channel_nums){
             memset(&wifiMgmr.scan_items[i], 0, sizeof(wifi_mgmr_scan_item_t));
+            wifiMgmr.scan_items[i].is_used = 0;
         }
 
-        if(0 == wifiMgmr.scan_items[i].is_used) {
-            pos_empty = i;
-            continue;
-        }
-
-        /* delete old item */
-        if(counter - wifiMgmr.scan_items[i].timestamp_lastseen > SCAN_UPDATE_LIMIT_TIME_MS) {
-            // printf("ssid:%s rssi:%d is old\r\n",wifiMgmr.scan_items[i].ssid,wifiMgmr.scan_items[i].rssi);
-            memset(&wifiMgmr.scan_items[i], 0, sizeof(wifi_mgmr_scan_item_t));
-            pos_empty = i;
-            continue;
-        }
-
-        if(0 == flag) {
-            lowest_rssi = wifiMgmr.scan_items[i].rssi;
-            pos_rssi = i;
-            flag = 1;
-        }
-
-        /* find the weakest rssi. If rssi is samed, update to the older position */
-        if(lowest_rssi > wifiMgmr.scan_items[i].rssi) {
-            lowest_rssi = wifiMgmr.scan_items[i].rssi;
-            pos_rssi = i; 
-        }else if(lowest_rssi == wifiMgmr.scan_items[i].rssi && wifiMgmr.scan_items[i].timestamp_lastseen < wifiMgmr.scan_items[pos_rssi].timestamp_lastseen) {
-            pos_rssi = i;
-        }
-
-        if (0 == memcmp(wifiMgmr.scan_items[i].bssid, scan->bssid, sizeof(scan->bssid)) && 0 == strcmp(scan->ssid, wifiMgmr.scan_items[i].ssid)) {
-            pos_same_ssid = i;
-        }
-    }
-
-    if (i == sizeof(wifiMgmr.scan_items)/sizeof(wifiMgmr.scan_items[0])) {
-        /* The oldest item is deleted if exist. Just need update the same ssid */
-        if(-1 != pos_same_ssid) {
-            if(scan->rssi >= wifiMgmr.scan_items[pos_same_ssid].rssi){
-                wifiMgmr.scan_items[pos_same_ssid].channel = scan->channel;
-                wifiMgmr.scan_items[pos_same_ssid].rssi = scan->rssi;
-                wifiMgmr.scan_items[pos_same_ssid].ppm_abs = scan->ppm_abs;
-                wifiMgmr.scan_items[pos_same_ssid].ppm_rel = scan->ppm_rel;
-                wifiMgmr.scan_items[pos_same_ssid].timestamp_lastseen = counter;
-                wifiMgmr.scan_items[pos_same_ssid].auth = scan->auth;
-                wifiMgmr.scan_items[pos_same_ssid].cipher = scan->cipher;
-                wifiMgmr.scan_items[pos_same_ssid].wps = scan->wps;
-                wifiMgmr.scan_items[pos_same_ssid].mode = scan->mode;
+        if (wifiMgmr.scan_items[i].is_used) {
+            /*track the oldest scan_item*/
+            if ((0 == lastseen_found) ||
+                ((int32_t)wifiMgmr.scan_items[i].timestamp_lastseen - (int32_t)lastseen < 0)) {
+                lastseen_found = 1;
+                lastseen = wifiMgmr.scan_items[i].timestamp_lastseen;
+                oldest = i;
             }
-        }else {
-            /* find empty item */
-            if(-1 != pos_empty) {
-                memset(&wifiMgmr.scan_items[pos_empty], 0, sizeof(wifiMgmr.scan_items[0]));
-                strncpy(wifiMgmr.scan_items[pos_empty].ssid, scan->ssid, sizeof(wifiMgmr.scan_items[0].ssid));
-                wifiMgmr.scan_items[pos_empty].ssid_tail[0] = '\0';
-                wifiMgmr.scan_items[pos_empty].ssid_len = strlen(wifiMgmr.scan_items[pos_empty].ssid);
-                memcpy(wifiMgmr.scan_items[pos_empty].bssid, scan->bssid, sizeof(wifiMgmr.scan_items[pos_empty].bssid));
-                wifiMgmr.scan_items[pos_empty].channel = scan->channel;
-                wifiMgmr.scan_items[pos_empty].rssi = scan->rssi;
-                wifiMgmr.scan_items[pos_empty].timestamp_lastseen = counter;
-                wifiMgmr.scan_items[pos_empty].auth = scan->auth;
-                wifiMgmr.scan_items[pos_empty].cipher = scan->cipher;
-                wifiMgmr.scan_items[pos_empty].wps = scan->wps;
-                wifiMgmr.scan_items[pos_empty].mode = scan->mode;
-                wifiMgmr.scan_items[pos_empty].is_used = 1;
-            }else {
-                /* if no empty item, copy to low rssi item */
-                if(scan->rssi > lowest_rssi) {
-                    memset(&wifiMgmr.scan_items[pos_rssi], 0, sizeof(wifiMgmr.scan_items[0]));
-                    strncpy(wifiMgmr.scan_items[pos_rssi].ssid, scan->ssid, sizeof(wifiMgmr.scan_items[0].ssid));
-                    wifiMgmr.scan_items[pos_rssi].ssid_tail[0] = '\0';
-                    wifiMgmr.scan_items[pos_rssi].ssid_len = strlen(wifiMgmr.scan_items[pos_rssi].ssid);
-                    memcpy(wifiMgmr.scan_items[pos_rssi].bssid, scan->bssid, sizeof(wifiMgmr.scan_items[pos_rssi].bssid));
-                    wifiMgmr.scan_items[pos_rssi].channel = scan->channel;
-                    wifiMgmr.scan_items[pos_rssi].rssi = scan->rssi;
-                    wifiMgmr.scan_items[pos_rssi].timestamp_lastseen = counter;
-                    wifiMgmr.scan_items[pos_rssi].auth = scan->auth;
-                    wifiMgmr.scan_items[pos_rssi].cipher = scan->cipher;
-                    wifiMgmr.scan_items[pos_rssi].wps = scan->wps;
-                    wifiMgmr.scan_items[pos_rssi].mode = scan->mode;
-                    wifiMgmr.scan_items[pos_rssi].is_used = 1;
+
+            /*bssid and ssid must be the same at the same time*/
+            if (0 == memcmp(wifiMgmr.scan_items[i].bssid, scan->bssid, sizeof(scan->bssid)) &&
+                    0 == strcmp(scan->ssid, wifiMgmr.scan_items[i].ssid)) {
+
+                /*exactly the same scan item found*/
+                if ((scan->rssi < wifiMgmr.scan_items[i].rssi) &&
+                    ((int32_t)bl_os_get_time_ms() - (int32_t)wifiMgmr.scan_items[i].timestamp_lastseen < SCAN_UPDATE_LIMIT_TIME_MS)) {
+
+                    bl_os_log_debug("skip update %s with rssi %d\r\n", scan->ssid, scan->rssi);
+
+                } else {
+
+                    wifiMgmr.scan_items[i].channel = scan->channel;
+                    wifiMgmr.scan_items[i].rssi = scan->rssi;
+                    wifiMgmr.scan_items[i].ppm_abs = scan->ppm_abs;
+                    wifiMgmr.scan_items[i].ppm_rel = scan->ppm_rel;
+                    wifiMgmr.scan_items[i].timestamp_lastseen = counter;
+                    wifiMgmr.scan_items[i].auth = scan->auth;
+                    wifiMgmr.scan_items[i].cipher = scan->cipher;
+                    wifiMgmr.scan_items[i].wps = scan->wps;
+                    wifiMgmr.scan_items[i].mode = scan->mode;
+                    wifiMgmr.scan_items[i].group_cipher = scan->group_cipher;
                 }
+                break;
             }
+        } else {
+            empty  = i;
+        }
+    }
+    if (i == sizeof(wifiMgmr.scan_items)/sizeof(wifiMgmr.scan_items[0])) {
+        /*no valid item found in database, so try to store this newly found*/
+        i = (-1 != empty) ? empty : oldest;
+        if (-1 != i) {
+            memset(&wifiMgmr.scan_items[i], 0, sizeof(wifiMgmr.scan_items[0]));
+            strncpy(wifiMgmr.scan_items[i].ssid, scan->ssid, sizeof(wifiMgmr.scan_items[0].ssid));
+            wifiMgmr.scan_items[i].ssid_tail[0] = '\0';
+            wifiMgmr.scan_items[i].ssid_len = strlen(wifiMgmr.scan_items[i].ssid);
+            memcpy(wifiMgmr.scan_items[i].bssid, scan->bssid, sizeof(wifiMgmr.scan_items[i].bssid));
+            wifiMgmr.scan_items[i].channel = scan->channel;
+            wifiMgmr.scan_items[i].rssi = scan->rssi;
+            wifiMgmr.scan_items[i].timestamp_lastseen = counter;
+            wifiMgmr.scan_items[i].auth = scan->auth;
+            wifiMgmr.scan_items[i].cipher = scan->cipher;
+            wifiMgmr.scan_items[i].wps = scan->wps;
+            wifiMgmr.scan_items[i].mode = scan->mode;
+            wifiMgmr.scan_items[i].group_cipher = scan->group_cipher;
+            wifiMgmr.scan_items[i].is_used = 1;
         }
     }
 
-    /* sort scan results according to rssi. The empty item placed in the end of the list*/
-    for(i = 0; i < WIFI_MGMR_SCAN_ITEMS_MAX - 1; ++i) {
-        for(j = 0; j < WIFI_MGMR_SCAN_ITEMS_MAX-i-1; ++j) {
-            if((wifiMgmr.scan_items[j].rssi < wifiMgmr.scan_items[j+1].rssi && wifiMgmr.scan_items[j+1].is_used)
-                    || ((!wifiMgmr.scan_items[j].is_used) && (wifiMgmr.scan_items[j+1].is_used))) {
-                memcpy(&tmp_item, &wifiMgmr.scan_items[j], sizeof(wifi_mgmr_scan_item_t));
-                memcpy(&wifiMgmr.scan_items[j], &wifiMgmr.scan_items[j+1], sizeof(wifi_mgmr_scan_item_t));
-                memcpy(&wifiMgmr.scan_items[j+1], &tmp_item, sizeof(wifi_mgmr_scan_item_t));
-            }
-        }
-    }
 __exit:
     bl_os_mutex_unlock(wifiMgmr.scan_items_lock);
 
@@ -309,7 +308,7 @@ static bool stateGlobalGuard_disable_autoreconnect( void *ch, struct event *even
     if (&stateDisconnect == wifiMgmr.m.currentState) {
         bl_os_printf("Disable Autoreconnect in Disconnec State\r\n");
         bl_os_printf(DEBUG_HEADER "Removing STA interface...\r\n");
-        bl_main_if_remove(BL_VIF_STA);
+        bl_main_if_remove(wifiMgmr.wlan_sta.vif_index);
         return true;
     }
     /*we need set disable now for future use*/
@@ -353,22 +352,14 @@ static bool stateGlobalGuard_fw_disconnect(void *ch, struct event *event)
 static bool stateGlobalGuard_fw_powersaving(void *ch, struct event *event)
 {
     wifi_mgmr_msg_t *msg;
-    int mode, ret = -1;
 
     msg = event->data;
     if (WIFI_MGMR_EVENT_FW_POWERSAVING == msg->ev) {
         bl_os_printf("------>>>>>> Powersaving CMD, mode: %u\r\n", (unsigned int)msg->data1);
-        mode = (int)msg->data1;
-        if (mode >= PS_MODE_OFF && mode <= PS_MODE_ON_DYN) {
-            if ((mode == PS_MODE_OFF) || ((mode > PS_MODE_OFF) && bl_main_sta_is_connected()))
-            if (!bl_main_powersaving(mode)) {
-                ret = 0;
-            }
-        }
+//TODO mode check?
+        bl_main_powersaving((int)msg->data1);
     }
 
-    aos_post_event(EV_WIFI, CODE_WIFI_ON_SET_PS_DONE, (ret==0)?WIFI_PS_SET_DONE_EVENT_OK:
-                                                               WIFI_PS_SET_DONE_EVENT_FAIL);
     return false;
 }
 
@@ -389,7 +380,6 @@ static bool stateGlobalGuard_fw_scan(void *ch, struct event *event)
         return false;
     }
 
-#ifndef CFG_NETBUS_WIFI_ENABLE
     /*pending wifi scan command*/
     if (&stateConnecting == wifiMgmr.m.currentState ||
             &stateConnectedIPNo == wifiMgmr.m.currentState ||
@@ -399,7 +389,6 @@ static bool stateGlobalGuard_fw_scan(void *ch, struct event *event)
             _pending_task_set_safely(WIFI_MGMR_PENDING_TASK_SCAN_BIT);
             return false;
     }
-#endif
 
     ch_req = (wifi_mgmr_scan_params_t *)msg->data;
     channel_num = ch_req->channel_num;
@@ -417,7 +406,7 @@ static bool stateGlobalGuard_fw_scan(void *ch, struct event *event)
     }
 #endif
 
-#ifndef CFG_NETBUS_WIFI_ENABLE
+
     /*Forbidden other cases*/
     if (&stateIdle != wifiMgmr.m.currentState &&
             &stateConnectedIPYes != wifiMgmr.m.currentState &&
@@ -426,7 +415,6 @@ static bool stateGlobalGuard_fw_scan(void *ch, struct event *event)
             aos_post_event(EV_WIFI, CODE_WIFI_ON_SCAN_DONE, WIFI_SCAN_DONE_EVENT_BUSY);
             return false;
     }
-#endif
 
     if (channel_num) {
         bl_os_printf("------>>>>>> Scan CMD fixed channels_num:%u\r\n", channel_num);
@@ -464,20 +452,6 @@ static void stateAction( void *oldStateData, struct event *event,
             (char*)oldStateData,
             (char*)newStateData
     );
-}
-
-
-static bool stateSnifferGuard_idle(void *ev, struct event *event )
-{
-    wifi_mgmr_msg_t *msg;
-
-    msg = event->data;
-    if (ev != (void*)msg->ev) {
-        return false;
-    }
-
-    bl_main_monitor_disable();
-    return true;
 }
 
 /*function for state sniffer*/
@@ -565,8 +539,10 @@ static bool stateGlobalGuard_AP(void *ev, struct event *event )
     }
     ap = (wifi_mgmr_ap_msg_t*)msg->data;
 
+    netifapi_netif_set_link_up(&(wifiMgmr.wlan_ap.netif));
+void dhcpd_start(struct netif *netif);
     if (ap->use_dhcp_server) {
-        dhcpd_start(&(wifiMgmr.wlan_ap.netif), -1, -1);
+        netifapi_netif_common(&(wifiMgmr.wlan_ap.netif), dhcpd_start, NULL);
     }
 
     if (ap->max_sta_supported >= 0) {
@@ -577,7 +553,7 @@ static bool stateGlobalGuard_AP(void *ev, struct event *event )
     bl_os_printf(DEBUG_HEADER "start AP with ssid %s;\r\n", ap->ssid);
     bl_os_printf(DEBUG_HEADER "              pwd  %s;\r\n", ap->psk);
     bl_os_printf(DEBUG_HEADER "              channel  %ld;\r\n", ap->channel);
-    bl_main_apm_start(ap->ssid, ap->psk, ap->channel, ap->hidden_ssid, wifiMgmr.ap_bcn_int);
+    bl_main_apm_start(ap->ssid, ap->psk, ap->channel, wifiMgmr.wlan_ap.vif_index, ap->hidden_ssid, wifiMgmr.ap_bcn_int);
     wifiMgmr.inf_ap_enabled = 1;
     if (ap->use_dhcp_server) {
         wifiMgmr.dns_server = dns_server_init();
@@ -602,16 +578,14 @@ static bool stateGlobalGuard_stop(void *ev, struct event *event )
     bl_os_printf(DEBUG_HEADER "Removing and deauth all sta client...\r\n");
     bl_main_apm_remove_all_sta();
     bl_os_printf(DEBUG_HEADER "Stoping AP interface...\r\n");
-    bl_main_apm_stop();
+    bl_main_apm_stop(wifiMgmr.wlan_ap.vif_index);
     bl_os_printf(DEBUG_HEADER "Removing AP interface...\r\n");
-    bl_main_if_remove(BL_VIF_AP);
+    bl_main_if_remove(wifiMgmr.wlan_ap.vif_index);
     bl_os_printf(DEBUG_HEADER "Stopping DHCP on AP interface...\r\n");
-
-    // netifapi_netif_set_addr(&(wifiMgmr.wlan_ap.netif), NULL, NULL, NULL);
 err_t dhcp_server_stop(struct netif *netif);
     netifapi_netif_common(&(wifiMgmr.wlan_ap.netif), NULL, dhcp_server_stop);
-    // bl_os_printf(DEBUG_HEADER "Removing ETH interface ...\r\n");
-    // netifapi_netif_remove(&(wifiMgmr.wlan_ap.netif));
+    bl_os_printf(DEBUG_HEADER "Removing ETH interface ...\r\n");
+    netifapi_netif_remove(&(wifiMgmr.wlan_ap.netif));
     wifiMgmr.inf_ap_enabled = 0;
     aos_post_event(EV_WIFI, CODE_WIFI_ON_AP_STOPPED, 0);
 
@@ -631,7 +605,7 @@ static bool stateGlobalGuard_ap_chan_switch(void *ev, struct event *event)
         return false;
     }
 
-    bl_main_apm_chan_switch((int)(intptr_t)msg->data1, (uint8_t)(uintptr_t)msg->data2);
+    bl_main_apm_chan_switch(wifiMgmr.wlan_ap.vif_index, (int)(intptr_t)msg->data1, (uint8_t)(uintptr_t)msg->data2);
 
     return false;
 }
@@ -781,12 +755,6 @@ static void stateGlobalAction_connect( void *oldStateData, struct event *event,
 
 static void stateExit( void *stateData, struct event *event )
 {
-    if (_pending_task_is_set(WIFI_MGMR_PENDING_TASK_SCAN_BIT)) {
-        bl_os_printf(DEBUG_HEADER "Pending Scan Sent\r\n");
-        bl_main_scan(&wifiMgmr.wlan_sta.netif, NULL, 0, (struct mac_addr *)&mac_addr_bcst, NULL, 0, 0);
-        _pending_task_clr_safely(WIFI_MGMR_PENDING_TASK_SCAN_BIT);
-    }
-
    bl_os_printf(DEBUG_HEADER "Exiting %s state\r\n", (char *)stateData);
 }
 
@@ -814,7 +782,7 @@ const static struct state stateGlobal = {
       {EVENT_TYPE_FW,  (void*)WIFI_MGMR_EVENT_FW_DATA_RAW_SEND, &stateSnifferGuard_raw_send, &stateGlobalAction, &stateIdle},
       {EVENT_TYPE_FW,  (void*)WIFI_MGMR_EVENT_FW_CFG_REQ, &stateGlobal_cfg_req, &stateGlobalAction, &stateIdle},
    },
-   .numTransitions = 13,
+   .numTransitions = 12,
    .data = "group",
    .entryAction = &stateEnter,
    .exitAction = &stateExit,
@@ -825,7 +793,7 @@ const static struct state stateSniffer = {
    .entryState = NULL,
    .transitions = (struct transition[])
    {
-      {EVENT_TYPE_APP, (void*)WIFI_MGMR_EVENT_APP_IDLE, &stateSnifferGuard_idle, &stateAction, &stateIdle},
+      {EVENT_TYPE_APP, (void*)WIFI_MGMR_EVENT_APP_IDLE, &stateGuard, &stateAction, &stateIdle},
       /*Will NOT transfer state*/
       {EVENT_TYPE_FW,  (void*)WIFI_MGMR_EVENT_FW_CHANNEL_SET, &stateSnifferGuard_ChannelSet, &stateAction, &stateIdle},
    },
@@ -1116,7 +1084,6 @@ static void stateConnectedIPNoEnter(void *stateData, struct event *event )
     bl_os_printf("Entering %s state, up time is %.1fs, cost time is %.1fs\r\n", (char *)stateData, now/1000.0, (now - wifiMgmr.connect_time)/1000.0);
 #endif
 
-#ifndef CFG_NETBUS_WIFI_ENABLE
     /* timeout 15 seconds for ip obtaining */
     if (use_dhcp) {
         stateConnectedIPNo_data->timer = bl_os_timer_create(ip_obtaining_timeout, stateConnectedIPNo_data);
@@ -1126,7 +1093,6 @@ static void stateConnectedIPNoEnter(void *stateData, struct event *event )
     }
 
     __sta_setup_ip(use_dhcp);
-#endif
     aos_post_event(EV_WIFI, CODE_WIFI_ON_CONNECTED, 0);
 }
 
@@ -1158,18 +1124,6 @@ static void stateConnectedIPNoExit(void *stateData, struct event *event )
     }
 }
 
-static void stateConnectedIPNoAction_disconn( void *oldStateData, struct event *event, void *newStateData)
-{
-    bl_os_printf(DEBUG_HEADER "State Action ###%s### --->>> ###%s###\r\n",
-            (char*)oldStateData,
-            (char*)newStateData
-    );
-
-    wifiMgmr.wlan_sta.sta.rssi = 0;
-    wifi_netif_dhcp_stop(&(wifiMgmr.wlan_sta.netif));
-    netifapi_netif_set_addr(&(wifiMgmr.wlan_sta.netif), NULL, NULL, NULL);
-}
-
 const static struct state stateConnectedIPNo = {
    .parentState = &stateGlobal,
    .entryState = NULL,
@@ -1177,7 +1131,7 @@ const static struct state stateConnectedIPNo = {
    {
       {EVENT_TYPE_APP, (void*)WIFI_MGMR_EVENT_APP_IP_GOT, &stateGuard, &stateConnectedIPNoAction_ipgot, &stateConnectedIPYes},
       {EVENT_TYPE_APP, (void*)WIFI_MGMR_EVENT_APP_DISCONNECT, &stateConnectedIPNoGuard_disconnect, &stateAction, &stateDisconnect},
-      {EVENT_TYPE_FW, (void*)WIFI_MGMR_EVENT_FW_IND_DISCONNECT, &stateGuard, &stateConnectedIPNoAction_disconn, &stateDisconnect},
+      {EVENT_TYPE_FW, (void*)WIFI_MGMR_EVENT_FW_IND_DISCONNECT, &stateGuard, &stateAction, &stateDisconnect},
    },
    .numTransitions = 3,
    .data = &stateConnectedIPNo_data,
@@ -1226,7 +1180,7 @@ static bool stateConnectedIPYesGuard_rcconfig( void *ch, struct event *event )
     }
 
     bl_os_printf(DEBUG_HEADER "rate config, use sta_idx 0, rate_config %04X\r\n", (unsigned int)(msg->data1));
-    bl_main_rate_config(wifi_hw.vif_table[BL_VIF_STA].fixed_sta_idx, (uint32_t)msg->data1);
+    bl_main_rate_config(wifi_hw.sta_idx, (uint32_t)msg->data1);
     /*will never trigger state change, since we just want to trigger the guard*/
     return false;
 }
@@ -1234,23 +1188,19 @@ static bool stateConnectedIPYesGuard_rcconfig( void *ch, struct event *event )
 static void stateConnectedIPYes_action( void *oldStateData, struct event *event,
       void *newStateData )
 {
+    ip4_addr_t addr_ipaddr;
+
+    ip4_addr_set_any(&addr_ipaddr);
     bl_os_printf(DEBUG_HEADER "State Action ###%s### --->>> ###%s###\r\n",
             (char*)oldStateData,
             (char*)newStateData
     );
-    wifiMgmr.wlan_sta.sta.rssi = 0;
     wifi_netif_dhcp_stop(&(wifiMgmr.wlan_sta.netif));
-    netifapi_netif_set_addr(&(wifiMgmr.wlan_sta.netif), NULL, NULL, NULL);
+    netifapi_netif_set_addr(&(wifiMgmr.wlan_sta.netif), &addr_ipaddr, &addr_ipaddr, &addr_ipaddr);
 }
 
 static void stateConnectedIPYes_enter( void *stateData, struct event *event )
 {
-    // XXX: tell FW GOT IP
-    // uint32_t trigger_flag = 0;
-    // bl_main_cfg_task_req(CFG_ELEMENT_TYPE_OPS_SET, TASK_SM,
-    //                      TASK_SM_CFG_RECONNECT_TRIGGER_FLAG,
-    //                      CFG_ELEMENT_TYPE_UINT32, &trigger_flag, NULL);
-
     if (_pending_task_is_set(WIFI_MGMR_PENDING_TASK_CONNECT_BIT)) {
         //disconnect, not need to clear pending
         bl_os_printf("IPYES enter, disconnect\r\n");
@@ -1356,11 +1306,7 @@ static void stateDisconnect_action_reconnect( void *oldStateData, struct event *
 
     dump_connect_param(profile_msg, band, freq, bssid ? bssid : null_bssid);
 
-    // XXX: tell FW reconnect happening
-    // uint32_t trigger_flag = 1;
-    // bl_main_cfg_task_req(CFG_ELEMENT_TYPE_OPS_SET, TASK_SM,
-    //                      TASK_SM_CFG_RECONNECT_TRIGGER_FLAG,
-    //                      CFG_ELEMENT_TYPE_UINT32, &trigger_flag, NULL);
+
 
     //TODO Other security support
     bl_main_connect((const uint8_t *)profile_msg->ssid, profile_msg->ssid_len,
@@ -1382,7 +1328,7 @@ static void stateDisconnect_action_idle( void *oldStateData, struct event *event
             (char*)newStateData
     );
     bl_os_printf(DEBUG_HEADER "Removing STA interface...\r\n");
-    bl_main_if_remove(BL_VIF_STA);
+    bl_main_if_remove(wifiMgmr.wlan_sta.vif_index);
 }
 
 static void disconnect_retry(void *data)
@@ -1441,7 +1387,6 @@ static void stateDisconnect_enter(void *stateData, struct event *event)
         stateDisconnect_data->timer_started = 1;
     } else {
         bl_os_printf(DEBUG_HEADER "Will NOT retry connect\r\n");
-        wifi_mgmr_api_common_msg(WIFI_MGMR_EVENT_APP_IDLE, (void*)0x1, (void*)0x2);
     }
     aos_post_event(EV_WIFI, CODE_WIFI_ON_DISCONNECT, wifiMgmr.wifi_mgmr_stat_info.status_code);
 
@@ -1516,10 +1461,10 @@ int wifi_mgmr_event_notify(wifi_mgmr_msg_t *msg, int use_block)
             return -1;
         }
     }
-    ret = use_block ? bl_os_queue_send_wait(wifiMgmr.mq, msg, sizeof(wifi_mgmr_msg_t), BL_OS_WAITING_FOREVER, 0) :
-                      bl_os_queue_send(wifiMgmr.mq, msg, sizeof(wifi_mgmr_msg_t));
+    ret = use_block ? bl_os_queue_send_wait(wifiMgmr.mq, msg, msg->len, BL_OS_WAITING_FOREVER, 0) :
+                      bl_os_queue_send(wifiMgmr.mq, msg, msg->len);
     if (ret) {
-        bl_os_printf("Failed when send msg 0x%p, ev :%d\r\n", msg, msg->ev);
+        bl_os_printf("Failed when send msg 0x%p, len dec:%u\r\n", msg, (unsigned int)msg->len);
         return -1;
     }
     return 0;
@@ -1554,6 +1499,7 @@ static uint32_t handle_pending_task(wifi_mgmr_msg_t *msg)
         msg->ev = WIFI_MGMR_EVENT_GLB_IP_UPDATE;
         msg->data1 = (void*)0x01;
         msg->data2 = (void*)0x02;
+        msg->len = sizeof (wifi_mgmr_msg_t);
         return WIFI_MGMR_PENDING_TASK_IP_UPDATE_BIT;
     }
 
@@ -1562,6 +1508,7 @@ static uint32_t handle_pending_task(wifi_mgmr_msg_t *msg)
         msg->ev = WIFI_MGMR_EVENT_APP_IP_GOT;
         msg->data1 = (void*)0x01;
         msg->data2 = (void*)0x02;
+        msg->len = sizeof (wifi_mgmr_msg_t);
         return WIFI_MGMR_PENDING_TASK_IP_GOT_BIT;
     }
 
@@ -1571,10 +1518,12 @@ static uint32_t handle_pending_task(wifi_mgmr_msg_t *msg)
 void wifi_mgmr_start(void)
 {
     struct event ev;
-    wifi_mgmr_msg_t msg;
+    uint8_t buffer[WIFI_MGMR_MQ_MSG_SIZE + 8];
+    wifi_mgmr_msg_t *msg;
 
+    msg = (wifi_mgmr_msg_t*)(buffer + 1);
     ev.type = EVENT_TYPE_APP;
-    ev.data = &msg;
+    ev.data = msg;
     stateM_init(&(wifiMgmr.m), &stateIfaceDown, &stateError);
 
     wifiMgmr.scan_items_lock = bl_os_mutex_create();
@@ -1600,23 +1549,19 @@ void wifi_mgmr_start(void)
 
     /*Run the event handler loop*/
     while (1) {
-        if (0 == bl_os_queue_recv(wifiMgmr.mq, &msg, sizeof(wifi_mgmr_msg_t), BL_OS_WAITING_FOREVER)) {
+        if (0 == bl_os_queue_recv(wifiMgmr.mq, msg, WIFI_MGMR_MQ_MSG_SIZE, BL_OS_WAITING_FOREVER)) {
 
 handle_msg:
-            ev.type = msg.ev < WIFI_MGMR_EVENT_MAXAPP_MINIFW ? EVENT_TYPE_APP :
-                (msg.ev < WIFI_MGMR_EVENT_MAXFW_MINI_GLOBAL ? EVENT_TYPE_FW : EVENT_TYPE_GLB);
-            if (msg.ev == WIFI_MGMR_EVENT_APP_RELOAD_TSEN) {
+            ev.type = msg->ev < WIFI_MGMR_EVENT_MAXAPP_MINIFW ? EVENT_TYPE_APP :
+                (msg->ev < WIFI_MGMR_EVENT_MAXFW_MINI_GLOBAL ? EVENT_TYPE_FW : EVENT_TYPE_GLB);
+            if (msg->ev == WIFI_MGMR_EVENT_APP_RELOAD_TSEN) {
                 __run_reload_tsen();
             } else {
                 stateM_handleEvent(&(wifiMgmr.m), &ev);
             }
 
-            if (handle_pending_task(&msg)) {
+            if (handle_pending_task(msg)) {
                 goto handle_msg;
-            }
-
-            if (msg.data) {
-                bl_os_free(msg.data);
             }
         }
     }
@@ -1637,7 +1582,7 @@ int wifi_mgmr_init(void)
 {
     int ret;
 
-    wifiMgmr.mq = bl_os_queue_create(WIFI_MGMR_MQ_MSG_COUNT, sizeof(wifi_mgmr_msg_t));
+    wifiMgmr.mq = bl_os_queue_create(sizeof(wifiMgmr.mq_pool) / WIFI_MGMR_MQ_MSG_SIZE, WIFI_MGMR_MQ_MSG_SIZE);
     assert((ret = (NULL != wifiMgmr.mq)));
 
     wifiMgmr.ready = 1;//TODO check ret
@@ -1776,11 +1721,7 @@ void wifi_mgmr_set_connect_stat_info(struct wifi_event_sm_connect_ind *ind, uint
 
 int wifi_mgmr_set_country_code_internal(char *country_code)
 {
-    int ret;
-    ret = bl_main_set_country_code(country_code);
-    if (ret != 0) {
-        return ret;
-    }
+    bl_main_set_country_code(country_code);
     strncpy(wifiMgmr.country_code, country_code, sizeof(wifiMgmr.country_code));
     wifiMgmr.country_code[2] = '\0';
     wifiMgmr.channel_nums = bl_main_get_channel_nums();
@@ -1791,7 +1732,8 @@ int wifi_mgmr_set_country_code_internal(char *country_code)
 
 int wifi_mgmr_ap_sta_cnt_get_internal(uint8_t *sta_cnt)
 {
-    return bl_main_apm_sta_cnt_get(sta_cnt);
+    bl_main_apm_sta_cnt_get(sta_cnt);
+    return 0;
 }
 
 int wifi_mgmr_ap_sta_info_get_internal(wifi_mgmr_sta_basic_info_t *sta_info_internal, uint8_t idx)
@@ -1811,15 +1753,13 @@ int wifi_mgmr_ap_sta_info_get_internal(wifi_mgmr_sta_basic_info_t *sta_info_inte
 
 int wifi_mgmr_ap_sta_delete_internal(uint8_t sta_idx)
 {
-    return bl_main_apm_sta_delete(sta_idx);
+    bl_main_apm_sta_delete(sta_idx);
+    return 0;
 }
 
 int wifi_mgmr_scan_complete_notify()
 {
-    return wifi_mgmr_scan_complete_callback();
+    wifi_mgmr_scan_complete_callback();
+    return 0;
 }
 
-int wifi_mgmr_api_fw_powersaving_get(void)
-{
-    return bl_main_powersaving_get();
-}

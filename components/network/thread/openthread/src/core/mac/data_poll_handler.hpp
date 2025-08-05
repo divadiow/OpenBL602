@@ -60,7 +60,7 @@ namespace ot {
 class Child;
 
 /**
- * Implements the data poll (mac data request command) handler.
+ * This class implements the data poll (mac data request command) handler.
  *
  */
 class DataPollHandler : public InstanceLocator, private NonCopyable
@@ -71,7 +71,7 @@ public:
     static constexpr uint8_t kMaxPollTriggeredTxAttempts = OPENTHREAD_CONFIG_MAC_MAX_TX_ATTEMPTS_INDIRECT_POLLS;
 
     /**
-     * Defines frame change request types used as input to `RequestFrameChange()`.
+     * This enumeration defines frame change request types used as input to `RequestFrameChange()`.
      *
      */
     enum FrameChange : uint8_t
@@ -81,7 +81,7 @@ public:
     };
 
     /**
-     * Defines all the child info required for handling of data polls and indirect frame transmissions.
+     * This class defines all the child info required for handling of data polls and indirect frame transmissions.
      *
      * `Child` class publicly inherits from this class.
      *
@@ -136,7 +136,7 @@ public:
     };
 
     /**
-     * Defines the callbacks used by the `DataPollHandler`.
+     * This class defines the callbacks used by the `DataPollHandler`.
      *
      */
     class Callbacks : public InstanceLocator
@@ -145,7 +145,7 @@ public:
 
     private:
         /**
-         * Defines the frame context associated with a prepared frame.
+         * This type defines the frame context associated with a prepared frame.
          *
          * Data poll handler treats `FrameContext` as an opaque data type. Data poll handler provides the buffer/object
          * for the context when a new frame is prepared (from the callback `PrepareFrameForChild()`). It ensures
@@ -156,7 +156,7 @@ public:
         typedef IndirectSenderBase::FrameContext FrameContext;
 
         /**
-         * Initializes the callbacks object.
+         * This constructor initializes the callbacks object.
          *
          * @param[in]  aInstance   A reference to the OpenThread instance.
          *
@@ -191,7 +191,7 @@ public:
         void HandleSentFrameToChild(const Mac::TxFrame &aFrame,
                                     const FrameContext &aContext,
                                     Error               aError,
-                                    Child              &aChild);
+                                    Child &             aChild);
 
         /**
          * This callback method notifies that a requested frame change from `RequestFrameChange()` is processed.
@@ -206,7 +206,7 @@ public:
     };
 
     /**
-     * Initializes the data poll handler object.
+     * This constructor initializes the data poll handler object.
      *
      * @param[in]  aInstance   A reference to the OpenThread instance.
      *
@@ -214,13 +214,13 @@ public:
     explicit DataPollHandler(Instance &aInstance);
 
     /**
-     * Clears any state/info saved per child for indirect frame transmission.
+     * This method clears any state/info saved per child for indirect frame transmission.
      *
      */
     void Clear(void);
 
     /**
-     * Informs data poll handler that there is a new frame for a given child.
+     * This method informs data poll handler that there is a new frame for a given child.
      *
      * After this call, the data poll handler can use the `Callbacks::PrepareFrameForChild()` method to request the
      * frame to be prepared. A subsequent call to `Callbacks::PrepareFrameForChild()` should ensure to prepare the same
@@ -234,7 +234,7 @@ public:
     void HandleNewFrame(Child &aChild);
 
     /**
-     * Requests a frame change for a given child.
+     * This method requests a frame change for a given child.
      *
      * Two types of frame change requests are supported:
      *
@@ -282,7 +282,7 @@ private:
     // indicates no active indirect tx). `mFrameContext` tracks the
     // context for the prepared frame for the current indirect tx.
 
-    Child                  *mIndirectTxChild;
+    Child *                 mIndirectTxChild;
     Callbacks::FrameContext mFrameContext;
     Callbacks               mCallbacks;
 };

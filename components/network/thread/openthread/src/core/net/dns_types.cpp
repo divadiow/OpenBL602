@@ -36,7 +36,6 @@
 #include "common/code_utils.hpp"
 #include "common/debug.hpp"
 #include "common/instance.hpp"
-#include "common/num_utils.hpp"
 #include "common/random.hpp"
 #include "common/string.hpp"
 
@@ -167,6 +166,11 @@ exit:
 
 Error Name::AppendMultipleLabels(const char *aLabels, Message &aMessage)
 {
+    return AppendMultipleLabels(aLabels, kMaxNameLength, aMessage);
+}
+
+Error Name::AppendMultipleLabels(const char *aLabels, uint8_t aLength, Message &aMessage)
+{
     Error    error           = kErrorNone;
     uint16_t index           = 0;
     uint16_t labelStartIndex = 0;
@@ -176,9 +180,9 @@ Error Name::AppendMultipleLabels(const char *aLabels, Message &aMessage)
 
     do
     {
-        ch = aLabels[index];
+        ch = index < aLength ? aLabels[index] : static_cast<char>(kNullChar);
 
-        if ((ch == kNullChar) || (ch == kLabelSeparatorChar))
+        if ((ch == kNullChar) || (ch == kLabelSeperatorChar))
         {
             uint8_t labelLength = static_cast<uint8_t>(index - labelStartIndex);
 
@@ -323,15 +327,15 @@ Error Name::ReadName(const Message &aMessage, uint16_t &aOffset, char *aNameBuff
 
             if (!firstLabel)
             {
-                *aNameBuffer++ = kLabelSeparatorChar;
+                *aNameBuffer++ = kLabelSeperatorChar;
                 aNameBufferSize--;
 
                 // No need to check if we have reached end of the name buffer
                 // here since `iterator.ReadLabel()` would verify it.
             }
 
-            labelLength = static_cast<uint8_t>(Min(static_cast<uint16_t>(kMaxLabelSize), aNameBufferSize));
-            SuccessOrExit(error = iterator.ReadLabel(aNameBuffer, labelLength, /* aAllowDotCharInLabel */ firstLabel));
+            labelLength = static_cast<uint8_t>(OT_MIN(static_cast<uint8_t>(kMaxLabelSize), aNameBufferSize));
+            SuccessOrExit(error = iterator.ReadLabel(aNameBuffer, labelLength, /* aAllowDotCharInLabel */ false));
             aNameBuffer += labelLength;
             aNameBufferSize -= labelLength;
             firstLabel = false;
@@ -340,7 +344,7 @@ Error Name::ReadName(const Message &aMessage, uint16_t &aOffset, char *aNameBuff
         case kErrorNotFound:
             // We reach the end of name successfully. Always add a terminating dot
             // at the end.
-            *aNameBuffer++ = kLabelSeparatorChar;
+            *aNameBuffer++ = kLabelSeperatorChar;
             aNameBufferSize--;
             VerifyOrExit(aNameBufferSize >= sizeof(uint8_t), error = kErrorNoBufs);
             *aNameBuffer = kNullChar;
@@ -377,7 +381,7 @@ Error Name::CompareName(const Message &aMessage, uint16_t &aOffset, const char *
     LabelIterator iterator(aMessage, aOffset);
     bool          matches = true;
 
-    if (*aName == kLabelSeparatorChar)
+    if (*aName == kLabelSeperatorChar)
     {
         aName++;
         VerifyOrExit(*aName == kNullChar, error = kErrorInvalidArgs);
@@ -517,7 +521,6 @@ Error Name::LabelIterator::GetNextLabel(void)
             // specify an offset value from the start of the DNS header.
 
             uint16_t pointerValue;
-            uint16_t nextLabelOffset;
 
             SuccessOrExit(error = mMessage.Read(mNextLabelOffset, pointerValue));
 
@@ -528,9 +531,7 @@ Error Name::LabelIterator::GetNextLabel(void)
 
             // `mMessage.GetOffset()` must point to the start of the
             // DNS header.
-            nextLabelOffset = mMessage.GetOffset() + (HostSwap16(pointerValue) & kPointerLabelOffsetMask);
-            VerifyOrExit(nextLabelOffset < mNextLabelOffset, error = kErrorParse);
-            mNextLabelOffset = nextLabelOffset;
+            mNextLabelOffset = mMessage.GetOffset() + (HostSwap16(pointerValue) & kPointerLabelOffsetMask);
 
             // Go back through the `while(true)` loop to get the next label.
         }
@@ -556,7 +557,7 @@ Error Name::LabelIterator::ReadLabel(char *aLabelBuffer, uint8_t &aLabelLength, 
 
     if (!aAllowDotCharInLabel)
     {
-        VerifyOrExit(StringFind(aLabelBuffer, kLabelSeparatorChar) == nullptr, error = kErrorParse);
+        VerifyOrExit(StringFind(aLabelBuffer, kLabelSeperatorChar) == nullptr, error = kErrorParse);
     }
 
 exit:
@@ -593,7 +594,7 @@ bool Name::LabelIterator::CompareLabel(const char *&aName, bool aIsSingleLabel) 
 
     matches = (*aName == kNullChar);
 
-    if (!aIsSingleLabel && (*aName == kLabelSeparatorChar))
+    if (!aIsSingleLabel && (*aName == kLabelSeperatorChar))
     {
         matches = true;
         aName++;
@@ -628,35 +629,6 @@ exit:
     return error;
 }
 
-Error Name::ExtractLabels(const char *aName, const char *aSuffixName, char *aLabels, uint16_t aLabelsSize)
-{
-    Error       error        = kErrorParse;
-    uint16_t    nameLength   = StringLength(aName, kMaxNameSize);
-    uint16_t    suffixLength = StringLength(aSuffixName, kMaxNameSize);
-    const char *suffixStart;
-
-    VerifyOrExit(nameLength < kMaxNameSize);
-    VerifyOrExit(suffixLength < kMaxNameSize);
-
-    VerifyOrExit(nameLength > suffixLength);
-
-    suffixStart = aName + nameLength - suffixLength;
-    VerifyOrExit(StringMatch(suffixStart, aSuffixName, kStringCaseInsensitiveMatch));
-    suffixStart--;
-    VerifyOrExit(*suffixStart == kLabelSeparatorChar);
-
-    // Determine the labels length to copy
-    nameLength -= (suffixLength + 1);
-    VerifyOrExit(nameLength < aLabelsSize, error = kErrorNoBufs);
-
-    memcpy(aLabels, aName, nameLength);
-    aLabels[nameLength] = kNullChar;
-    error               = kErrorNone;
-
-exit:
-    return error;
-}
-
 bool Name::IsSubDomainOf(const char *aName, const char *aDomain)
 {
     bool     match             = false;
@@ -665,13 +637,13 @@ bool Name::IsSubDomainOf(const char *aName, const char *aDomain)
     uint16_t nameLength        = StringLength(aName, kMaxNameLength);
     uint16_t domainLength      = StringLength(aDomain, kMaxNameLength);
 
-    if (nameLength > 0 && aName[nameLength - 1] == kLabelSeparatorChar)
+    if (nameLength > 0 && aName[nameLength - 1] == kLabelSeperatorChar)
     {
         nameEndsWithDot = true;
         --nameLength;
     }
 
-    if (domainLength > 0 && aDomain[domainLength - 1] == kLabelSeparatorChar)
+    if (domainLength > 0 && aDomain[domainLength - 1] == kLabelSeperatorChar)
     {
         domainEndsWithDot = true;
         --domainLength;
@@ -683,7 +655,7 @@ bool Name::IsSubDomainOf(const char *aName, const char *aDomain)
 
     if (nameLength > domainLength)
     {
-        VerifyOrExit(aName[-1] == kLabelSeparatorChar);
+        VerifyOrExit(aName[-1] == kLabelSeperatorChar);
     }
 
     // This method allows either `aName` or `aDomain` to include or
@@ -709,11 +681,6 @@ bool Name::IsSubDomainOf(const char *aName, const char *aDomain)
 
 exit:
     return match;
-}
-
-bool Name::IsSameDomain(const char *aDomain1, const char *aDomain2)
-{
-    return IsSubDomainOf(aDomain1, aDomain2) && IsSubDomainOf(aDomain2, aDomain1);
 }
 
 Error ResourceRecord::ParseRecords(const Message &aMessage, uint16_t &aOffset, uint16_t aNumRecords)
@@ -768,11 +735,11 @@ exit:
     return error;
 }
 
-Error ResourceRecord::FindRecord(const Message  &aMessage,
-                                 uint16_t       &aOffset,
+Error ResourceRecord::FindRecord(const Message & aMessage,
+                                 uint16_t &      aOffset,
                                  uint16_t        aNumRecords,
                                  uint16_t        aIndex,
-                                 const Name     &aName,
+                                 const Name &    aName,
                                  uint16_t        aType,
                                  ResourceRecord &aRecord,
                                  uint16_t        aMinRecordSize)
@@ -827,8 +794,8 @@ exit:
     return error;
 }
 
-Error ResourceRecord::ReadRecord(const Message  &aMessage,
-                                 uint16_t       &aOffset,
+Error ResourceRecord::ReadRecord(const Message & aMessage,
+                                 uint16_t &      aOffset,
                                  uint16_t        aType,
                                  ResourceRecord &aRecord,
                                  uint16_t        aMinRecordSize)
@@ -861,9 +828,9 @@ exit:
 }
 
 Error ResourceRecord::ReadName(const Message &aMessage,
-                               uint16_t      &aOffset,
+                               uint16_t &     aOffset,
                                uint16_t       aStartOffset,
-                               char          *aNameBuffer,
+                               char *         aNameBuffer,
                                uint16_t       aNameBufferSize,
                                bool           aSkipRecord) const
 {
@@ -951,7 +918,7 @@ Error TxtEntry::Iterator::GetNextEntry(TxtEntry &aEntry)
     uint8_t     length;
     uint8_t     index;
     const char *cur;
-    char       *keyBuffer = GetKeyBuffer();
+    char *      keyBuffer = GetKeyBuffer();
 
     static_assert(sizeof(mChar) == TxtEntry::kMaxKeyLength + 1, "KeyBuffer cannot fit the max key length");
 
@@ -1061,14 +1028,14 @@ exit:
     return error;
 }
 
-Error TxtEntry::AppendEntries(const TxtEntry *aEntries, uint16_t aNumEntries, Message &aMessage)
+Error TxtEntry::AppendEntries(const TxtEntry *aEntries, uint8_t aNumEntries, Message &aMessage)
 {
     Appender appender(aMessage);
 
     return AppendEntries(aEntries, aNumEntries, appender);
 }
 
-Error TxtEntry::AppendEntries(const TxtEntry *aEntries, uint16_t aNumEntries, MutableData<kWithUint16Length> &aData)
+Error TxtEntry::AppendEntries(const TxtEntry *aEntries, uint8_t aNumEntries, MutableData<kWithUint16Length> &aData)
 {
     Error    error;
     Appender appender(aData.GetBytes(), aData.GetLength());
@@ -1080,11 +1047,11 @@ exit:
     return error;
 }
 
-Error TxtEntry::AppendEntries(const TxtEntry *aEntries, uint16_t aNumEntries, Appender &aAppender)
+Error TxtEntry::AppendEntries(const TxtEntry *aEntries, uint8_t aNumEntries, Appender &aAppender)
 {
     Error error = kErrorNone;
 
-    for (uint16_t index = 0; index < aNumEntries; index++)
+    for (uint8_t index = 0; index < aNumEntries; index++)
     {
         SuccessOrExit(error = aEntries[index].AppendTo(aAppender));
     }
@@ -1103,7 +1070,10 @@ bool AaaaRecord::IsValid(void) const
     return GetType() == Dns::ResourceRecord::kTypeAaaa && GetSize() == sizeof(*this);
 }
 
-bool KeyRecord::IsValid(void) const { return GetType() == Dns::ResourceRecord::kTypeKey; }
+bool KeyRecord::IsValid(void) const
+{
+    return GetType() == Dns::ResourceRecord::kTypeKey;
+}
 
 #if OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
 void Ecdsa256KeyRecord::Init(void)
@@ -1124,75 +1094,16 @@ bool SigRecord::IsValid(void) const
     return GetType() == Dns::ResourceRecord::kTypeSig && GetLength() >= sizeof(*this) - sizeof(ResourceRecord);
 }
 
-void LeaseOption::InitAsShortVariant(uint32_t aLeaseInterval)
-{
-    SetOptionCode(kUpdateLease);
-    SetOptionLength(kShortLength);
-    SetLeaseInterval(aLeaseInterval);
-}
-
-void LeaseOption::InitAsLongVariant(uint32_t aLeaseInterval, uint32_t aKeyLeaseInterval)
-{
-    SetOptionCode(kUpdateLease);
-    SetOptionLength(kLongLength);
-    SetLeaseInterval(aLeaseInterval);
-    SetKeyLeaseInterval(aKeyLeaseInterval);
-}
-
 bool LeaseOption::IsValid(void) const
 {
-    bool isValid = false;
-
-    VerifyOrExit((GetOptionLength() == kShortLength) || (GetOptionLength() >= kLongLength));
-    isValid = (GetLeaseInterval() <= GetKeyLeaseInterval());
-
-exit:
-    return isValid;
-}
-
-Error LeaseOption::ReadFrom(const Message &aMessage, uint16_t aOffset, uint16_t aLength)
-{
-    Error    error = kErrorNone;
-    uint16_t endOffset;
-
-    VerifyOrExit(static_cast<uint32_t>(aOffset) + aLength <= aMessage.GetLength(), error = kErrorParse);
-
-    endOffset = aOffset + aLength;
-
-    while (aOffset < endOffset)
-    {
-        uint16_t size;
-
-        SuccessOrExit(error = aMessage.Read(aOffset, this, sizeof(Option)));
-
-        VerifyOrExit(aOffset + GetSize() <= endOffset, error = kErrorParse);
-
-        size = static_cast<uint16_t>(GetSize());
-
-        if (GetOptionCode() == kUpdateLease)
-        {
-            VerifyOrExit(GetOptionLength() >= kShortLength, error = kErrorParse);
-
-            IgnoreError(aMessage.Read(aOffset, this, Min(size, static_cast<uint16_t>(sizeof(LeaseOption)))));
-            VerifyOrExit(IsValid(), error = kErrorParse);
-
-            ExitNow();
-        }
-
-        aOffset += size;
-    }
-
-    error = kErrorNotFound;
-
-exit:
-    return error;
+    return GetLeaseInterval() <= GetKeyLeaseInterval();
 }
 
 Error PtrRecord::ReadPtrName(const Message &aMessage,
-                             uint16_t      &aOffset,
-                             char          *aLabelBuffer,
+                             uint16_t &     aOffset,
+                             char *         aLabelBuffer,
                              uint8_t        aLabelBufferSize,
-                             char          *aNameBuffer,
+                             char *         aNameBuffer,
                              uint16_t       aNameBufferSize) const
 {
     Error    error       = kErrorNone;
@@ -1218,18 +1129,17 @@ exit:
 }
 
 Error TxtRecord::ReadTxtData(const Message &aMessage,
-                             uint16_t      &aOffset,
-                             uint8_t       *aTxtBuffer,
-                             uint16_t      &aTxtBufferSize) const
+                             uint16_t &     aOffset,
+                             uint8_t *      aTxtBuffer,
+                             uint16_t &     aTxtBufferSize) const
 {
     Error error = kErrorNone;
 
-    SuccessOrExit(error = aMessage.Read(aOffset, aTxtBuffer, Min(GetLength(), aTxtBufferSize)));
-    aOffset += GetLength();
-
     VerifyOrExit(GetLength() <= aTxtBufferSize, error = kErrorNoBufs);
+    SuccessOrExit(error = aMessage.Read(aOffset, aTxtBuffer, GetLength()));
+    VerifyOrExit(VerifyTxtData(aTxtBuffer, GetLength(), /* aAllowEmpty */ true), error = kErrorParse);
     aTxtBufferSize = GetLength();
-    VerifyOrExit(VerifyTxtData(aTxtBuffer, aTxtBufferSize, /* aAllowEmpty */ true), error = kErrorParse);
+    aOffset += GetLength();
 
 exit:
     return error;

@@ -40,7 +40,6 @@
 
 #include <openthread/dataset_updater.h>
 
-#include "common/callback.hpp"
 #include "common/locator.hpp"
 #include "common/message.hpp"
 #include "common/non_copyable.hpp"
@@ -53,7 +52,7 @@ namespace ot {
 namespace MeshCoP {
 
 /**
- * Implements the Dataset Updater.
+ * This class implements the Dataset Updater.
  *
  */
 class DatasetUpdater : public InstanceLocator, private NonCopyable
@@ -62,7 +61,7 @@ class DatasetUpdater : public InstanceLocator, private NonCopyable
 
 public:
     /**
-     * Initializes a `DatasetUpdater` object.
+     * This constructor initializes a `DatasetUpdater` object.
      *
      * @param[in]   aInstance  A reference to the OpenThread instance.
      *
@@ -70,16 +69,16 @@ public:
     explicit DatasetUpdater(Instance &aInstance);
 
     /**
-     * Represents the callback function pointer which is called when a Dataset update request finishes,
+     * This type represents the callback function pointer which is called when a Dataset update request finishes,
      * reporting success or failure status of the request.
      *
-     * The function pointer has the syntax `void (*UpdaterCallback)(Error aError, void *aContext)`.
+     * The function pointer has the syntax `void (*Callback)(Error aError, void *aContext)`.
      *
      */
-    typedef otDatasetUpdaterCallback UpdaterCallback;
+    typedef otDatasetUpdaterCallback Callback;
 
     /**
-     * Requests an update to Operational Dataset.
+     * This method requests an update to Operational Dataset.
      *
      * @p aDataset should contain the fields to be updated and their new value. It must not contain Active or Pending
      * Timestamp fields. The Delay field is optional, if not provided a default value (`kDefaultDelay`) would be used.
@@ -95,16 +94,16 @@ public:
      * @retval kErrorNoBufs         Could not allocated buffer to save Dataset.
      *
      */
-    Error RequestUpdate(const Dataset::Info &aDataset, UpdaterCallback aCallback, void *aContext);
+    Error RequestUpdate(const Dataset::Info &aDataset, Callback aCallback, void *aContext);
 
     /**
-     * Cancels an ongoing (if any) Operational Dataset update request.
+     * This method cancels an ongoing (if any) Operational Dataset update request.
      *
      */
     void CancelUpdate(void);
 
     /**
-     * Indicates whether there is an ongoing Operation Dataset update request.
+     * This method indicates whether there is an ongoing Operation Dataset update request.
      *
      * @retval TRUE    There is an ongoing update.
      * @retval FALSE   There is no ongoing update.
@@ -119,16 +118,16 @@ private:
     // Retry interval (in ms) when preparing and/or sending Pending Dataset fails.
     static constexpr uint32_t kRetryInterval = 1000;
 
-    void HandleTimer(void);
-    void PreparePendingDataset(void);
-    void Finish(Error aError);
-    void HandleNotifierEvents(Events aEvents);
+    static void HandleTimer(Timer &aTimer);
+    void        HandleTimer(void);
+    void        PreparePendingDataset(void);
+    void        Finish(Error aError);
+    void        HandleNotifierEvents(Events aEvents);
 
-    using UpdaterTimer = TimerMilliIn<DatasetUpdater, &DatasetUpdater::HandleTimer>;
-
-    Callback<UpdaterCallback> mCallback;
-    UpdaterTimer              mTimer;
-    Message                  *mDataset;
+    Callback   mCallback;
+    void *     mCallbackContext;
+    TimerMilli mTimer;
+    Message *  mDataset;
 };
 
 } // namespace MeshCoP

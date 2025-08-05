@@ -13,8 +13,6 @@ COMPONENT_OBJS := $(patsubst %.c,%.o, $(COMPONENT_SRCS))
 
 COMPONENT_SRCDIRS := cli
 
-ifeq ($(CONFIG_USE_PSRAM),1)
-CPPFLAGS += -DCFG_USE_PSRAM
-endif
+
 ##
 #CPPFLAGS += 

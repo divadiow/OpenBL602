@@ -36,9 +36,6 @@
 #define __APPLE_USE_RFC_3542
 #endif
 
-#define _GNU_SOURCE
-#include <string.h>
-
 #include "openthread-posix-config.h"
 #include "platform-posix.h"
 
@@ -68,13 +65,25 @@ namespace {
 
 constexpr size_t kMaxUdpSize = 1280;
 
-void *FdToHandle(int aFd) { return reinterpret_cast<void *>(aFd); }
+void *FdToHandle(int aFd)
+{
+    return reinterpret_cast<void *>(aFd);
+}
 
-int FdFromHandle(void *aHandle) { return static_cast<int>(reinterpret_cast<long>(aHandle)); }
+int FdFromHandle(void *aHandle)
+{
+    return static_cast<int>(reinterpret_cast<long>(aHandle));
+}
 
-bool IsLinkLocal(const struct in6_addr &aAddress) { return aAddress.s6_addr[0] == 0xfe && aAddress.s6_addr[1] == 0x80; }
+bool IsLinkLocal(const struct in6_addr &aAddress)
+{
+    return aAddress.s6_addr[0] == 0xfe && aAddress.s6_addr[1] == 0x80;
+}
 
-bool IsMulticast(const otIp6Address &aAddress) { return aAddress.mFields.m8[0] == 0xff; }
+bool IsMulticast(const otIp6Address &aAddress)
+{
+    return aAddress.mFields.m8[0] == 0xff;
+}
 
 otError transmitPacket(int aFd, uint8_t *aPayload, uint16_t aLength, const otMessageInfo &aMessageInfo)
 {
@@ -89,7 +98,7 @@ otError transmitPacket(int aFd, uint8_t *aPayload, uint16_t aLength, const otMes
     size_t              controlLength = 0;
     struct iovec        iov;
     struct msghdr       msg;
-    struct cmsghdr     *cmsg;
+    struct cmsghdr *    cmsg;
     ssize_t             rval;
     otError             error = OT_ERROR_NONE;
 
@@ -308,7 +317,7 @@ otError otPlatUdpBindToNetif(otUdpSocket *aUdpSocket, otNetifIdentifier aNetifId
 #else  // __NetBSD__ || __FreeBSD__ || __APPLE__
         unsigned int netifIndex = 0;
         VerifyOrExit(setsockopt(fd, IPPROTO_IPV6, IPV6_BOUND_IF, &netifIndex, sizeof(netifIndex)) == 0,
-                               error = OT_ERROR_FAILED);
+                     error = OT_ERROR_FAILED);
 #endif // __linux__
         break;
     }
@@ -319,7 +328,7 @@ otError otPlatUdpBindToNetif(otUdpSocket *aUdpSocket, otNetifIdentifier aNetifId
                      error = OT_ERROR_FAILED);
 #else  // __NetBSD__ || __FreeBSD__ || __APPLE__
         VerifyOrExit(setsockopt(fd, IPPROTO_IPV6, IPV6_BOUND_IF, &gNetifIndex, sizeof(gNetifIndex)) == 0,
-                               error = OT_ERROR_FAILED);
+                     error = OT_ERROR_FAILED);
 #endif // __linux__
         break;
     }
@@ -379,8 +388,8 @@ otError otPlatUdpConnect(otUdpSocket *aUdpSocket)
 
         if (getsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &netifName, &len) != 0)
         {
-                      otLogWarnPlat("Failed to read socket bound device: %s", strerror(errno));
-                      len = 0;
+            otLogWarnPlat("Failed to read socket bound device: %s", strerror(errno));
+            len = 0;
         }
 
         // There is a bug in linux that connecting to AF_UNSPEC does not disconnect.
@@ -391,11 +400,11 @@ otError otPlatUdpConnect(otUdpSocket *aUdpSocket)
 
         if (len > 0 && netifName[0] != '\0')
         {
-                      fd = FdFromHandle(aUdpSocket->mHandle);
-                      VerifyOrExit(setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &netifName, len) == 0, {
-                          otLogWarnPlat("Failed to bind to device: %s", strerror(errno));
-                          error = OT_ERROR_FAILED;
-                      });
+            fd = FdFromHandle(aUdpSocket->mHandle);
+            VerifyOrExit(setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &netifName, len) == 0, {
+                otLogWarnPlat("Failed to bind to device: %s", strerror(errno));
+                error = OT_ERROR_FAILED;
+            });
         }
 
         ExitNow();
@@ -454,7 +463,7 @@ exit:
     return error;
 }
 
-otError otPlatUdpJoinMulticastGroup(otUdpSocket        *aUdpSocket,
+otError otPlatUdpJoinMulticastGroup(otUdpSocket *       aUdpSocket,
                                     otNetifIdentifier   aNetifIdentifier,
                                     const otIp6Address *aAddress)
 {
@@ -494,7 +503,7 @@ exit:
     return error;
 }
 
-otError otPlatUdpLeaveMulticastGroup(otUdpSocket        *aUdpSocket,
+otError otPlatUdpLeaveMulticastGroup(otUdpSocket *       aUdpSocket,
                                      otNetifIdentifier   aNetifIdentifier,
                                      const otIp6Address *aAddress)
 {
@@ -574,7 +583,7 @@ void Udp::Init(const char *aIfName)
     {
         VerifyOrDie(strlen(aIfName) < sizeof(gNetifName) - 1, OT_EXIT_INVALID_ARGUMENTS);
         assert(gNetifIndex == 0);
-        strlcpy(gNetifName, aIfName, sizeof(gNetifName));
+        strcpy(gNetifName, aIfName);
         gNetifIndex = if_nametoindex(gNetifName);
         VerifyOrDie(gNetifIndex != 0, OT_EXIT_ERROR_ERRNO);
     }
@@ -582,9 +591,15 @@ void Udp::Init(const char *aIfName)
     assert(gNetifIndex != 0);
 }
 
-void Udp::SetUp(void) { Mainloop::Manager::Get().Add(*this); }
+void Udp::SetUp(void)
+{
+    Mainloop::Manager::Get().Add(*this);
+}
 
-void Udp::TearDown(void) { Mainloop::Manager::Get().Remove(*this); }
+void Udp::TearDown(void)
+{
+    Mainloop::Manager::Get().Remove(*this);
+}
 
 void Udp::Deinit(void)
 {
@@ -609,7 +624,7 @@ void Udp::Process(const otSysMainloopContext &aContext)
         if (fd > 0 && FD_ISSET(fd, &aContext.mReadFdSet))
         {
             otMessageInfo messageInfo;
-            otMessage    *message = nullptr;
+            otMessage *   message = nullptr;
             uint8_t       payload[kMaxUdpSize];
             uint16_t      length = sizeof(payload);
 

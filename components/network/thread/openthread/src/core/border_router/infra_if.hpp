@@ -51,7 +51,7 @@ namespace ot {
 namespace BorderRouter {
 
 /**
- * Represents the infrastructure network interface on a border router.
+ * This class represents the infrastructure network interface on a border router.
  *
  */
 class InfraIf : public InstanceLocator
@@ -63,7 +63,7 @@ public:
     typedef Data<kWithUint16Length> Icmp6Packet; ///< An IMCPv6 packet (data containing the IP payload)
 
     /**
-     * Initializes the `InfraIf`.
+     * This constructor initializes the `InfraIf`.
      *
      * @param[in]  aInstance  A OpenThread instance.
      *
@@ -71,7 +71,7 @@ public:
     explicit InfraIf(Instance &aInstance);
 
     /**
-     * Initializes the `InfraIf`.
+     * This method initializes the `InfraIf`.
      *
      * @param[in]  aIfIndex        The infrastructure interface index.
      *
@@ -83,13 +83,13 @@ public:
     Error Init(uint32_t aIfIndex);
 
     /**
-     * Deinitilaizes the `InfraIf`.
+     * This method deinitilaizes the `InfraIf`.
      *
      */
     void Deinit(void);
 
     /**
-     * Indicates whether or not the `InfraIf` is initialized.
+     * This method indicates whether or not the `InfraIf` is initialized.
      *
      * @retval TRUE    The `InfraIf` is initialized.
      * @retval FALSE   The `InfraIf` is not initialized.
@@ -98,7 +98,7 @@ public:
     bool IsInitialized(void) const { return mInitialized; }
 
     /**
-     * Indicates whether or not the infra interface is running.
+     * This method indicates whether or not the infra interface is running.
      *
      * @retval TRUE   The infrastructure interface is running.
      * @retval FALSE  The infrastructure interface is not running.
@@ -107,7 +107,7 @@ public:
     bool IsRunning(void) const { return mIsRunning; }
 
     /**
-     * Returns the infrastructure interface index.
+     * This method returns the infrastructure interface index.
      *
      * @returns The interface index or zero if not initialized.
      *
@@ -115,17 +115,9 @@ public:
     uint32_t GetIfIndex(void) const { return mIfIndex; }
 
     /**
-     * Sets the infrastructure interface index.
+     * This method indicates whether or not the infra interface has the given IPv6 address assigned.
      *
-     * @param[in]  aIfIndex        The infrastructure interface index.
-     *
-     */
-    void SetIfIndex(uint32_t aIfIndex) { mIfIndex = aIfIndex; }
-
-    /**
-     * Indicates whether or not the infra interface has the given IPv6 address assigned.
-     *
-     * MUST be used when interface is initialized.
+     * This method MUST be used when interface is initialized.
      *
      * @param[in]  aAddress       The IPv6 address.
      *
@@ -133,12 +125,12 @@ public:
      * @retval FALSE  The infrastructure interface does not have @p aAddress.
      *
      */
-    bool HasAddress(const Ip6::Address &aAddress) const;
+    bool HasAddress(const Ip6::Address &aAddress);
 
     /**
-     * Sends an ICMPv6 Neighbor Discovery packet on the infrastructure interface.
+     * This method sends an ICMPv6 Neighbor Discovery packet on the infrastructure interface.
      *
-     * MUST be used when interface is initialized.
+     * This method MUST be used when interface is initialized.
      *
      * @param[in]  aPacket        The ICMPv6 packet to send.
      * @param[in]  aDestination   The destination address.
@@ -147,10 +139,10 @@ public:
      * @retval kErrorFailed  Failed to send the ICMPv6 message.
      *
      */
-    Error Send(const Icmp6Packet &aPacket, const Ip6::Address &aDestination) const;
+    Error Send(const Icmp6Packet &aPacket, const Ip6::Address &aDestination);
 
     /**
-     * Processes a received ICMPv6 Neighbor Discovery packet from an infrastructure interface.
+     * This method processes a received ICMPv6 Neighbor Discovery packet from an infrastructure interface.
      *
      * @param[in]  aIfIndex       The infrastructure interface index on which the ICMPv6 message is received.
      * @param[in]  aSource        The IPv6 source address.
@@ -160,27 +152,7 @@ public:
     void HandledReceived(uint32_t aIfIndex, const Ip6::Address &aSource, const Icmp6Packet &aPacket);
 
     /**
-     * Sends a request to discover the NAT64 prefix on the infrastructure interface.
-     *
-     * @note  This method MUST be used when interface is initialized.
-     *
-     * @retval  kErrorNone    Successfully request NAT64 prefix discovery.
-     * @retval  kErrorFailed  Failed to request NAT64 prefix discovery.
-     *
-     */
-    Error DiscoverNat64Prefix(void) const;
-
-    /**
-     * Processes the discovered NAT64 prefix.
-     *
-     * @param[in]  aIfIndex    The infrastructure interface index on which the host address is received.
-     * @param[in]  aPrefix     The NAT64 prefix on the infrastructure link.
-     *
-     */
-    void DiscoverNat64PrefixDone(uint32_t aIfIndex, const Ip6::Prefix &aPrefix);
-
-    /**
-     * Handles infrastructure interface state changes.
+     * This method handles infrastructure interface state changes.
      *
      * @param[in]  aIfIndex         The infrastructure interface index.
      * @param[in]  aIsRunning       A boolean that indicates whether the infrastructure interface is running.
@@ -193,7 +165,7 @@ public:
     Error HandleStateChanged(uint32_t aIfIndex, bool aIsRunning);
 
     /**
-     * Converts the `InfraIf` to a human-readable string.
+     * This method converts the `InfraIf` to a human-readable string.
      *
      * @returns The string representation of `InfraIf`.
      *

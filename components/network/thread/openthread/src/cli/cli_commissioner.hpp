@@ -46,10 +46,10 @@ namespace ot {
 namespace Cli {
 
 /**
- * Implements the Commissioner CLI interpreter.
+ * This class implements the Commissioner CLI interpreter.
  *
  */
-class Commissioner : private Output
+class Commissioner : private OutputWrapper
 {
 public:
     typedef Utils::CmdLineParser::Arg Arg;
@@ -57,25 +57,18 @@ public:
     /**
      * Constructor
      *
-     * @param[in]  aInstance            The OpenThread Instance.
-     * @param[in]  aOutputImplementer   An `OutputImplementer`.
+     * @param[in]  aOutput The CLI console output context
      *
      */
-    Commissioner(otInstance *aInstance, OutputImplementer &aOutputImplementer)
-        : Output(aInstance, aOutputImplementer)
+    explicit Commissioner(Output &aOutput)
+        : OutputWrapper(aOutput)
     {
     }
 
     /**
-     * Processes a CLI sub-command.
+     * This method interprets a list of CLI arguments.
      *
-     * @param[in]  aArgs     An array of command line arguments.
-     *
-     * @retval OT_ERROR_NONE              Successfully executed the CLI command.
-     * @retval OT_ERROR_PENDING           The CLI command was successfully started but final result is pending.
-     * @retval OT_ERROR_INVALID_COMMAND   Invalid or unknown CLI command.
-     * @retval OT_ERROR_INVALID_ARGS      Invalid arguments.
-     * @retval ...                        Error during execution of the CLI command.
+     * @param[in]  aArgs        An array of command line arguments.
      *
      */
     otError Process(Arg aArgs[]);
@@ -94,17 +87,17 @@ private:
     void        HandleStateChanged(otCommissionerState aState);
 
     static void HandleJoinerEvent(otCommissionerJoinerEvent aEvent,
-                                  const otJoinerInfo       *aJoinerInfo,
-                                  const otExtAddress       *aJoinerId,
-                                  void                     *aContext);
+                                  const otJoinerInfo *      aJoinerInfo,
+                                  const otExtAddress *      aJoinerId,
+                                  void *                    aContext);
     void        HandleJoinerEvent(otCommissionerJoinerEvent aEvent,
-                                  const otJoinerInfo       *aJoinerInfo,
-                                  const otExtAddress       *aJoinerId);
+                                  const otJoinerInfo *      aJoinerInfo,
+                                  const otExtAddress *      aJoinerId);
 
     static void HandleEnergyReport(uint32_t       aChannelMask,
                                    const uint8_t *aEnergyList,
                                    uint8_t        aEnergyListLength,
-                                   void          *aContext);
+                                   void *         aContext);
     void        HandleEnergyReport(uint32_t aChannelMask, const uint8_t *aEnergyList, uint8_t aEnergyListLength);
 
     static void HandlePanIdConflict(uint16_t aPanId, uint32_t aChannelMask, void *aContext);

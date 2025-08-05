@@ -81,7 +81,10 @@ exit:
 //---------------------------------------------------------------------------------------------------------------------
 // PrefixTlv
 
-const NetworkDataTlv *PrefixTlv::FindSubTlv(Type aType) const { return Find(GetSubTlvs(), GetNext(), aType); }
+const NetworkDataTlv *PrefixTlv::FindSubTlv(Type aType) const
+{
+    return Find(GetSubTlvs(), GetNext(), aType);
+}
 
 const NetworkDataTlv *PrefixTlv::FindSubTlv(Type aType, bool aStable) const
 {

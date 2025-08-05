@@ -47,10 +47,6 @@ Error MeshForwarder::SendMessage(Message &aMessage)
     mSendQueue.Enqueue(aMessage);
     mScheduleTransmissionTask.Post();
 
-#if (OPENTHREAD_CONFIG_MAX_FRAMES_IN_DIRECT_TX_QUEUE > 0)
-    ApplyDirectTxQueueLimit(aMessage);
-#endif
-
     return kErrorNone;
 }
 

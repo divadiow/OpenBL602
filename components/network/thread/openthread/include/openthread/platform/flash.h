@@ -38,7 +38,7 @@ extern "C" {
 #endif
 
 /**
- * Initializes the flash driver.
+ * This function initializes the flash driver.
  *
  * @param[in] aInstance  The OpenThread instance structure.
  *
@@ -46,7 +46,7 @@ extern "C" {
 void otPlatFlashInit(otInstance *aInstance);
 
 /**
- * Gets the size of the swap space.
+ * This function gets the size of the swap space.
  *
  * @param[in] aInstance  The OpenThread instance structure.
  *
@@ -56,7 +56,7 @@ void otPlatFlashInit(otInstance *aInstance);
 uint32_t otPlatFlashGetSwapSize(otInstance *aInstance);
 
 /**
- * Erases the swap space indicated by @p aSwapIndex.
+ * This function erases the swap space indicated by @p aSwapIndex.
  *
  * @param[in] aInstance   The OpenThread instance structure.
  * @param[in] aSwapIndex  A value in [0, 1] that indicates the swap space.
@@ -65,7 +65,7 @@ uint32_t otPlatFlashGetSwapSize(otInstance *aInstance);
 void otPlatFlashErase(otInstance *aInstance, uint8_t aSwapIndex);
 
 /**
- * Reads @p aSize bytes into @p aData.
+ * This function reads @p aSize bytes into @p aData.
  *
  * @param[in]  aInstance   The OpenThread instance structure.
  * @param[in]  aSwapIndex  A value in [0, 1] that indicates the swap space.
@@ -77,7 +77,7 @@ void otPlatFlashErase(otInstance *aInstance, uint8_t aSwapIndex);
 void otPlatFlashRead(otInstance *aInstance, uint8_t aSwapIndex, uint32_t aOffset, void *aData, uint32_t aSize);
 
 /**
- * Writes @p aSize bytes from @p aData.
+ * This function writes @p aSize bytes from @p aData.
  *
  * @param[in]  aInstance   The OpenThread instance structure.
  * @param[in]  aSwapIndex  A value in [0, 1] that indicates the swap space.

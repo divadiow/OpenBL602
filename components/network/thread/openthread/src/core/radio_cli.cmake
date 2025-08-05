@@ -54,6 +54,5 @@ endif()
 target_link_libraries(openthread-radio-cli
     PRIVATE
         ${OT_MBEDTLS_RCP}
-        ot-config-radio
         ot-config
 )

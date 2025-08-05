@@ -46,20 +46,20 @@
 namespace ot {
 
 /**
- * Implements handling Announce Begin Requests.
+ * This class implements handling Announce Begin Requests.
  *
  */
 class AnnounceBeginClient : public InstanceLocator
 {
 public:
     /**
-     * Initializes the object.
+     * This constructor initializes the object.
      *
      */
     explicit AnnounceBeginClient(Instance &aInstance);
 
     /**
-     * Sends a Announce Begin message.
+     * This method sends a Announce Begin message.
      *
      * @param[in]  aChannelMask   The channel mask value.
      * @param[in]  aCount         The number of Announce messages sent per channel.

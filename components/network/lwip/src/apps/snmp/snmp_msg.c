@@ -813,7 +813,8 @@ snmp_parse_inbound_frame(struct snmp_request *request)
 
     /* SNMPv3 doesn't use communities */
     /* @todo: Differentiate read/write access */
-    strlcpy((char *)request->community, snmp_community, SNMP_MAX_COMMUNITY_STR_LEN + 1);
+    strncpy((char *)request->community, snmp_community, SNMP_MAX_COMMUNITY_STR_LEN);
+    request->community[SNMP_MAX_COMMUNITY_STR_LEN] = 0; /* ensure NULL termination (strncpy does NOT guarantee it!) */
     request->community_strlen = (u16_t)strnlen((char *)request->community, SNMP_MAX_COMMUNITY_STR_LEN);
 
     /* RFC3414 globalData */

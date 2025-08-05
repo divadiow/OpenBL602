@@ -85,28 +85,28 @@ void RadioSelector::NeighborInfo::PopulateMultiRadioInfo(MultiRadioInfo &aInfo)
 LogLevel RadioSelector::UpdatePreference(Neighbor &aNeighbor, Mac::RadioType aRadioType, int16_t aDifference)
 {
     uint8_t old        = aNeighbor.GetRadioPreference(aRadioType);
-    int16_t preference = static_cast<int16_t>(old);
+    int16_t preferecne = static_cast<int16_t>(old);
 
-    preference += aDifference;
+    preferecne += aDifference;
 
-    if (preference > kMaxPreference)
+    if (preferecne > kMaxPreference)
     {
-        preference = kMaxPreference;
+        preferecne = kMaxPreference;
     }
 
-    if (preference < kMinPreference)
+    if (preferecne < kMinPreference)
     {
-        preference = kMinPreference;
+        preferecne = kMinPreference;
     }
 
-    aNeighbor.SetRadioPreference(aRadioType, static_cast<uint8_t>(preference));
+    aNeighbor.SetRadioPreference(aRadioType, static_cast<uint8_t>(preferecne));
 
     // We check whether the update to the preference value caused it
     // to cross the threshold `kHighPreference`. Based on this we
     // return a suggested log level. If there is cross, suggest info
     // log level, otherwise debug log level.
 
-    return ((old >= kHighPreference) != (preference >= kHighPreference)) ? kLogLevelInfo : kLogLevelDebg;
+    return ((old >= kHighPreference) != (preferecne >= kHighPreference)) ? kLogLevelInfo : kLogLevelDebg;
 }
 
 void RadioSelector::UpdateOnReceive(Neighbor &aNeighbor, Mac::RadioType aRadioType, bool aIsDuplicate)
@@ -134,7 +134,7 @@ void RadioSelector::UpdateOnSendDone(Mac::TxFrame &aFrame, Error aTxError)
     LogLevel       logLevel  = kLogLevelInfo;
     Mac::RadioType radioType = aFrame.GetRadioType();
     Mac::Address   macDest;
-    Neighbor      *neighbor;
+    Neighbor *     neighbor;
 
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
     if (radioType == Mac::kRadioTypeTrel)
@@ -257,7 +257,7 @@ Mac::RadioType RadioSelector::Select(Mac::RadioTypes aRadioOptions, const Neighb
 
 Mac::TxFrame &RadioSelector::SelectRadio(Message &aMessage, const Mac::Address &aMacDest, Mac::TxFrames &aTxFrames)
 {
-    Neighbor       *neighbor;
+    Neighbor *      neighbor;
     Mac::RadioType  selectedRadio;
     Mac::RadioTypes selections;
 
@@ -358,7 +358,7 @@ Mac::RadioType RadioSelector::SelectPollFrameRadio(const Neighbor &aParent)
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
 
 void RadioSelector::Log(LogLevel        aLogLevel,
-                        const char     *aActionText,
+                        const char *    aActionText,
                         Mac::RadioType  aRadioType,
                         const Neighbor &aNeighbor)
 {
@@ -387,7 +387,9 @@ exit:
 
 #else // #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
 
-void RadioSelector::Log(LogLevel, const char *, Mac::RadioType, const Neighbor &) {}
+void RadioSelector::Log(LogLevel, const char *, Mac::RadioType, const Neighbor &)
+{
+}
 
 #endif // #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
 

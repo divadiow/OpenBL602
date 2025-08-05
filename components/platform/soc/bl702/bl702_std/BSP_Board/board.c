@@ -782,9 +782,11 @@ void system_mtimer_clock_reinit(void)
     GLB_Set_MTimer_CLK(1, GLB_MTIMER_CLK_BCLK, 7);
 }
 
-void bflb_early_init(void)
+void bflb_early_init(int select_internal_flash)
 {
-    HBN_Hw_Pu_Pd_Cfg(DISABLE);
+    if(select_internal_flash){
+        GLB_Select_Internal_Flash();
+    }
 
     AON_Set_DCDC18_Top_0(0xc, 0x3);
     PDS_Set_Clkpll_Top_Ctrl(0x0);
@@ -793,8 +795,4 @@ void bflb_early_init(void)
     AON_Set_Xtal_CapCode_Extra(1);
 
     GLB_Set_USB_CLK(0);
-
-    // Link APIs in syscalls.c
-    extern void __libc_init_array(void);
-    __libc_init_array();
 }

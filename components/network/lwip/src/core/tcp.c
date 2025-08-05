@@ -160,20 +160,10 @@ static u16_t tcp_port = TCP_LOCAL_PORT_RANGE_START;
 
 /* Incremented every coarse grained timer shot (typically every 500 ms). */
 u32_t tcp_ticks;
-
-#ifdef BL_TCP_OPTIMIZE
-static const u8_t tcp_backoff[49] =
-{ 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7,
-  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 
-  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7};
-#else
 static const u8_t tcp_backoff[13] =
 { 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7};
-#endif
-
 /* Times per slowtmr hits */
-const u8_t tcp_persist_backoff[7] = { 3, 6, 12, 24, 48, 96, 120 };
+static const u8_t tcp_persist_backoff[7] = { 3, 6, 12, 24, 48, 96, 120 };
 
 /* The TCP PCB lists. */
 
@@ -195,6 +185,7 @@ struct tcp_pcb **const tcp_pcb_lists[] = {&tcp_listen_pcbs.pcbs, &tcp_bound_pcbs
 u8_t tcp_active_pcbs_changed;
 
 /** Timer counter to handle calling slow-timer from tcp_tmr() */
+static u8_t tcp_timer;
 static u8_t tcp_timer_ctr;
 static u16_t tcp_new_port(void);
 
@@ -211,6 +202,8 @@ tcp_init(void)
 {
 #ifdef LWIP_RAND
   tcp_port = TCP_ENSURE_LOCAL_PORT_RANGE(LWIP_RAND());
+#include <stdio.h>
+  printf("-------------------->>>>>>>> LWIP tcp_port %u\r\n", tcp_port);
 #endif /* LWIP_RAND */
 }
 
@@ -239,21 +232,18 @@ tcp_free_listen(struct tcp_pcb *pcb)
 /**
  * Called periodically to dispatch TCP timers.
  */
-#if !TCP_TIMER_PRECISE_NEEDED
 void
 tcp_tmr(void)
 {
-  static u8_t tcp_timer = 0;
   /* Call tcp_fasttmr() every 250 ms */
   tcp_fasttmr();
 
   if (++tcp_timer & 1) {
-     /* Call tcp_slowtmr() every 500 ms, i.e., every other timer
-        tcp_tmr() is called. */
-     tcp_slowtmr();
-   }
+    /* Call tcp_slowtmr() every 500 ms, i.e., every other timer
+       tcp_tmr() is called. */
+    tcp_slowtmr();
+  }
 }
-#endif
 
 #if LWIP_CALLBACK_API || TCP_LISTEN_BACKLOG
 /** Called when a listen pcb is closed. Iterates one pcb list and removes the
@@ -437,8 +427,6 @@ tcp_close_shutdown_fin(struct tcp_pcb *pcb)
       if (err == ERR_OK) {
         MIB2_STATS_INC(mib2.tcpestabresets);
         pcb->state = FIN_WAIT_1;
-        pcb->fin_wait1_tmr = tcp_ticks;
-        LWIP_DEBUGF(TCP_DEBUG, ("tcp_send_fin FIN_WAIT_1"));
       }
       break;
     case CLOSE_WAIT:
@@ -1213,13 +1201,10 @@ tcp_slowtmr(void)
 
   err = ERR_OK;
 
-#if !TCP_TIMER_PRECISE_NEEDED
   ++tcp_ticks;
-#endif
   ++tcp_timer_ctr;
 
 tcp_slowtmr_start:
-  LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: ticks %ld\n", tcp_ticks));
   /* Steps through all of the active PCBs. */
   prev = NULL;
   pcb = tcp_active_pcbs;
@@ -1256,14 +1241,10 @@ tcp_slowtmr_start:
           ++pcb_remove; /* max probes reached */
         } else {
           u8_t backoff_cnt = tcp_persist_backoff[pcb->persist_backoff - 1];
-#if !TCP_TIMER_PRECISE_NEEDED
           if (pcb->persist_cnt < backoff_cnt) {
-              pcb->persist_cnt++;
+            pcb->persist_cnt++;
           }
           if (pcb->persist_cnt >= backoff_cnt) {
-#else
-          if ((tcp_ticks - pcb->persist_cnt) >= backoff_cnt) {
-#endif
             int next_slot = 1; /* increment timer to next slot */
             /* If snd_wnd is zero, send 1 byte probes */
             if (pcb->snd_wnd == 0) {
@@ -1280,11 +1261,7 @@ tcp_slowtmr_start:
               }
             }
             if (next_slot) {
-#if !TCP_TIMER_PRECISE_NEEDED
               pcb->persist_cnt = 0;
-#else
-              pcb->persist_cnt = tcp_ticks;
-#endif
               if (pcb->persist_backoff < sizeof(tcp_persist_backoff)) {
                 pcb->persist_backoff++;
               }
@@ -1292,31 +1269,16 @@ tcp_slowtmr_start:
           }
         }
       } else {
-#if !TCP_TIMER_PRECISE_NEEDED
         /* Increase the retransmission timer if it is running */
         if ((pcb->rtime >= 0) && (pcb->rtime < 0x7FFF)) {
           ++pcb->rtime;
         }
-#else
-        /* min wake time dont less than 1s */
-        if(pcb->rto == 1) {
-          pcb->rto = 2;
-        }
-#endif
 
-#if !TCP_TIMER_PRECISE_NEEDED
         if (pcb->rtime >= pcb->rto) {
+          /* Time for a retransmission. */
           LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_slowtmr: rtime %"S16_F
                                       " pcb->rto %"S16_F"\n",
                                       pcb->rtime, pcb->rto));
-#else
-
-        if ((pcb->unacked != NULL || ((pcb->unacked == NULL) && (pcb->unsent != NULL))) && (tcp_ticks - pcb->rtime) >= pcb->rto) {
-          /* Time for a retransmission. */
-          LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_slowtmr: rtime %ld"
-                                      " pcb->rto %d\n",
-                                      tcp_ticks - pcb->rtime, pcb->rto));
-#endif
           /* If prepare phase fails but we have unsent data but no unacked data,
              still execute the backoff calculations below, as this means we somehow
              failed to send segment. */
@@ -1326,21 +1288,12 @@ tcp_slowtmr_start:
             if (pcb->state != SYN_SENT) {
               u8_t backoff_idx = LWIP_MIN(pcb->nrtx, sizeof(tcp_backoff) - 1);
               int calc_rto = ((pcb->sa >> 3) + pcb->sv) << tcp_backoff[backoff_idx];
-            #ifdef BL_TCP_OPTIMIZE
-              pcb->rto = 1;
-            #else
               pcb->rto = (s16_t)LWIP_MIN(calc_rto, 0x7FFF);
-            #endif
             }
 
             /* Reset the retransmission timer. */
-#if !TCP_TIMER_PRECISE_NEEDED
             pcb->rtime = 0;
-#else
-            pcb->rtime = tcp_ticks;
-#endif
 
-            #ifndef BL_TCP_OPTIMIZE
             /* Reduce congestion window and ssthresh. */
             eff_wnd = LWIP_MIN(pcb->cwnd, pcb->snd_wnd);
             pcb->ssthresh = eff_wnd >> 1;
@@ -1351,7 +1304,6 @@ tcp_slowtmr_start:
             LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_slowtmr: cwnd %"TCPWNDSIZE_F
                                          " ssthresh %"TCPWNDSIZE_F"\n",
                                          pcb->cwnd, pcb->ssthresh));
-            #endif
             pcb->bytes_acked = 0;
 
             /* The following needs to be called AFTER cwnd is set to one
@@ -1362,26 +1314,12 @@ tcp_slowtmr_start:
       }
     }
     /* Check if this PCB has stayed too long in FIN-WAIT-2 */
-#if !TCP_TIMER_PRECISE_NEEDED
-    if (pcb->state == FIN_WAIT_1 && pcb->fin_wait1_tmr != 0) {
-        if ((u32_t)(tcp_ticks - pcb->fin_wait1_tmr) >=
-            TCP_FIN_WAIT_TIMEOUT / TCP_SLOW_INTERVAL) {
-          pcb->fin_wait1_tmr = 0;
-          ++pcb_remove;
-          LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in FIN-WAIT-1\n"));
-        }
-    }
-#endif
     if (pcb->state == FIN_WAIT_2) {
       /* If this PCB is in FIN_WAIT_2 because of SHUT_WR don't let it time out. */
       if (pcb->flags & TF_RXCLOSED) {
         /* PCB was fully closed (either through close() or SHUT_RDWR):
            normal FIN-WAIT timeout handling. */
-#if !TCP_TIMER_PRECISE_NEEDED
         if ((u32_t)(tcp_ticks - pcb->tmr) >
-#else
-        if ((u32_t)(tcp_ticks - pcb->tmr) >=
-#endif
             TCP_FIN_WAIT_TIMEOUT / TCP_SLOW_INTERVAL) {
           ++pcb_remove;
           LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in FIN-WAIT-2\n"));
@@ -1390,10 +1328,6 @@ tcp_slowtmr_start:
     }
 
     /* Check if KEEPALIVE should be sent */
-#if !TCP_TIMER_PRECISE_NEEDED
-    /* bouffalo lp change
-     * TCP_TMR Optimization, only enable tcp_tmr MAX_TCP_ONCE_RUNNING_TIME
-     **/
     if (ip_get_option(pcb, SOF_KEEPALIVE) &&
         ((pcb->state == ESTABLISHED) ||
          (pcb->state == CLOSE_WAIT))) {
@@ -1414,7 +1348,6 @@ tcp_slowtmr_start:
         }
       }
     }
-#endif
 
     /* If this PCB has queued out of sequence data, but has been
        inactive for too long, will drop the data (it will eventually
@@ -1429,11 +1362,7 @@ tcp_slowtmr_start:
 
     /* Check if this PCB has stayed too long in SYN-RCVD */
     if (pcb->state == SYN_RCVD) {
-#if !TCP_TIMER_PRECISE_NEEDED
       if ((u32_t)(tcp_ticks - pcb->tmr) >
-#else
-      if ((u32_t)(tcp_ticks - pcb->tmr) >=
-#endif
           TCP_SYN_RCVD_TIMEOUT / TCP_SLOW_INTERVAL) {
         ++pcb_remove;
         LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in SYN-RCVD\n"));
@@ -1442,17 +1371,12 @@ tcp_slowtmr_start:
 
     /* Check if this PCB has stayed too long in LAST-ACK */
     if (pcb->state == LAST_ACK) {
-#if !TCP_TIMER_PRECISE_NEEDED
       if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
-#else
-      if ((u32_t)(tcp_ticks - pcb->tmr) >= 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
-#endif
         ++pcb_remove;
         LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in LAST-ACK\n"));
       }
     }
 
-#if !TCP_TIMER_PRECISE_NEEDED
     /* Check if this PCB has stayed too lang in FIN_WAIT_1 or CLOSING */
     if (pcb->state == FIN_WAIT_1 || pcb->state == CLOSING) {
       if ((u32_t)(tcp_ticks - pcb->tmr) > LWIP_TCP_CLOSE_TIMEOUT_MS_DEFAULT / TCP_SLOW_INTERVAL) {
@@ -1460,7 +1384,6 @@ tcp_slowtmr_start:
         LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in FIN_WAIT_1/CLOSING"));
       }
     }
-#endif
 
     /* If the PCB should be removed, do it. */
     if (pcb_remove) {
@@ -1503,14 +1426,9 @@ tcp_slowtmr_start:
       pcb = pcb->next;
 
       /* We check if we should poll the connection. */
-#if !TCP_TIMER_PRECISE_NEEDED
       ++prev->polltmr;
       if (prev->polltmr >= prev->pollinterval) {
         prev->polltmr = 0;
-#else
-      if ((tcp_ticks - prev->polltmr) >= prev->pollinterval) {
-        prev->polltmr = tcp_ticks;
-#endif
         LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: polling application\n"));
         tcp_active_pcbs_changed = 0;
         TCP_EVENT_POLL(prev, err);
@@ -1534,17 +1452,12 @@ tcp_slowtmr_start:
     pcb_remove = 0;
 
     /* Check if this PCB has stayed long enough in TIME-WAIT */
-#if !TCP_TIMER_PRECISE_NEEDED
     if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
-#else
-    if ((u32_t)(tcp_ticks - pcb->tmr) >= 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
-#endif
       ++pcb_remove;
     }
 
     /* If the PCB should be removed, do it. */
     if (pcb_remove) {
-      LWIP_DEBUGF(TCP_DEBUG, ("pcb_remove for TIME-WAIT\n"));
       struct tcp_pcb *pcb2;
       tcp_pcb_purge(pcb);
       /* Remove PCB from tcp_tw_pcbs list. */
@@ -1617,81 +1530,6 @@ tcp_fasttmr_start:
     }
   }
 }
-
-#if TCP_TIMER_PRECISE_NEEDED
-/* bouffalo lp change
- * TCP_TMR Optimization, only enable tcp_tmr MAX_TCP_ONCE_RUNNING_TIME
- **/
-void tcp_keepalive_tmr(void *arg)
-{
-  struct tcp_pcb *pcb = (struct tcp_pcb *)arg;
-  if (tcp_active_pcbs == NULL || pcb == NULL) {
-    LWIP_DEBUGF(TCP_DEBUG, ("tcp_keepalive_tmr: no active pcbs\n"));
-    return;
-  }
-  u8_t pcb_remove = 0; /* flag if a PCB should be removed */
-  u8_t pcb_reset = 0; /* flag if a RST should be sent when removing */
-  err_t err = ERR_OK;
-
-tcp_keepalive_start:
-  if (pcb != NULL) {
-    /* Check if KEEPALIVE should be sent */
-    if (ip_get_option(pcb, SOF_KEEPALIVE)
-          && ((pcb->state == ESTABLISHED) || (pcb->state == CLOSE_WAIT))) {
-      if ((u32_t)pcb->keep_cnt_sent > TCP_KEEPCNT_DEFAULT) {
-        LWIP_DEBUGF(TCP_DEBUG, ("tcp_keepalive_tmr: KEEPALIVE timeout. Aborting connection to ")); ip_addr_debug_print(TCP_DEBUG, &pcb->remote_ip); LWIP_DEBUGF(TCP_DEBUG, ("\n"));
-        ++pcb_remove;
-        ++pcb_reset;
-        tcp_keepalive_timer_stop(pcb);
-      } else if ((u32_t)pcb->keep_cnt_sent <= TCP_KEEPCNT_DEFAULT) {
-        err = tcp_keepalive(pcb);
-        if (err == ERR_OK) {
-          pcb->keep_cnt_sent++;
-          tcp_keepalive_timer_start(pcb);
-        }
-      }
-    }
-
-    /* If the PCB should be removed, do it. */
-    if (pcb_remove) {
-#if LWIP_CALLBACK_API
-      tcp_err_fn err_fn = pcb->errf;
-#endif /* LWIP_CALLBACK_API */
-      void *err_arg;
-      enum tcp_state last_state;
-      tcp_pcb_purge(pcb);
-
-      /* Remove PCB from tcp_active_pcbs list. */
-      if (pcb == tcp_active_pcbs) {
-         tcp_active_pcbs = pcb->next;
-      } else {
-         struct tcp_pcb *cur = tcp_active_pcbs;
-         struct tcp_pcb *pre = NULL;
-         while (cur != pcb) {
-           pre = cur;
-           cur = cur->next;
-         }
-         pre->next = cur->next;
-      }
-
-      if (pcb_reset) {
-        tcp_rst(pcb, pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
-            pcb->local_port, pcb->remote_port);
-      }
-
-      err_arg = pcb->callback_arg;
-      last_state = pcb->state;
-      tcp_free(pcb);
-
-      tcp_active_pcbs_changed = 0;
-      TCP_EVENT_ERR(last_state, err_fn, err_arg, ERR_ABRT);
-      if (tcp_active_pcbs_changed) {
-          goto tcp_keepalive_start;
-      }
-    }
-  }
-}
-#endif
 
 /** Call tcp_output for all active pcbs that have TF_NAGLEMEMERR set */
 void
@@ -2071,16 +1909,9 @@ tcp_alloc(u8_t prio)
     pcb->mss = INITIAL_MSS;
     pcb->rto = 3000 / TCP_SLOW_INTERVAL;
     pcb->sv = 3000 / TCP_SLOW_INTERVAL;
-#if !TCP_TIMER_PRECISE_NEEDED
     pcb->rtime = -1;
-#else
-    pcb->rtime = 0;
-#endif
     pcb->cwnd = 1;
     pcb->tmr = tcp_ticks;
-#if TCP_TIMER_PRECISE_NEEDED
-    pcb->fin_wait1_tmr = 0;
-#endif
     pcb->last_timer = tcp_timer_ctr;
 
     /* RFC 5681 recommends setting ssthresh abritrarily high and gives an example
@@ -2098,13 +1929,6 @@ tcp_alloc(u8_t prio)
     /* Init KEEPALIVE timer */
     pcb->keep_idle  = TCP_KEEPIDLE_DEFAULT;
 
-#if TCP_TIMER_PRECISE_NEEDED
-    /**
-     * bouffalo lp change
-     * TCP_TMR Optimization, only enable tcp_tmr MAX_TCP_ONCE_RUNNING_TIME
-     */
-    pcb->keepalive_os_timer = NULL;
-#endif
 #if LWIP_TCP_KEEPALIVE
     pcb->keep_intvl = TCP_KEEPINTVL_DEFAULT;
     pcb->keep_cnt   = TCP_KEEPCNT_DEFAULT;
@@ -2340,11 +2164,9 @@ tcp_pcb_purge(struct tcp_pcb *pcb)
     }
 #endif /* TCP_QUEUE_OOSEQ */
 
-#if !TCP_TIMER_PRECISE_NEEDED
     /* Stop the retransmission timer as it will expect data on unacked
        queue if it fires */
     pcb->rtime = -1;
-#endif
 
     tcp_segs_free(pcb->unsent);
     tcp_segs_free(pcb->unacked);
@@ -2352,14 +2174,6 @@ tcp_pcb_purge(struct tcp_pcb *pcb)
 #if TCP_OVERSIZE
     pcb->unsent_oversize = 0;
 #endif /* TCP_OVERSIZE */
-#if TCP_TIMER_PRECISE_NEEDED
-    /**
-     * bouffalo lp change
-     * TCP_TMR Optimization, only enable tcp_tmr MAX_TCP_ONCE_RUNNING_TIME
-     */
-    pcb->keep_cnt_sent = 0;
-    tcp_keepalive_timer_stop(pcb);
-#endif
   }
 }
 

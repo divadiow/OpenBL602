@@ -108,7 +108,8 @@ lwip_gethostbyname(const char *name)
   s_hostent_addr = addr;
   s_phostent_addr[0] = &s_hostent_addr;
   s_phostent_addr[1] = NULL;
-  strlcpy(s_hostname, name, DNS_MAX_NAME_LENGTH + 1);
+  strncpy(s_hostname, name, DNS_MAX_NAME_LENGTH);
+  s_hostname[DNS_MAX_NAME_LENGTH] = 0;
   s_hostent.h_name = s_hostname;
   s_aliases = NULL;
   s_hostent.h_aliases = &s_aliases;

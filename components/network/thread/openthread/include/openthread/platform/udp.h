@@ -42,7 +42,7 @@ extern "C" {
 #endif
 
 /**
- * Initializes the UDP socket by platform.
+ * This function initializes the UDP socket by platform.
  *
  * @param[in]   aUdpSocket  A pointer to the UDP socket.
  *
@@ -53,7 +53,7 @@ extern "C" {
 otError otPlatUdpSocket(otUdpSocket *aUdpSocket);
 
 /**
- * Closes the UDP socket by platform.
+ * This function closes the UDP socket by platform.
  *
  * @param[in]   aUdpSocket  A pointer to the UDP socket.
  *
@@ -64,18 +64,18 @@ otError otPlatUdpSocket(otUdpSocket *aUdpSocket);
 otError otPlatUdpClose(otUdpSocket *aUdpSocket);
 
 /**
- * Binds the UDP socket by platform.
+ * This function binds the UDP socket by platform.
  *
  * @param[in]   aUdpSocket  A pointer to the UDP socket.
  *
- * @retval  OT_ERROR_NONE   Successfully bound UDP socket by platform.
+ * @retval  OT_ERROR_NONE   Successfully binded UDP socket by platform.
  * @retval  OT_ERROR_FAILED Failed to bind UDP socket.
  *
  */
 otError otPlatUdpBind(otUdpSocket *aUdpSocket);
 
 /**
- * Binds the UDP socket to a platform network interface.
+ * This function binds the UDP socket to a platform network interface.
  *
  * Note: only available when `OPENTHREAD_CONFIG_PLATFORM_UDP_ENABLE` is used.
  *
@@ -89,7 +89,7 @@ otError otPlatUdpBind(otUdpSocket *aUdpSocket);
 otError otPlatUdpBindToNetif(otUdpSocket *aUdpSocket, otNetifIdentifier aNetifIdentifier);
 
 /**
- * Connects UDP socket by platform.
+ * This function connects UDP socket by platform.
  *
  * @param[in]   aUdpSocket  A pointer to the UDP socket.
  *
@@ -100,20 +100,20 @@ otError otPlatUdpBindToNetif(otUdpSocket *aUdpSocket, otNetifIdentifier aNetifId
 otError otPlatUdpConnect(otUdpSocket *aUdpSocket);
 
 /**
- * Sends UDP payload by platform.
+ * This function sends UDP payload by platform.
  *
  * @param[in]   aUdpSocket      A pointer to the UDP socket.
  * @param[in]   aMessage        A pointer to the message to send.
  * @param[in]   aMessageInfo    A pointer to the message info associated with @p aMessage.
  *
  * @retval  OT_ERROR_NONE   Successfully sent by platform, and @p aMessage is freed.
- * @retval  OT_ERROR_FAILED Failed to bind UDP socket.
+ * @retval  OT_ERROR_FAILED Failed to binded UDP socket.
  *
  */
 otError otPlatUdpSend(otUdpSocket *aUdpSocket, otMessage *aMessage, const otMessageInfo *aMessageInfo);
 
 /**
- * Configures the UDP socket to join a UDP multicast group.
+ * This function configures the UDP socket to join a UDP multicast group.
  *
  * Note: only available when `OPENTHREAD_CONFIG_PLATFORM_UDP_ENABLE` is used.
  *
@@ -125,12 +125,12 @@ otError otPlatUdpSend(otUdpSocket *aUdpSocket, otMessage *aMessage, const otMess
  * @retval  OT_ERROR_FAILED Failed to join the multicast group.
  *
  */
-otError otPlatUdpJoinMulticastGroup(otUdpSocket        *aUdpSocket,
+otError otPlatUdpJoinMulticastGroup(otUdpSocket *       aUdpSocket,
                                     otNetifIdentifier   aNetifIdentifier,
                                     const otIp6Address *aAddress);
 
 /**
- * Configures the UDP socket to leave a UDP multicast group.
+ * This function configures the UDP socket to leave a UDP multicast group.
  *
  * Note: only available when `OPENTHREAD_CONFIG_PLATFORM_UDP_ENABLE` is used.
  *
@@ -142,7 +142,7 @@ otError otPlatUdpJoinMulticastGroup(otUdpSocket        *aUdpSocket,
  * @retval  OT_ERROR_FAILED Failed to leave the multicast group.
  *
  */
-otError otPlatUdpLeaveMulticastGroup(otUdpSocket        *aUdpSocket,
+otError otPlatUdpLeaveMulticastGroup(otUdpSocket *       aUdpSocket,
                                      otNetifIdentifier   aNetifIdentifier,
                                      const otIp6Address *aAddress);
 

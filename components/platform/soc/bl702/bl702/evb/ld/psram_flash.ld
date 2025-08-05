@@ -2,24 +2,22 @@ OUTPUT_ARCH( "riscv" )
 
 ENTRY( bl702_start )
 
-__EM_SIZE = DEFINED(ble_controller_init) ? (DEFINED(em_16k_init) ? 16K : 8K) : 0K;
+__EM_SIZE = DEFINED(ble_controller_init) ? 8K : 0K;
 __CACHE_SIZE = DEFINED(__CACHE_SIZE) ? __CACHE_SIZE : 16K;
 __stack_size = DEFINED(__stack_size) ? __stack_size : 2K;
-__sha_ocram_size = DEFINED(__sha_ocram_size) ? __sha_ocram_size : 128;
 
 MEMORY
 {
   flash  (rxai!w) : ORIGIN = 0x23000000, LENGTH = (2M)
-  tcm_ocram (wxa) : ORIGIN = 0x42010000 + __CACHE_SIZE, LENGTH = (64K - __CACHE_SIZE + 64K - __EM_SIZE - __stack_size - __sha_ocram_size)
-  sys_stack (wxa) : ORIGIN = 0x42030000 - __EM_SIZE - __stack_size - __sha_ocram_size, LENGTH = __stack_size
-  sha_ocram (wxa) : ORIGIN = 0x42030000 - __EM_SIZE - __sha_ocram_size, LENGTH = __sha_ocram_size
+  tcm_ocram (wxa) : ORIGIN = 0x42010000 + __CACHE_SIZE, LENGTH = (64K - __CACHE_SIZE + 64K - __EM_SIZE - __stack_size)
+  sys_stack (wxa) : ORIGIN = ORIGIN(tcm_ocram) + LENGTH(tcm_ocram), LENGTH = __stack_size
   hbnram    (wxa) : ORIGIN = 0x40010000, LENGTH = (4K)
   psram     (wxa) : ORIGIN = 0x26000000, LENGTH = (2M)
-  bugkill   (rxai!w) : ORIGIN = 0xD0000000, LENGTH = 16M
 }
 
 SECTIONS
 {
+  __stack_size = DEFINED(__stack_size) ? __stack_size : 2K;
   BOOT2_PT_ADDR = 0x4202DC00;
 
   .init :
@@ -34,19 +32,6 @@ SECTIONS
     *(.text .text.*)
     *(.gnu.linkonce.t.*)
   } >flash
-
-  .bugkiller_command :
-  {
-    PROVIDE( __bugkiller_command_start = ADDR(.bugkiller_command) );
-    PROVIDE( __bugkiller_command_end = ADDR(.bugkiller_command) + SIZEOF(.bugkiller_command) );
-    KEEP (*(.static_bugkiller_command))
-  } > bugkill
-
-  .bugkiller  :
-  {
-    KEEP (*(.bugkiller_code))
-    KEEP (*bugkiller*.o(.rodata* .text* .data* .sdata* .sbss*))
-  } > bugkill
 
   .rodata :
   {
@@ -90,12 +75,6 @@ SECTIONS
     *(.static_blogpri_code*)
     _bl_static_blogpri_code_end = .;
 
-    /* section information for components's version */
-    . = ALIGN(4);
-    _version_info_section_start = .;
-    KEEP(*(.version.*))
-    _version_info_section_end = .;
-
     *(.gnu.linkonce.r.*)
   } >flash
 
@@ -120,7 +99,7 @@ SECTIONS
   {
     PROVIDE( _hbn_load = LOADADDR(.hbn) );
     PROVIDE( _hbn_run = ADDR(.hbn) );
-    PROVIDE( _hbn_run_end = ADDR(.hbn) + SIZEOF(.hbn) );
+    PROVIDE( _hbn_run_end = ADDR(.hbn) + SIZEOF(.hbn));
 
     /* put bl702_rf_private.o in hbnram to avoid ocram conflict during rf calibration */
     *libbl702_rf.a:bl702_rf_private.o(.retention .retention_noinit)
@@ -129,16 +108,17 @@ SECTIONS
 
     /* tcm code that should be retentive after hbn wakeup */
     *libbl702_std.a:bl702_romapi.o(.tcm_code.* .sclock_rlt_code.*)
-    *libbl702_std.a:bl702_aon.o(.tcm_code.* .sclock_rlt_code.*)
     *libbl702_std.a:bl702_glb.o(.tcm_code.* .sclock_rlt_code.*)
-    *libbl702_std.a:bl702_hbn.o(.tcm_code.* .sclock_rlt_code.*)
+    *libbl702_std.a:bl702_aon.o(.tcm_code.* .sclock_rlt_code.*)
     PROVIDE ( _hbn_restore_tcm_run_end = . );
 
     /* data that should be retentive after hbn wakeup */
     *liblmac154.a:*(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
     *libbl702_std.a:*(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
+    *libhosal.a:bl_adc.o(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
     *libhosal.a:bl_gpio.o(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
-    *libhosal.a:hosal_gpio.o(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
+    *libhosal.a:bl_sys.o(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
+    *libhosal.a:bl_timer.o(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
     *libhosal.a:bl_uart.o(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
     *libhosal.a:hosal_uart.o(.sdata.* .srodata.* .sbss.* .bss.* COMMON)
     PROVIDE ( _hbn_restore_data_run_end = . );
@@ -146,43 +126,49 @@ SECTIONS
     *(.hbn_code.*)
     *(.hbn_data)
     *(.retention)
-  } >hbnram AT >flash
+  } >hbnram AT > flash
 
   .hbn_noinit (NOLOAD) :
   {
     *(.hbn_noinit)
     *(.retention_noinit)
+
+    /* PDS backup address */
+    . = ALIGN(4);
+    PROVIDE ( __ld_pds_bak_addr = . );
+    . = . + 116;
   } >hbnram
 
-  .tcmdata (NOLOAD) :
+  .rsvd (NOLOAD) :
   {
-    *(.tcm_data)
-  } >tcm_ocram
+    *(.rsvd_data)
+    *(.ble_rsvd_mem)
+  } >hbnram
 
   .tcmcode : ALIGN(4)
   {
     PROVIDE( _tcm_load = LOADADDR(.tcmcode) );
     PROVIDE( _tcm_run = ADDR(.tcmcode) );
-    PROVIDE( _tcm_run_end = ADDR(.tcmcode) + SIZEOF(.tcmcode) );
+    PROVIDE( _tcm_run_end = ADDR(.tcmcode) + SIZEOF(.tcmcode));
 
     *(.tcm_code.*)
     *(.tcm_const.*)
     *(.sclock_rlt_code.*)
     *(.sclock_rlt_const.*)
-  } >tcm_ocram AT >flash
+  } >tcm_ocram AT > flash
 
   .data : ALIGN(4)
   {
     PROVIDE( _data_load = LOADADDR(.data) );
     PROVIDE( _data_run = ADDR(.data) );
-    PROVIDE( _data_run_end = ADDR(.data) + SIZEOF(.data) );
+    PROVIDE( _data_run_end = ADDR(.data) + SIZEOF(.data));
 
     *(.pds_code.*)
     *(.data .data.*)
     *(.gnu.linkonce.d.*)
 
     . = ALIGN(8);
-    /*always put freertos under global_pointer with the following order. No change!*/
+    /*always put freetos under global_pointer with the following order. No change!*/
     PROVIDE( __global_pointer$ = . + 0x7F0 );
     KEEP(*libbl702_freertos.a:*(.sdata.*))
     KEEP(*libbl702_freertos.a:*(.sbss.*))
@@ -208,7 +194,7 @@ SECTIONS
     _bt_l2cap_fixed_chan_list_start = .;
     KEEP(*(SORT_BY_NAME("._bt_l2cap_fixed_chan.static.*")))
     _bt_l2cap_fixed_chan_list_end = .;
-  } >tcm_ocram AT >flash
+  } >tcm_ocram AT > flash
 
   .boot2 (NOLOAD) :
   {
@@ -240,31 +226,23 @@ SECTIONS
   PROVIDE( _heap2_start = 0 );
   PROVIDE( _heap2_size = 0 );
 
-  .stack (NOLOAD) : ALIGN(8)
-  {
-    PROVIDE( _sp_base = . );
-    . = . + __stack_size;
-    PROVIDE( _sp_main = . );
-    __freertos_irq_stack_top = .;
-  } >sys_stack
-
-  .sha_ocram (NOLOAD) :
-  {
-    *(.sha_ocram*)
-  } >sha_ocram
-
   .psram (NOLOAD) :
   {
-    . = ALIGN(16);
-    PROVIDE( _psram_start = . );
     *(.wifi_ram*)
     . = ALIGN(16);
-    PROVIDE( _psram_end = . );
-  } >psram
+  } > psram
 
   . = ALIGN(8);
   PROVIDE( _heap3_start = . );
   PROVIDE( _heap3_size = ORIGIN(psram) + LENGTH(psram) - _heap3_start );
+
+  .stack (NOLOAD) :
+  {
+    PROVIDE ( _sp_base = . );
+    . = . + __stack_size;
+    PROVIDE( _sp_main = . );
+    __freertos_irq_stack_top = .;
+  } > sys_stack
 
 
   /* camera driver */
@@ -292,17 +270,10 @@ SECTIONS
   PROVIDE( _ld_ram_addr2 = ORIGIN(hbnram) );
   PROVIDE( _ld_ram_size3 = SIZEOF(.stack) );
   PROVIDE( _ld_ram_addr3 = ADDR(.stack) );
-  PROVIDE( _ld_ram_sha_size = LENGTH(sha_ocram) );
-  PROVIDE( _ld_ram_sha_addr = ORIGIN(sha_ocram) );
-  PROVIDE( _ld_psram_size = LENGTH(psram) );
-  PROVIDE( _ld_psram_addr = ORIGIN(psram) );
 
   /* BOOT2 parameter */
-  PROVIDE( __boot2_pt_addr_src = BOOT2_PT_ADDR );
+  PROVIDE ( __boot2_pt_addr_src = BOOT2_PT_ADDR );
 
   /* EM size */
-  PROVIDE( __LD_CONFIG_EM_SEL = __EM_SIZE );
-
-  /* BLE_CORE_REG size */
-  PROVIDE( __LD_BLE_CORE_REG_SIZE = __EM_SIZE ? 0xA4 : 0 );
+  PROVIDE(__LD_CONFIG_EM_SEL = __EM_SIZE);
 }

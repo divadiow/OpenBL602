@@ -34,26 +34,24 @@
 #include "openthread-posix-config.h"
 
 #include <net/if.h>
-#include <openthread/nat64.h>
-#include <openthread/openthread-system.h>
 
 #include "core/common/non_copyable.hpp"
 #include "posix/platform/mainloop.hpp"
 
-#if OPENTHREAD_POSIX_CONFIG_INFRA_IF_ENABLE
+#if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
 
 namespace ot {
 namespace Posix {
 
 /**
- * Manages infrastructure network interface.
+ * This class manages infrastructure network interface.
  *
  */
 class InfraNetif : public Mainloop::Source, private NonCopyable
 {
 public:
     /**
-     * Updates the fd_set and timeout for mainloop.
+     * This method updates the fd_set and timeout for mainloop.
      *
      * @param[in,out]   aContext    A reference to the mainloop context.
      *
@@ -61,7 +59,7 @@ public:
     void Update(otSysMainloopContext &aContext) override;
 
     /**
-     * Performs infrastructure network interface processing.
+     * This method performs infrastructure network interface processing.
      *
      * @param[in]   aContext   A reference to the mainloop context.
      *
@@ -69,7 +67,7 @@ public:
     void Process(const otSysMainloopContext &aContext) override;
 
     /**
-     * Initializes the infrastructure network interface.
+     * This method initializes the infrastructure network interface.
      *
      * @note This method is called before OpenThread instance is created.
      *
@@ -79,7 +77,7 @@ public:
     void Init(const char *aIfName);
 
     /**
-     * Sets up the infrastructure network interface.
+     * This method sets up the infrastructure network interface.
      *
      * @note This method is called after OpenThread instance is created.
      *
@@ -87,7 +85,7 @@ public:
     void SetUp(void);
 
     /**
-     * Tears down the infrastructure network interface.
+     * This method tears down the infrastructure network interface.
      *
      * @note This method is called before OpenThread instance is destructed.
      *
@@ -95,7 +93,7 @@ public:
     void TearDown(void);
 
     /**
-     * Deinitializes the infrastructure network interface.
+     * This method deinitializes the infrastructure network interface.
      *
      * @note This method is called after OpenThread instance is destructed.
      *
@@ -103,29 +101,13 @@ public:
     void Deinit(void);
 
     /**
-     * Checks whether the infrastructure network interface is running.
+     * This method checks whether the infrastructure network interface is running.
      *
      */
     bool IsRunning(void) const;
 
     /**
-     * Returns the ifr_flags of the infrastructure network interface.
-     *
-     * @returns The ifr_flags of the infrastructure network interface.
-     *
-     */
-    uint32_t GetFlags(void) const;
-
-    /**
-     * This functions counts the number of addresses on the infrastructure network interface.
-     *
-     * @param[out] aAddressCounters  The counters of addresses on infrastructure network interface.
-     *
-     */
-    void CountAddresses(otSysInfraNetIfAddressCounters &aAddressCounters) const;
-
-    /**
-     * Sends an ICMPv6 Neighbor Discovery message on given infrastructure interface.
+     * This method sends an ICMPv6 Neighbor Discovery message on given infrastructure interface.
      *
      * See RFC 4861: https://tools.ietf.org/html/rfc4861.
      *
@@ -144,23 +126,11 @@ public:
      */
     otError SendIcmp6Nd(uint32_t            aInfraIfIndex,
                         const otIp6Address &aDestAddress,
-                        const uint8_t      *aBuffer,
+                        const uint8_t *     aBuffer,
                         uint16_t            aBufferLength);
 
     /**
-     * Sends an asynchronous address lookup for the well-known host name "ipv4only.arpa"
-     * to discover the NAT64 prefix.
-     *
-     * @param[in]  aInfraIfIndex  The index of the infrastructure interface the address look-up is sent to.
-     *
-     * @retval  OT_ERROR_NONE    Successfully request address look-up.
-     * @retval  OT_ERROR_FAILED  Failed to request address look-up.
-     *
-     */
-    otError DiscoverNat64Prefix(uint32_t aInfraIfIndex);
-
-    /**
-     * Gets the infrastructure network interface name.
+     * This method gets the infrastructure network interface name.
      *
      * @returns The infrastructure network interface name, or `nullptr` if not specified.
      *
@@ -168,7 +138,7 @@ public:
     const char *GetNetifName(void) const { return (mInfraIfIndex != 0) ? mInfraIfName : nullptr; }
 
     /**
-     * Gets the infrastructure network interface singleton.
+     * This function gets the infrastructure network interface singleton.
      *
      * @returns The singleton object.
      *
@@ -176,22 +146,16 @@ public:
     static InfraNetif &Get(void);
 
 private:
-    static const char         kWellKnownIpv4OnlyName[];   // "ipv4only.arpa"
-    static const otIp4Address kWellKnownIpv4OnlyAddress1; // 192.0.0.170
-    static const otIp4Address kWellKnownIpv4OnlyAddress2; // 192.0.0.171
-    static const uint8_t      kValidNat64PrefixLength[];
-
     char     mInfraIfName[IFNAMSIZ];
     uint32_t mInfraIfIndex       = 0;
     int      mInfraIfIcmp6Socket = -1;
     int      mNetLinkSocket      = -1;
 
-    void        ReceiveNetLinkMessage(void);
-    void        ReceiveIcmp6Message(void);
-    bool        HasLinkLocalAddress(void) const;
-    static void DiscoverNat64PrefixDone(union sigval sv);
+    void ReceiveNetLinkMessage(void);
+    void ReceiveIcmp6Message(void);
+    bool HasLinkLocalAddress(void) const;
 };
 
 } // namespace Posix
 } // namespace ot
-#endif // OPENTHREAD_POSIX_CONFIG_INFRA_IF_ENABLE
+#endif // OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE

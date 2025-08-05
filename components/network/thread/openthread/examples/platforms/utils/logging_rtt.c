@@ -136,7 +136,10 @@ exit:
     return;
 }
 
-void utilsLogRttDeinit(void) { sLogInitialized = false; }
+void utilsLogRttDeinit(void)
+{
+    sLogInitialized = false;
+}
 
 void utilsLogRttOutput(otLogLevel aLogLevel, otLogRegion aLogRegion, const char *aFormat, va_list ap)
 {
@@ -167,7 +170,7 @@ void utilsLogRttOutput(otLogLevel aLogLevel, otLogRegion aLogRegion, const char 
     logString[length++] = '\n';
 
     // Write user log to the RTT memory block.
-    SEGGER_RTT_WriteNoLock(LOG_RTT_BUFFER_INDEX, logString, length);
+    SEGGER_RTT_WriteNoLock(0, logString, length);
 
 exit:
     return;

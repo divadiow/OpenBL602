@@ -36,7 +36,6 @@
 #define CONFIG_NETDATA_PUBLISHER_H_
 
 #include "config/border_router.h"
-#include "config/border_routing.h"
 #include "config/srp_server.h"
 
 /**
@@ -148,12 +147,17 @@
 /**
  * @def OPENTHREAD_CONFIG_NETDATA_PUBLISHER_MAX_PREFIX_ENTRIES
  *
- * Specifies maximum number of prefix (on-mesh prefix or external route) entries reserved by Publisher for use by
- * user (through OT public APIs).
+ * Specifies maximum number of prefix (on-mesh prefix or external route) entries supported by Publisher.
  *
  */
 #ifndef OPENTHREAD_CONFIG_NETDATA_PUBLISHER_MAX_PREFIX_ENTRIES
+
+#if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
+#define OPENTHREAD_CONFIG_NETDATA_PUBLISHER_MAX_PREFIX_ENTRIES \
+    (OPENTHREAD_CONFIG_BORDER_ROUTING_MAX_DISCOVERED_PREFIXES + 5)
+#else
 #define OPENTHREAD_CONFIG_NETDATA_PUBLISHER_MAX_PREFIX_ENTRIES 3
+#endif
 #endif
 
 #endif // CONFIG_NETDATA_PUBLISHER_H_

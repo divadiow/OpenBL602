@@ -49,7 +49,7 @@ namespace ot {
 namespace Heap {
 
 /**
- * Represents a heap allocated array.
+ * This class represents a heap allocated array.
  *
  * The buffer to store the elements is allocated from heap and is managed by the `Heap::Array` class itself. The `Array`
  * implementation will automatically grow the buffer when new entries are added. The `Heap::Array` destructor will
@@ -69,7 +69,7 @@ public:
     using IndexType = uint16_t;
 
     /**
-     * Initializes the `Array` as empty.
+     * This constructor initializes the `Array` as empty.
      *
      */
     Array(void)
@@ -86,7 +86,7 @@ public:
     ~Array(void) { Free(); }
 
     /**
-     * Frees any buffer allocated by the `Array`.
+     * This method frees any buffer allocated by the `Array`.
      *
      * The `Array` destructor will automatically call `Free()`. This method allows caller to free buffer explicitly.
      *
@@ -100,12 +100,12 @@ public:
     }
 
     /**
-     * Clears the array.
+     * This method clears the array.
      *
      * Note that `Clear()` method (unlike `Free()`) does not free the allocated buffer and therefore does not change
      * the current capacity of the array.
      *
-     * Invokes `Type` destructor on all cleared existing elements of array.
+     * This method invokes `Type` destructor on all cleared existing elements of array.
      *
      */
     void Clear(void)
@@ -119,7 +119,7 @@ public:
     }
 
     /**
-     * Returns the current array length (number of elements in the array).
+     * This method returns the current array length (number of elements in the array).
      *
      * @returns The array length.
      *
@@ -127,7 +127,7 @@ public:
     IndexType GetLength(void) const { return mLength; }
 
     /**
-     * Returns a raw pointer to the array buffer.
+     * This method returns a raw pointer to the array buffer.
      *
      * The returned raw pointer is valid only while the `Array` remains unchanged.
      *
@@ -137,7 +137,7 @@ public:
     const Type *AsCArray(void) const { return (mLength != 0) ? mArray : nullptr; }
 
     /**
-     * Returns the current capacity of array (number of elements that can fit in current allocated buffer).
+     * This method returns the current capacity of array (number of elements that can fit in current allocated buffer).
      *
      * The allocated buffer and array capacity are automatically increased (by the `Array` itself) when new elements
      * are added to array. Removing elements does not change the buffer and the capacity. A desired capacity can be
@@ -149,7 +149,7 @@ public:
     IndexType GetCapacity(void) const { return mCapacity; }
 
     /**
-     * Allocates buffer to reserve a given capacity for array.
+     * This method allocates buffer to reserve a given capacity for array.
      *
      * If the requested @p aCapacity is smaller than the current length of the array, capacity remains unchanged.
      *
@@ -162,7 +162,7 @@ public:
     Error ReserveCapacity(IndexType aCapacity) { return Allocate(aCapacity); }
 
     /**
-     * Sets the array by taking the buffer from another given array (using move semantics).
+     * This method sets the array by taking the buffer from another given array (using move semantics).
      *
      * @param[in] aOther    The other `Heap::Array` to take from (rvalue reference).
      *
@@ -179,9 +179,9 @@ public:
     }
 
     /**
-     * Overloads the `[]` operator to get the element at a given index.
+     * This method overloads the `[]` operator to get the element at a given index.
      *
-     * Does not perform index bounds checking. Behavior is undefined if @p aIndex is not valid.
+     * This method does not perform index bounds checking. Behavior is undefined if @p aIndex is not valid.
      *
      * @param[in] aIndex  The index to get.
      *
@@ -191,9 +191,9 @@ public:
     Type &operator[](IndexType aIndex) { return mArray[aIndex]; }
 
     /**
-     * Overloads the `[]` operator to get the element at a given index.
+     * This method overloads the `[]` operator to get the element at a given index.
      *
-     * Does not perform index bounds checking. Behavior is undefined if @p aIndex is not valid.
+     * This method does not perform index bounds checking. Behavior is undefined if @p aIndex is not valid.
      *
      * @param[in] aIndex  The index to get.
      *
@@ -203,7 +203,7 @@ public:
     const Type &operator[](IndexType aIndex) const { return mArray[aIndex]; }
 
     /**
-     * Gets a pointer to the element at a given index.
+     * This method gets a pointer to the element at a given index.
      *
      * Unlike `operator[]`, this method checks @p aIndex to be valid and within the current length. The returned
      * pointer is valid only while the `Array` remains unchanged.
@@ -216,7 +216,7 @@ public:
     Type *At(IndexType aIndex) { return (aIndex < mLength) ? &mArray[aIndex] : nullptr; }
 
     /**
-     * Gets a pointer to the element at a given index.
+     * This method gets a pointer to the element at a given index.
      *
      * Unlike `operator[]`, this method checks @p aIndex to be valid and within the current length. The returned
      * pointer is valid only while the `Array` remains unchanged.
@@ -229,7 +229,7 @@ public:
     const Type *At(IndexType aIndex) const { return (aIndex < mLength) ? &mArray[aIndex] : nullptr; }
 
     /**
-     * Gets a pointer to the element at the front of the array (first element).
+     * This method gets a pointer to the element at the front of the array (first element).
      *
      * The returned pointer is valid only while the `Array` remains unchanged.
      *
@@ -239,7 +239,7 @@ public:
     Type *Front(void) { return At(0); }
 
     /**
-     * Gets a pointer to the element at the front of the array (first element).
+     * This method gets a pointer to the element at the front of the array (first element).
      *
      * The returned pointer is valid only while the `Array` remains unchanged.
      *
@@ -249,7 +249,7 @@ public:
     const Type *Front(void) const { return At(0); }
 
     /**
-     * Gets a pointer to the element at the back of the array (last element).
+     * This method gets a pointer to the element at the back of the array (last element).
      *
      * The returned pointer is valid only while the `Array` remains unchanged.
      *
@@ -259,7 +259,7 @@ public:
     Type *Back(void) { return (mLength > 0) ? &mArray[mLength - 1] : nullptr; }
 
     /**
-     * Gets a pointer to the element at the back of the array (last element).
+     * This method gets a pointer to the element at the back of the array (last element).
      *
      * The returned pointer is valid only while the `Array` remains unchanged.
      *
@@ -269,9 +269,9 @@ public:
     const Type *Back(void) const { return (mLength > 0) ? &mArray[mLength - 1] : nullptr; }
 
     /**
-     * Appends a new entry to the end of the array.
+     * This method appends a new entry to the end of the array.
      *
-     * Requires the `Type` to provide a copy constructor of format `Type(const Type &aOther)` to init the
+     * This method requires the `Type` to provide a copy constructor of format `Type(const Type &aOther)` to init the
      * new element in the array from @p aEntry.
      *
      * @param[in] aEntry     The new entry to push back.
@@ -296,9 +296,9 @@ public:
     }
 
     /**
-     * Appends a new entry to the end of the array.
+     * This method appends a new entry to the end of the array.
      *
-     * Requires the `Type` to provide a copy constructor of format `Type(Type &&aOther)` to init the
+     * This method requires the `Type` to provide a copy constructor of format `Type(Type &&aOther)` to init the
      * new element in the array from @p aEntry.
      *
      * @param[in] aEntry     The new entry to push back (an rvalue reference)
@@ -323,7 +323,7 @@ public:
     }
 
     /**
-     * Appends a new entry to the end of the array.
+     * This method appends a new entry to the end of the array.
      *
      * On success, this method returns a pointer to the newly appended element in the array for the caller to
      * initialize and use. This method uses the `Type(void)` default constructor on the newly appended element (if not
@@ -350,9 +350,9 @@ public:
     }
 
     /**
-     * Removes the last element in the array.
+     * This method removes the last element in the array.
      *
-     * Will invoke the `Type` destructor on the removed element.
+     * This method will invoke the `Type` destructor on the removed element.
      *
      */
     void PopBack(void)
@@ -365,7 +365,7 @@ public:
     }
 
     /**
-     * Returns the index of an element in the array.
+     * This method returns the index of an element in the array.
      *
      * The @p aElement MUST be from the array, otherwise the behavior of this method is undefined.
      *
@@ -377,9 +377,9 @@ public:
     IndexType IndexOf(const Type &aElement) const { return static_cast<IndexType>(&aElement - mArray); }
 
     /**
-     * Finds the first match of a given entry in the array.
+     * This method finds the first match of a given entry in the array.
      *
-     * Uses `==` operator on `Type` to compare the array element with @p aEntry. The returned pointer is
+     * This method uses `==` operator on `Type` to compare the array element with @p aEntry. The returned pointer is
      * valid only while the `Array` remains unchanged.
      *
      * @param[in] aEntry   The entry to search for within the array.
@@ -390,9 +390,9 @@ public:
     Type *Find(const Type &aEntry) { return AsNonConst(AsConst(this)->Find(aEntry)); }
 
     /**
-     * Finds the first match of a given entry in the array.
+     * This method finds the first match of a given entry in the array.
      *
-     * Uses `==` operator to compare the array elements with @p aEntry. The returned pointer is valid only
+     * This method uses `==` operator to compare the array elements with @p aEntry. The returned pointer is valid only
      * while the `Array` remains unchanged.
      *
      * @param[in] aEntry   The entry to search for within the array.
@@ -417,9 +417,9 @@ public:
     }
 
     /**
-     * Indicates whether or not a match to given entry exists in the array.
+     * This method indicates whether or not a match to given entry exists in the array.
      *
-     * Uses `==` operator on `Type` to compare the array elements with @p aEntry.
+     * This method uses `==` operator on `Type` to compare the array elements with @p aEntry.
      *
      * @param[in] aEntry   The entry to search for within the array.
      *
@@ -430,7 +430,7 @@ public:
     bool Contains(const Type &aEntry) const { return Find(aEntry) != nullptr; }
 
     /**
-     * Finds the first element in the array matching a given indicator.
+     * This template method finds the first element in the array matching a given indicator.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against elements
      * in the array. To check that an element matches the given indicator, the `Matches()` method is invoked on each
@@ -451,7 +451,7 @@ public:
     }
 
     /**
-     * Finds the first element in the array matching a given indicator.
+     * This template method finds the first element in the array matching a given indicator.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against elements
      * in the array. To check that an element matches the given indicator, the `Matches()` method is invoked on each
@@ -483,7 +483,7 @@ public:
     }
 
     /**
-     * Indicates whether or not the array contains an element matching a given indicator.
+     * This template method indicates whether or not the array contains an element matching a given indicator.
      *
      * The template type `Indicator` specifies the type of @p aIndicator object which is used to match against elements
      * in the array. To check that an element matches the given indicator, the `Matches()` method is invoked on each
@@ -506,12 +506,12 @@ public:
     // loop iteration over the array elements and should not be used
     // directly.
 
-    Type       *begin(void) { return (mLength > 0) ? mArray : nullptr; }
-    Type       *end(void) { return (mLength > 0) ? &mArray[mLength] : nullptr; }
+    Type *      begin(void) { return (mLength > 0) ? mArray : nullptr; }
+    Type *      end(void) { return (mLength > 0) ? &mArray[mLength] : nullptr; }
     const Type *begin(void) const { return (mLength > 0) ? mArray : nullptr; }
     const Type *end(void) const { return (mLength > 0) ? &mArray[mLength] : nullptr; }
 
-    Array(const Array &)            = delete;
+    Array(const Array &) = delete;
     Array &operator=(const Array &) = delete;
 
 private:
@@ -538,7 +538,7 @@ private:
         return error;
     }
 
-    Type     *mArray;
+    Type *    mArray;
     IndexType mLength;
     IndexType mCapacity;
 };

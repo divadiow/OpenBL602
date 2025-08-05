@@ -4110,13 +4110,6 @@ int bt_le_scan_update(bool fast_scan)
 		//atomic_set_bit(bt_dev.flags, BT_DEV_SCAN_FILTER_DUP);
 		atomic_clear_bit(bt_dev.flags, BT_DEV_SCAN_FILTER_DUP);
 
-		#if defined(BFLB_BLE_NOT_USE_BACKGROUD_SCAN_PARAMETERS_IF_NOT_ATUO_CONN_WITHOUT_WHITELIST)
-		if (!atomic_test_bit(conn->flags, BT_CONN_AUTO_CONNECT))
-		{
-			fast_scan = true;
-		}
-		#endif
-
 		bt_conn_unref(conn);
 
 		if (fast_scan) {
